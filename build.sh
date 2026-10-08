@@ -18,6 +18,6 @@ for fmt in "1080 1920 9x16" "1920 1080 16x9"; do
   # 60 fps capture → 30 fps with a 2-frame blend (180° shutter motion blur)
   ffmpeg -y -loglevel error -i "build/raw_$3.mp4" -i output/intro_mix.wav \
     -vf "tmix=frames=2:weights='1 1',fps=30,format=yuv420p" \
-    -c:v libx264 -preset slow -crf 16 -profile:v high -tune film \
+    -c:v libx264 -preset slow -crf 19 -profile:v high -tune film \
     -c:a aac -b:a 320k -ar 48000 -shortest -movflags +faststart "output/intro_$3.mp4"
 done
