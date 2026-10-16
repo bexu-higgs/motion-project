@@ -6,12 +6,12 @@
   "scripts": {
     "assets": "python3 scripts/prepare_assets.py && python3 scripts/make_sfx.py",
     "studio": "remotion studio src/index.ts",
-    "render": "remotion render src/index.ts HiggsfieldMaxTutorial out/higgsfield-max-tutorial.mp4",
+    "render": "remotion render src/index.ts HiggsfieldMaxTutorial out/render-raw.mp4 && node scripts/loudnorm.mjs out/render-raw.mp4 out/higgsfield-max-tutorial.mp4",
     "cues": "tsx scripts/export-cues.ts",
     "sync-vo": "node scripts/sync-vo.mjs",
     "timeline": "tsx scripts/print-timeline.ts",
     "typecheck": "tsc --noEmit",
-    "split-vo": "tsx scripts/split-vo.ts"
+    "align-vo": "tsx scripts/align-vo.ts"
   },
   "dependencies": {
     "@fontsource-variable/inter": "5.2.8",

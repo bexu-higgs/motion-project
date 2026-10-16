@@ -1,4 +1,241 @@
 {
   "_comment": "Optional. After recording the Kazakh voiceover, put one audio file per sentence in public/vo/ (e.g. public/vo/s3_2.wav) and run `npm run sync-vo` — it fills in real durations here and the whole video re-times itself to the narration. Lines missing here use an estimated reading time.",
-  "lines": {}
+  "lines": {
+    "s10_1": {
+      "duration": 1.071,
+      "file": "vo/s10_1.mp3"
+    },
+    "s10_2": {
+      "duration": 5.172,
+      "file": "vo/s10_2.mp3"
+    },
+    "s10_3": {
+      "duration": 2.795,
+      "file": "vo/s10_3.mp3"
+    },
+    "s10_4": {
+      "duration": 2.56,
+      "file": "vo/s10_4.mp3"
+    },
+    "s1_1": {
+      "duration": 0.81,
+      "file": "vo/s1_1.mp3"
+    },
+    "s1_2": {
+      "duration": 8.882,
+      "file": "vo/s1_2.mp3"
+    },
+    "s1_3": {
+      "duration": 3.866,
+      "file": "vo/s1_3.mp3"
+    },
+    "s2_1": {
+      "duration": 1.097,
+      "file": "vo/s2_1.mp3"
+    },
+    "s2_2": {
+      "duration": 3.997,
+      "file": "vo/s2_2.mp3"
+    },
+    "s2_3": {
+      "duration": 3.213,
+      "file": "vo/s2_3.mp3"
+    },
+    "s3_1": {
+      "duration": 1.123,
+      "file": "vo/s3_1.mp3"
+    },
+    "s3_2": {
+      "duration": 3.997,
+      "file": "vo/s3_2.mp3"
+    },
+    "s3_3": {
+      "duration": 1.933,
+      "file": "vo/s3_3.mp3"
+    },
+    "s3_4": {
+      "duration": 4.833,
+      "file": "vo/s3_4.mp3"
+    },
+    "s3_5": {
+      "duration": 3.918,
+      "file": "vo/s3_5.mp3"
+    },
+    "s3_6": {
+      "duration": 3.605,
+      "file": "vo/s3_6.mp3"
+    },
+    "s3_7": {
+      "duration": 6.583,
+      "file": "vo/s3_7.mp3"
+    },
+    "s3_8": {
+      "duration": 3.527,
+      "file": "vo/s3_8.mp3"
+    },
+    "s4_1": {
+      "duration": 1.019,
+      "file": "vo/s4_1.mp3"
+    },
+    "s4_2": {
+      "duration": 6.478,
+      "file": "vo/s4_2.mp3"
+    },
+    "s4_3": {
+      "duration": 4.153,
+      "file": "vo/s4_3.mp3"
+    },
+    "s4_4": {
+      "duration": 4.232,
+      "file": "vo/s4_4.mp3"
+    },
+    "s5_1": {
+      "duration": 1.019,
+      "file": "vo/s5_1.mp3"
+    },
+    "s5_2": {
+      "duration": 2.586,
+      "file": "vo/s5_2.mp3"
+    },
+    "s5_3": {
+      "duration": 2.612,
+      "file": "vo/s5_3.mp3"
+    },
+    "s5_4": {
+      "duration": 4.153,
+      "file": "vo/s5_4.mp3"
+    },
+    "s5_5": {
+      "duration": 1.646,
+      "file": "vo/s5_5.mp3"
+    },
+    "s5_6": {
+      "duration": 4.833,
+      "file": "vo/s5_6.mp3"
+    },
+    "s5_7": {
+      "duration": 3.762,
+      "file": "vo/s5_7.mp3"
+    },
+    "s5_8": {
+      "duration": 1.855,
+      "file": "vo/s5_8.mp3"
+    },
+    "s5_9": {
+      "duration": 2.638,
+      "file": "vo/s5_9.mp3"
+    },
+    "s6_1": {
+      "duration": 2.795,
+      "file": "vo/s6_1.mp3"
+    },
+    "s6_2": {
+      "duration": 4.807,
+      "file": "vo/s6_2.mp3"
+    },
+    "s6_3": {
+      "duration": 1.959,
+      "file": "vo/s6_3.mp3"
+    },
+    "s6_4": {
+      "duration": 2.743,
+      "file": "vo/s6_4.mp3"
+    },
+    "s6_5": {
+      "duration": 3.605,
+      "file": "vo/s6_5.mp3"
+    },
+    "s6_6": {
+      "duration": 6.766,
+      "file": "vo/s6_6.mp3"
+    },
+    "s7_1": {
+      "duration": 1.123,
+      "file": "vo/s7_1.mp3"
+    },
+    "s7_10": {
+      "duration": 2.769,
+      "file": "vo/s7_10.mp3"
+    },
+    "s7_11": {
+      "duration": 6.583,
+      "file": "vo/s7_11.mp3"
+    },
+    "s7_12": {
+      "duration": 5.224,
+      "file": "vo/s7_12.mp3"
+    },
+    "s7_13": {
+      "duration": 3.082,
+      "file": "vo/s7_13.mp3"
+    },
+    "s7_2": {
+      "duration": 2.325,
+      "file": "vo/s7_2.mp3"
+    },
+    "s7_3": {
+      "duration": 3.37,
+      "file": "vo/s7_3.mp3"
+    },
+    "s7_4": {
+      "duration": 2.456,
+      "file": "vo/s7_4.mp3"
+    },
+    "s7_5": {
+      "duration": 2.273,
+      "file": "vo/s7_5.mp3"
+    },
+    "s7_6": {
+      "duration": 2.717,
+      "file": "vo/s7_6.mp3"
+    },
+    "s7_7": {
+      "duration": 5.695,
+      "file": "vo/s7_7.mp3"
+    },
+    "s7_8": {
+      "duration": 2.821,
+      "file": "vo/s7_8.mp3"
+    },
+    "s7_9": {
+      "duration": 5.59,
+      "file": "vo/s7_9.mp3"
+    },
+    "s8_1": {
+      "duration": 1.071,
+      "file": "vo/s8_1.mp3"
+    },
+    "s8_2": {
+      "duration": 4.754,
+      "file": "vo/s8_2.mp3"
+    },
+    "s8_3": {
+      "duration": 2.064,
+      "file": "vo/s8_3.mp3"
+    },
+    "s8_4": {
+      "duration": 4.101,
+      "file": "vo/s8_4.mp3"
+    },
+    "s8_5": {
+      "duration": 8.673,
+      "file": "vo/s8_5.mp3"
+    },
+    "s9_1": {
+      "duration": 3.03,
+      "file": "vo/s9_1.mp3"
+    },
+    "s9_2": {
+      "duration": 6.165,
+      "file": "vo/s9_2.mp3"
+    },
+    "s9_3": {
+      "duration": 2.926,
+      "file": "vo/s9_3.mp3"
+    },
+    "s9_4": {
+      "duration": 7.027,
+      "file": "vo/s9_4.mp3"
+    }
+  }
 }

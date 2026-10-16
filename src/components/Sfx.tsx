@@ -3,6 +3,9 @@ import {Audio, Sequence, staticFile} from 'remotion';
 
 export type SfxName = 'tap' | 'pop' | 'whoosh' | 'swipe' | 'rotate' | 'toggle' | 'error' | 'success' | 'tick';
 
+/** Overall effects level under the narration (keeps the voice clearly on top). */
+const SFX_MIX = 0.7;
+
 const LEVEL: Record<SfxName, number> = {
   tap: 0.55,
   pop: 0.45,
@@ -18,6 +21,6 @@ const LEVEL: Record<SfxName, number> = {
 /** One soft UI sound at a frame (relative to the enclosing scene). */
 export const Sfx: React.FC<{name: SfxName; at: number; volume?: number}> = ({name, at, volume}) => (
   <Sequence from={Math.max(0, Math.round(at))} durationInFrames={45} layout="none" name={`sfx:${name}`}>
-    <Audio src={staticFile(`sfx/${name}.wav`)} volume={volume ?? LEVEL[name]} />
+    <Audio src={staticFile(`sfx/${name}.wav`)} volume={(volume ?? LEVEL[name]) * SFX_MIX} />
   </Sequence>
 );
