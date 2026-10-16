@@ -1,0 +1,4 @@
+{
+  "_comment": "Optional. After recording the Kazakh voiceover, put one audio file per sentence in public/vo/ (e.g. public/vo/s3_2.wav) and run `npm run sync-vo` — it fills in real durations here and the whole video re-times itself to the narration. Lines missing here use an estimated reading time.",
+  "lines": {}
+}
