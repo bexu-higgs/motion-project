@@ -1,0 +1,31 @@
+{
+  "name": "higgsfield-image-basics-kk",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Kazakh motion-design tutorial: AI image generation basics in Higgsfield (9:16, ~90s)",
+  "type": "module",
+  "dependencies": {
+    "@fontsource-variable/inter": "5.3.0",
+    "@fontsource-variable/onest": "5.3.1",
+    "@remotion/bundler": "4.0.536",
+    "@remotion/cli": "4.0.536",
+    "@remotion/renderer": "4.0.536",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "remotion": "4.0.536"
+  },
+  "devDependencies": {
+    "@types/react": "18.3.12",
+    "typescript": "5.9.3"
+  },
+  "scripts": {
+    "studio": "remotion studio",
+    "render": "remotion render HiggsfieldImageBasicsKK out/higgsfield-image-basics-kk.mp4 --codec=h264 --crf=16 --pixel-format=yuv420p --audio-bitrate=320k",
+    "stills": "node scripts/stills.mjs",
+    "check": "tsc --noEmit",
+    "audio": "python3 tools/sfx.py && python3 tools/music.py",
+    "voice": "bash tools/fetch_voice.sh && python3 tools/tts.py",
+    "voice:timing": "python3 tools/tts.py --timing-only",
+    "render:audio": "remotion render HiggsfieldImageBasicsKK out/mix.wav --codec=wav"
+  }
+}
