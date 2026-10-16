@@ -10,7 +10,8 @@
     "cues": "tsx scripts/export-cues.ts",
     "sync-vo": "node scripts/sync-vo.mjs",
     "timeline": "tsx scripts/print-timeline.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "split-vo": "tsx scripts/split-vo.ts"
   },
   "dependencies": {
     "@fontsource-variable/inter": "5.2.8",
