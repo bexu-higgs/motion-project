@@ -10,6 +10,7 @@ import {Flow, Instr, LeftScrim, Pop, StepHeader} from '../components/Text';
 import {Icon} from '../components/Icon';
 import {Sfx} from '../components/Sfx';
 import {boxCenter, regionBox, type Box, type RegionName} from '../lib/regions';
+import {T} from '../copy';
 
 export const MENU_ICON_BOX: Box = [30, 292, 70, 70];
 
@@ -113,17 +114,17 @@ export const S03Register: React.FC = () => {
         }
       />
       <LeftScrim amount={tw(cam.s, 1.05, 1.6)} />
-      <StepHeader step={2} title="Open the menu & sign up" at={2} out={end - 10} />
+      <StepHeader step={2} title={T.register.title} at={2} out={end - 10} />
 
       {/* left column: what each tap does */}
-      <Instr icon="menu" text="Tap the square menu icon" at={c.mid('s3_2', 0.3)} out={c.at('s3_5') - 6} y={400} dim={tw(f, tapMenu + 10, tapMenu + 20)} />
-      <Instr icon="arrow" text="Menu opens on the left" at={c.at('s3_3')} out={c.at('s3_5') - 6} y={492} dim={tw(f, c.at('s3_4'), c.at('s3_4') + 10)} />
-      <Instr icon="user" text="Log in / Sign up — bottom" at={loginHl} out={c.at('s3_5') - 6} y={584} />
+      <Instr icon="menu" text={T.register.tapIcon} at={c.mid('s3_2', 0.3)} out={c.at('s3_5') - 6} y={400} dim={tw(f, tapMenu + 10, tapMenu + 20)} />
+      <Instr icon="arrow" text={T.register.menuOpens} at={c.at('s3_3')} out={c.at('s3_5') - 6} y={492} dim={tw(f, c.at('s3_4'), c.at('s3_4') + 10)} />
+      <Instr icon="user" text={T.register.bottom} at={loginHl} out={c.at('s3_5') - 6} y={584} />
 
-      <Instr icon="user" text="No account yet → Sign up" at={c.at('s3_5') + 4} out={c.at('s3_7') - 4} y={400} />
-      <Instr icon="lock" text="Have an account → Log in" at={c.at('s3_6')} out={c.at('s3_7') - 4} y={492} />
+      <Instr icon="user" text={T.register.noAccount} at={c.at('s3_5') + 4} out={c.at('s3_7') - 4} y={400} />
+      <Instr icon="lock" text={T.register.hasAccount} at={c.at('s3_6')} out={c.at('s3_7') - 4} y={492} />
       <Pop at={c.mid('s3_6', 0.55)} out={c.at('s3_7') - 4} x={204} y={580}>
-        <div style={{fontFamily: FONT, fontSize: 26, color: C.dim, fontWeight: 500}}>Both open this sign-in window</div>
+        <div style={{fontFamily: FONT, fontSize: 26, color: C.dim, fontWeight: 500}}>{T.register.sameWindow}</div>
       </Pop>
 
       {methods.map((m, i) => {
@@ -148,11 +149,11 @@ export const S03Register: React.FC = () => {
       })}
       <Pop at={signedIn + 4} out={end - 12} x={120} y={812} from="left">
         <div style={{display: 'flex', alignItems: 'center', gap: 14, fontFamily: FONT, fontSize: 30, fontWeight: 650, color: C.cyan}}>
-          <Icon name="check" size={34} stroke={3} /> Account ready
+          <Icon name="check" size={34} stroke={3} /> {T.register.ready}
         </div>
       </Pop>
 
-      <Flow items={['Tap menu', 'Sign up', 'Choose a method']} activeAt={[tapMenu, tapLogin, c.at('s3_7')]} doneAt={signedIn} x={120} y={930} at={c.at('s3_2')} out={end - 10} />
+      <Flow items={T.register.flow} activeAt={[tapMenu, tapLogin, c.at('s3_7')]} doneAt={signedIn} x={120} y={930} at={c.at('s3_2')} out={end - 10} />
 
       <Sfx name="pop" at={c.mid('s3_2', 0.45)} />
       <Sfx name="tap" at={tapMenu} />

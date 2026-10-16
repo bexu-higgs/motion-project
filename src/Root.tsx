@@ -6,7 +6,9 @@ import {FPS, HEIGHT, TOTAL_FRAMES, WIDTH} from './timeline';
 
 if (typeof document !== 'undefined') {
   const handle = delayRender('Loading Inter');
-  Promise.all(['400', '500', '600', '700', '800'].map((w) => document.fonts.load(`${w} 40px "Inter Variable"`)))
+  // load the Latin + Cyrillic(-ext) subsets so Kazakh letters (ә ғ қ ң ө ұ ү һ і) never fall back
+  const sample = 'AaZz 09 АаЯя ӘәҒғҚқҢңӨөҰұҮүҺһІі';
+  Promise.all(['300', '400', '500', '600', '700', '800'].map((w) => document.fonts.load(`${w} 40px "Inter Variable"`, sample)))
     .then(() => continueRender(handle))
     .catch(() => continueRender(handle));
 }

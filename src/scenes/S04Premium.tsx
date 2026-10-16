@@ -10,6 +10,7 @@ import {Flow, Instr, LeftScrim, Pop, StepHeader, Tag} from '../components/Text';
 import {Sfx} from '../components/Sfx';
 import {REGIONS, boxCenter, regionBox, type Box} from '../lib/regions';
 import {MENU_ICON_BOX} from './S03Register';
+import {T} from '../copy';
 
 const UPGRADE_BOX: Box = [846, 290, 200, 74];
 
@@ -41,9 +42,9 @@ export const S04Premium: React.FC = () => {
     [tapUser + 8, focus(boxCenter(user), 1.8, [1220, 760])],
     [Math.max(tapUser + 26, c.at('s4_4')), focus([452, 1640], 1.3, [1300, 560])],
     [Math.max(tapUser + 27, c.at('s4_4') + 4), focus([452, 1640], 1.3, [1300, 560])],
-    [Math.max(tapUser + 46, c.at('s4_4') + 24), focus(boxCenter(go), 2.0, [1240, 560])],
-    [tapUpgrade + 8, focus(boxCenter(go), 2.0, [1240, 560])],
-    [end, focus(boxCenter(go), 1.6, [1240, 560])],
+    [Math.max(tapUser + 46, c.at('s4_4') + 24), focus(boxCenter(go), 2.0, [1330, 560])],
+    [tapUpgrade + 8, focus(boxCenter(go), 2.0, [1330, 560])],
+    [end, focus(boxCenter(go), 1.6, [1330, 560])],
   ]);
 
   const popupBox = REGIONS.profilePopup.box;
@@ -82,14 +83,14 @@ export const S04Premium: React.FC = () => {
         }
       />
       <LeftScrim amount={tw(cam.s, 1.05, 1.6)} />
-      <StepHeader step={3} title="Go Premium from your profile" at={2} out={end - 10} />
+      <StepHeader step={3} title={T.premium.title} at={2} out={end - 10} />
 
-      <Instr icon="x" tone="red" text="Don't tap the top-right Upgrade" at={crossAt} out={end - 10} y={400} dim={tw(f, c.at('s4_3'), c.at('s4_3') + 12)} />
-      <Flow items={['Menu', 'Profile', 'Go Premium']} activeAt={[tapMenu, tapUser, goHl]} doneAt={tapUpgrade} x={120} y={512} at={c.at('s4_3')} out={end - 10} size={22} />
+      <Instr icon="x" tone="red" text={T.premium.dontTap} at={crossAt} out={end - 10} y={400} dim={tw(f, c.at('s4_3'), c.at('s4_3') + 12)} />
+      <Flow items={T.premium.flow} activeAt={[tapMenu, tapUser, goHl]} doneAt={tapUpgrade} x={120} y={512} at={c.at('s4_3')} out={end - 10} size={22} />
       <Pop at={goHl + 6} out={end - 10} x={120} y={612}>
-        <div style={{display: 'flex', alignItems: 'center', gap: 16}}>
+        <div style={{display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 14}}>
           <Tag text="Go Premium" tone="cyan" icon="check" solid size={22} />
-          <span style={{fontFamily: FONT, fontSize: 28, color: C.dim, fontWeight: 500}}>then tap its Upgrade button</span>
+          <span style={{fontFamily: FONT, fontSize: 28, color: C.dim, fontWeight: 500}}>{T.premium.then}</span>
         </div>
       </Pop>
 

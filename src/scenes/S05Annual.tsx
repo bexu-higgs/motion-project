@@ -9,6 +9,7 @@ import {Icon} from '../components/Icon';
 import {MonthGrid} from '../components/Months';
 import {Sfx} from '../components/Sfx';
 import {REGIONS, type Box} from '../lib/regions';
+import {T} from '../copy';
 
 // The real pricing page (landscape screenshot, browser chrome trimmed)
 const PAGE: Box = [96, 251, 2304, 784];
@@ -58,7 +59,7 @@ export const S05Annual: React.FC = () => {
 
   return (
     <AbsoluteFill>
-      <StepHeader step={4} title="Check the billing period" at={2} out={end - 10} />
+      <StepHeader step={4} title={T.annual.title} at={2} out={end - 10} />
 
       {/* real pricing page */}
       {pageO > 0 && (
@@ -106,8 +107,8 @@ export const S05Annual: React.FC = () => {
           </div>
           <Pop at={hlAt + 8} out={pageOut - 8} x={960} y={640} anchor="tc">
             <div style={{display: 'flex', alignItems: 'center', gap: 18, padding: '10px 26px 10px 10px', borderRadius: 999, background: 'rgba(5,7,10,0.88)', boxShadow: '0 12px 30px rgba(0,0,0,0.5)'}}>
-              <Tag text="Annual billing" tone="cyan" icon="calendar" solid size={24} />
-              <span style={{fontFamily: FONT, fontSize: 30, color: C.text, fontWeight: 600}}>is selected at first</span>
+              <Tag text={T.annual.annual} tone="cyan" icon="calendar" solid size={24} />
+              <span style={{fontFamily: FONT, fontSize: 30, color: C.text, fontWeight: 600}}>{T.annual.selectedFirst}</span>
             </div>
           </Pop>
         </div>
@@ -120,27 +121,27 @@ export const S05Annual: React.FC = () => {
             {/* shown price card */}
             <Pop at={cardAt} x={120} y={390}>
               <Card pad={36} radius={28} glow={f > careful ? 'rgba(255,181,71,0.45)' : undefined} style={{width: 500, transform: `translateX(${shake}px)`}}>
-                <div style={{fontFamily: FONT, fontSize: 21, letterSpacing: '0.14em', fontWeight: 700, color: C.faint, textTransform: 'uppercase'}}>The price you see</div>
+                <div style={{fontFamily: FONT, fontSize: 21, letterSpacing: '0.14em', fontWeight: 700, color: C.faint, textTransform: 'uppercase'}}>{T.annual.priceYouSee}</div>
                 <div style={{display: 'flex', alignItems: 'baseline', gap: 10, marginTop: 18, fontFamily: FONT}}>
                   <span style={{fontSize: 92, fontWeight: 800, color: C.text, letterSpacing: '-0.04em'}}>$</span>
                   <span style={{display: 'inline-block', width: 150, height: 64, borderRadius: 14, background: 'linear-gradient(90deg, rgba(255,255,255,0.22), rgba(255,255,255,0.08))'}} />
-                  <span style={{fontSize: 52, fontWeight: 600, color: C.dim}}>/mo</span>
+                  <span style={{fontSize: 52, fontWeight: 600, color: C.dim}}>{T.annual.perMonth}</span>
                 </div>
                 <div style={{position: 'relative', marginTop: 22, display: 'inline-flex', alignItems: 'center', gap: 12, fontFamily: FONT, fontSize: 32, fontWeight: 650, color: C.text}}>
-                  <Icon name="search" size={32} color={C.dim} /> Looks like 1 month
+                  <Icon name="search" size={32} color={C.dim} /> {T.annual.looksLike}
                   <div style={{position: 'absolute', left: 44, right: -6, top: '52%', height: 4, borderRadius: 2, background: C.amber, transformOrigin: 'left', transform: `scaleX(${strike})`}} />
                 </div>
               </Card>
             </Pop>
             <Pop at={careful} x={120} y={330} from="scale">
-              <Tag text="Careful!" tone="amber" icon="warn" solid size={24} />
+              <Tag text={T.annual.careful} tone="amber" icon="warn" solid size={24} />
             </Pop>
 
             {/* 12 months */}
             <Pop at={calAt} x={720} y={330}>
               <div style={{display: 'flex', alignItems: 'center', gap: 16, fontFamily: FONT}}>
-                <Tag text="Annual billing" tone="cyan" icon="calendar" size={22} />
-                <span style={{fontSize: 30, fontWeight: 650, color: C.text}}>12-month total ÷ 12 = the “/mo” price</span>
+                <Tag text={T.annual.annual} tone="cyan" icon="calendar" size={22} />
+                <span style={{fontSize: 30, fontWeight: 650, color: C.text}}>{T.annual.equation}</span>
               </div>
             </Pop>
             <div style={{position: 'absolute', left: 720, top: 410}}>
@@ -168,15 +169,15 @@ export const S05Annual: React.FC = () => {
                 </svg>
                 <div style={{display: 'flex', justifyContent: 'center', marginTop: 12}}>
                   <Pop at={upfrontAt + 12} x={0} y={0} style={{position: 'relative'}}>
-                    <Tag text="12 months paid up front" tone="amber" icon="card" solid size={24} />
+                    <Tag text={T.annual.upfront} tone="amber" icon="card" solid size={24} />
                   </Pop>
                 </div>
               </div>
             )}
           </div>
           {/* not this one */}
-          <Pop at={notThis} out={end - 14} x={1480} y={800} from="scale">
-            <Tag text="Not this option" tone="red" icon="x" solid size={24} />
+          <Pop at={notThis} out={end - 14} x={1800} y={800} anchor="tr" from="scale">
+            <Tag text={T.annual.notThis} tone="red" icon="x" solid size={24} />
           </Pop>
           {f >= notThis && (
             <svg style={{position: 'absolute', left: 0, top: 0}} width={1920} height={1080}>
@@ -190,8 +191,8 @@ export const S05Annual: React.FC = () => {
                 <Icon name="repeat" size={50} stroke={2.4} />
               </div>
               <div style={{fontFamily: FONT}}>
-                <div style={{fontSize: 22, letterSpacing: '0.14em', fontWeight: 700, color: C.cyan, textTransform: 'uppercase'}}>What we need</div>
-                <div style={{fontSize: 42, fontWeight: 760, color: C.text, letterSpacing: '-0.02em', marginTop: 4}}>Monthly billing — pay every month</div>
+                <div style={{fontSize: 22, letterSpacing: '0.14em', fontWeight: 700, color: C.cyan, textTransform: 'uppercase'}}>{T.annual.needLabel}</div>
+                <div style={{fontSize: 42, fontWeight: 760, color: C.text, letterSpacing: '-0.02em', marginTop: 4}}>{T.annual.needText}</div>
               </div>
               <div style={{marginLeft: 12, color: C.cyan}}>
                 <Icon name="check" size={56} stroke={3} />

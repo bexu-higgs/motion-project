@@ -11,11 +11,12 @@ import {Icon} from '../components/Icon';
 import {PriceCard} from '../components/PriceCard';
 import {Sfx} from '../components/Sfx';
 import {regionBox, type Box, type SourceKey} from '../lib/regions';
+import {T} from '../copy';
 
 const OPTIONS: Array<{credits: string; regular: string; discounted: string; per100: string; per100n: number; src: SourceKey; label: [number, number]}> = [
-  {credits: '1,800', regular: '$79', discounted: '$59', per100: '$3.28', per100n: 59 / 18, src: 'max1800', label: [243, 852]},
-  {credits: '3,600', regular: '$158', discounted: '$115', per100: '$3.19', per100n: 115 / 36, src: 'max3600', label: [538, 852]},
-  {credits: '5,400', regular: '$237', discounted: '$159', per100: '$2.94', per100n: 159 / 54, src: 'max5400', label: [836, 852]},
+  {credits: '1 800', regular: '$79', discounted: '$59', per100: '$3.28', per100n: 59 / 18, src: 'max1800', label: [243, 852]},
+  {credits: '3 600', regular: '$158', discounted: '$115', per100: '$3.19', per100n: 115 / 36, src: 'max3600', label: [538, 852]},
+  {credits: '5 400', regular: '$237', discounted: '$159', per100: '$2.94', per100n: 159 / 54, src: 'max5400', label: [836, 852]},
 ];
 
 // slider labels inside the maxSlider1800 cut-out (cut-out pixels at width 640)
@@ -58,7 +59,7 @@ export const S07MaxDiscount: React.FC = () => {
 
   return (
     <AbsoluteFill>
-      <StepHeader step={5} title="Pick a Max plan" at={2} out={end - 10} />
+      <StepHeader step={5} title={T.max.title} at={2} out={end - 10} />
 
       {/* A: the discount is for Max only */}
       {f < plansOut + 14 && (
@@ -76,10 +77,10 @@ export const S07MaxDiscount: React.FC = () => {
             </Card>
           </Pop>
           <Pop at={maxOn} x={1000} y={392} from="scale">
-            <Tag text="My discount applies" tone="cyan" icon="check" solid size={24} />
+            <Tag text={T.max.applies} tone="cyan" icon="check" solid size={24} />
           </Pop>
           <Pop at={proOff} x={200} y={392} from="scale">
-            <Tag text="No discount on Pro" tone="red" icon="x" solid size={24} />
+            <Tag text={T.max.notPro} tone="red" icon="x" solid size={24} />
           </Pop>
           {f >= proOff && (
             <div
@@ -142,7 +143,7 @@ export const S07MaxDiscount: React.FC = () => {
             </div>
           </Pop>
           <Pop at={optsIn + 40} x={960} y={800} anchor="tc" from="scale">
-            <Tag text="3 options" tone="cyan" icon="check" solid size={26} />
+            <Tag text={T.max.options} tone="cyan" icon="check" solid size={26} />
           </Pop>
         </div>
       )}
@@ -223,7 +224,7 @@ export const S07MaxDiscount: React.FC = () => {
                 >
                   <div style={{display: 'flex', alignItems: 'baseline', gap: 10}}>
                     <span style={{fontSize: 46, fontWeight: 800, color: C.text, letterSpacing: '-0.02em'}}>{o.credits}</span>
-                    <span style={{fontSize: 26, fontWeight: 600, color: C.dim}}>credits</span>
+                    <span style={{fontSize: 26, fontWeight: 600, color: C.dim}}>{T.max.credits}</span>
                   </div>
                   <div style={{marginTop: 14, display: 'flex', alignItems: 'baseline', gap: 16}}>
                     <span style={{fontSize: 36, fontWeight: 600, color: C.faint, textDecoration: 'line-through', textDecorationColor: C.red, textDecorationThickness: 4}}>{o.regular}</span>
@@ -232,7 +233,7 @@ export const S07MaxDiscount: React.FC = () => {
                   <div style={{height: 1.5, background: C.border, margin: '22px 0 22px'}} />
                   <div style={{display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', height: 170}}>
                     <div>
-                      <div style={{fontSize: 18, fontWeight: 700, letterSpacing: '0.14em', color: C.faint, textTransform: 'uppercase'}}>Per 100 credits</div>
+                      <div style={{fontSize: 18, fontWeight: 700, letterSpacing: '0.14em', color: C.faint, textTransform: 'uppercase'}}>{T.max.per100}</div>
                       <div style={{marginTop: 6, fontSize: 48, fontWeight: 760, color: i === 2 ? C.cyan : C.text}}>≈ {o.per100}</div>
                     </div>
                     <div style={{width: 64, height: 160, display: 'flex', alignItems: 'flex-end'}}>
@@ -245,11 +246,11 @@ export const S07MaxDiscount: React.FC = () => {
           </div>
           <Pop at={sumIn + 30} x={120} y={830}>
             <div style={{display: 'flex', alignItems: 'center', gap: 18, fontFamily: FONT, fontSize: 34, fontWeight: 700, color: C.text}}>
-              More credits <Icon name="arrow" size={36} color={C.cyan} stroke={2.6} /> <span style={{color: C.cyan}}>lower price per credit</span>
+              {T.max.more} <Icon name="arrow" size={36} color={C.cyan} stroke={2.6} /> <span style={{color: C.cyan}}>{T.max.cheaper}</span>
             </div>
           </Pop>
           <Pop at={pickAt + 4} x={1800} y={838} anchor="tr" from="scale">
-            <Tag text="Pick the one you need" tone="cyan" icon="hand" solid size={24} />
+            <Tag text={T.max.pick} tone="cyan" icon="hand" solid size={24} />
           </Pop>
         </div>
       )}

@@ -12,6 +12,7 @@ import {Icon} from '../components/Icon';
 import {MonthGrid} from '../components/Months';
 import {Sfx} from '../components/Sfx';
 import {boxCenter, type Box} from '../lib/regions';
+import {T} from '../copy';
 
 // Billing toggle in the landscape screenshot (landscape units = source px)
 const TOGGLE_CENTER: [number, number] = [1335, 690];
@@ -152,26 +153,26 @@ export const S06Monthly: React.FC = () => {
         }
       />
       <LeftScrim amount={tw(cam.s, 1.05, 1.6) * (1 - tw(f, R0, R0 + 20)) + tw(f, c.at('s6_4'), c.at('s6_4') + 20) * (1 - exit)} />
-      <StepHeader step={4} title="Switch to Monthly" at={2} out={end - 10} />
+      <StepHeader step={4} title={T.monthly.title} at={2} out={end - 10} />
 
       {/* portrait steps */}
-      <Instr icon="search" text="Find the Monthly button" at={c.at('s6_1')} out={instrOut} y={400} dim={tw(f, c.mid('s6_2', 0.4), c.mid('s6_2', 0.4) + 10)} />
-      <Instr icon="x" tone="red" text="Not visible in portrait?" at={c.mid('s6_2', 0.4)} out={instrOut} y={492} dim={tw(f, T0, T0 + 10)} />
-      <Instr icon="hand" text="Swipe down from the top" at={T0} out={instrOut} y={584} dim={tw(f, tapRotate - 10, tapRotate)} />
-      <Instr icon="rotate" text="Turn on Auto-rotate" at={tapRotate - 10} out={instrOut} y={676} solid={f >= tapRotate + 4} />
+      <Instr icon="search" text={T.monthly.find} at={c.at('s6_1')} out={instrOut} y={400} dim={tw(f, c.mid('s6_2', 0.4), c.mid('s6_2', 0.4) + 10)} />
+      <Instr icon="x" tone="red" text={T.monthly.notVisible} at={c.mid('s6_2', 0.4)} out={instrOut} y={492} dim={tw(f, T0, T0 + 10)} />
+      <Instr icon="hand" text={T.monthly.swipe} at={T0} out={instrOut} y={584} dim={tw(f, tapRotate - 10, tapRotate)} />
+      <Instr icon="rotate" text={T.monthly.autoRotate} at={tapRotate - 10} out={instrOut} y={676} solid={f >= tapRotate + 4} />
 
       {/* landscape captions (top-right, clear of the phone) */}
       <Pop at={R0} out={c.at('s6_4') + 6} x={1800} y={140} anchor="tr" from="scale">
-        <Tag text="Turn the phone sideways" tone="cyan" icon="rotate" solid size={24} />
+        <Tag text={T.monthly.sideways} tone="cyan" icon="rotate" solid size={24} />
       </Pop>
       <Pop at={c.at('s6_4') + 8} out={exitAt} x={120} y={720}>
-        <Tag text="Monthly is visible now" tone="cyan" icon="check" size={24} />
+        <Tag text={T.monthly.visibleNow} tone="cyan" icon="check" size={24} />
       </Pop>
       <Pop at={tapM + 8} out={exitAt} x={120} y={800}>
-        <Tag text="Monthly selected" tone="cyan" icon="check" solid size={24} />
+        <Tag text={T.monthly.selected} tone="cyan" icon="check" solid size={24} />
       </Pop>
       <Pop at={tapM + 34} out={exitAt} x={120} y={410}>
-        <div style={{fontFamily: FONT, fontSize: 26, fontWeight: 600, color: C.dim, marginBottom: 14}}>The Max price now reads “Billed monthly”:</div>
+        <div style={{fontFamily: FONT, fontSize: 26, fontWeight: 600, color: C.dim, marginBottom: 14}}>{T.monthly.priceNow}</div>
         <Card radius={18} glow="rgba(46,230,255,0.4)">
           <Cutout name="maxPrice1800" width={640} />
         </Card>
@@ -203,24 +204,24 @@ const ComparePanel: React.FC<{at: number; out: number}> = ({at, out}) => {
     <div style={{position: 'absolute', inset: 0, opacity: o, fontFamily: FONT}}>
       <Pop at={at} x={170} y={370} from="left">
         <Card pad={40} radius={30} style={{width: 700}}>
-          <Tag text="Yearly billing" tone="neutral" icon="calendar" size={22} />
+          <Tag text={T.monthly.yearly} tone="neutral" icon="calendar" size={22} />
           <div style={{marginTop: 28}}>
             <MonthGrid lit={() => 1} color="rgba(255,255,255,0.7)" tileW={96} tileH={62} gap={10} fontSize={17} appear={(i) => tw(f, at + 4 + i, at + 14 + i)} />
           </div>
-          <div style={{marginTop: 30, fontSize: 38, fontWeight: 760, color: C.text, letterSpacing: '-0.02em'}}>12 months paid up front</div>
-          <div style={{marginTop: 10, fontSize: 28, fontWeight: 500, color: C.dim}}>Lower price per month</div>
+          <div style={{marginTop: 30, fontSize: 38, fontWeight: 760, color: C.text, letterSpacing: '-0.02em'}}>{T.monthly.yearlyLine}</div>
+          <div style={{marginTop: 10, fontSize: 28, fontWeight: 500, color: C.dim}}>{T.monthly.yearlySub}</div>
         </Card>
       </Pop>
       <div style={{position: 'absolute', left: 960, top: 560, transform: `translate(-50%, -50%) scale(${neq})`, fontSize: 130, fontWeight: 300, color: C.cyan, textShadow: `0 0 30px ${C.cyanGlow}`}}>≠</div>
       <Pop at={at + 8} x={1050} y={370} from="right">
         <Card pad={40} radius={30} glow={C.cyanGlow} style={{width: 700}}>
-          <Tag text="Monthly billing" tone="cyan" icon="repeat" solid size={22} />
+          <Tag text={T.monthly.monthly} tone="cyan" icon="repeat" solid size={22} />
           <div style={{marginTop: 28}}>
             <MonthGrid lit={(i) => (i === 0 ? 1 : 0)} tileW={96} tileH={62} gap={10} fontSize={17} appear={(i) => tw(f, at + 12 + i, at + 22 + i)} />
           </div>
-          <div style={{marginTop: 30, fontSize: 38, fontWeight: 760, color: C.text, letterSpacing: '-0.02em'}}>Pay one month at a time</div>
+          <div style={{marginTop: 30, fontSize: 38, fontWeight: 760, color: C.text, letterSpacing: '-0.02em'}}>{T.monthly.monthlyLine}</div>
           <div style={{marginTop: 10, fontSize: 28, fontWeight: 650, color: C.amber, display: 'flex', alignItems: 'center', gap: 10, opacity: tw(f, higher, higher + 12)}}>
-            <Icon name="warn" size={30} /> Per-month price can be higher
+            <Icon name="warn" size={30} /> {T.monthly.monthlySub}
           </div>
         </Card>
       </Pop>

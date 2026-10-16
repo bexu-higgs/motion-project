@@ -3,6 +3,7 @@ import {useCurrentFrame} from 'remotion';
 import {C, FONT} from '../theme';
 import {easeIn, pop, tw, vis} from '../lib/anim';
 import {Icon, type IconName} from './Icon';
+import {STEP} from '../copy';
 
 export type Tone = 'cyan' | 'red' | 'amber' | 'neutral' | 'lime';
 
@@ -95,7 +96,7 @@ export const StepHeader: React.FC<{step?: number; kicker?: string; title: string
   return (
     <div style={{position: 'absolute', left: 120, top: 104, opacity: o, fontFamily: FONT}}>
       <div style={{transform: `translateX(${(1 - tw(f, at, at + 16)) * -30}px)`, display: 'flex', alignItems: 'center', gap: 18}}>
-        <Tag text={kicker ?? `Step ${step} / ${total}`} tone={tone} size={21} />
+        <Tag text={kicker ?? STEP(step ?? 1, total)} tone={tone} size={21} />
         {step !== undefined && (
           <div style={{display: 'flex', gap: 7}}>
             {Array.from({length: total}).map((_, i) => {

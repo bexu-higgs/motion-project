@@ -10,6 +10,7 @@ import {Instr, LeftScrim, StepHeader} from '../components/Text';
 import {Icon} from '../components/Icon';
 import {Sfx} from '../components/Sfx';
 import type {Box} from '../lib/regions';
+import {T} from '../copy';
 
 const LINK_BOX: Box = [130, 1190, 820, 110];
 export const URL_BOX: Box = [132, 116, 540, 108];
@@ -22,14 +23,14 @@ const LinkCard: React.FC = () => (
     <div style={{position: 'absolute', left: 150, top: 950}}>
       <Cutout name="welcomeLogo" width={136} radius={34} />
     </div>
-    <div style={{position: 'absolute', left: 320, top: 962, fontSize: 56, fontWeight: 750, color: '#fff', letterSpacing: '-0.02em'}}>Higgsfield MAX</div>
-    <div style={{position: 'absolute', left: 320, top: 1034, fontSize: 40, fontWeight: 500, color: 'rgba(255,255,255,0.55)'}}>Discount link</div>
+    <div style={{position: 'absolute', left: 320, top: 962, fontSize: 56, fontWeight: 750, color: '#fff', letterSpacing: '-0.02em'}}>{T.link.cardTitle}</div>
+    <div style={{position: 'absolute', left: 320, top: 1034, fontSize: 40, fontWeight: 500, color: 'rgba(255,255,255,0.55)'}}>{T.link.cardSub}</div>
     <div style={{position: 'absolute', left: 140, top: 1150, width: 800, height: 2, background: 'rgba(255,255,255,0.08)'}} />
     <div style={{position: 'absolute', left: 150, top: 1212, display: 'flex', alignItems: 'center', gap: 22, color: C.cyan, fontSize: 48, fontWeight: 600}}>
       <Icon name="link" size={52} stroke={2.4} />
       <span style={{textDecoration: 'underline', textUnderlineOffset: 10}}>higgsfield.ai/…</span>
     </div>
-    <div style={{position: 'absolute', left: 150, top: 1360, fontSize: 36, color: 'rgba(255,255,255,0.45)'}}>Tap to open</div>
+    <div style={{position: 'absolute', left: 150, top: 1360, fontSize: 36, color: 'rgba(255,255,255,0.45)'}}>{T.link.cardHint}</div>
   </div>
 );
 
@@ -82,12 +83,12 @@ export const S02Link: React.FC = () => {
         }
       />
       <LeftScrim amount={tw(cam.s, 1.05, 1.7, 0, 1)} />
-      <StepHeader step={1} title="Open the referral link" at={2} out={end - 10} />
-      <Instr icon="hand" text="Tap my referral link" at={c.at('s2_2')} out={end - 10} y={400} dim={tw(f, openAt, openAt + 10)} />
-      <Instr icon="check" text="Higgsfield opens" at={c.at('s2_3')} out={end - 10} y={492} solid />
+      <StepHeader step={1} title={T.link.title} at={2} out={end - 10} />
+      <Instr icon="hand" text={T.link.tap} at={c.at('s2_2')} out={end - 10} y={400} dim={tw(f, openAt, openAt + 10)} />
+      <Instr icon="check" text={T.link.opens} at={c.at('s2_3')} out={end - 10} y={492} solid />
       {f >= zoomIn + 18 && (
         <div style={{position: 'absolute', left: 120, top: 600, opacity: tw(f, zoomIn + 18, zoomIn + 30) * (1 - tw(f, end - 22, end - 10, 0, 1, easeIn))}}>
-          <div style={{fontFamily: FONT, fontSize: 26, color: C.dim, fontWeight: 500}}>Check the address bar:</div>
+          <div style={{fontFamily: FONT, fontSize: 26, color: C.dim, fontWeight: 500}}>{T.link.checkBar}</div>
           <div style={{marginTop: 10, fontFamily: FONT, fontSize: 44, fontWeight: 700, color: C.cyan, letterSpacing: '-0.01em'}}>higgsfield.ai</div>
         </div>
       )}

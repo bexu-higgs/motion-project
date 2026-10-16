@@ -1,6 +1,7 @@
 import React from 'react';
 import {C, FONT} from '../theme';
 import {Icon, type IconName} from './Icon';
+import {T} from '../copy';
 
 /** Generic Android quick-settings shade, drawn in portrait screen units (1080 wide). */
 export const SHADE_H = 1330;
@@ -10,16 +11,8 @@ const COLS = 4;
 const START_X = (1080 - (COLS * TILE + (COLS - 1) * GAP_X)) / 2;
 const ROW_Y = [560, 880];
 
-const TILES: Array<{icon: IconName; label: string; on?: boolean}> = [
-  {icon: 'wifi', label: 'Wi-Fi', on: true},
-  {icon: 'signal', label: 'Mobile data', on: true},
-  {icon: 'bluetooth', label: 'Bluetooth'},
-  {icon: 'flashlight', label: 'Flashlight'},
-  {icon: 'rotate', label: 'Auto-rotate'},
-  {icon: 'plane', label: 'Airplane mode'},
-  {icon: 'pin', label: 'Location'},
-  {icon: 'moon', label: 'Do not disturb'},
-];
+const ICONS: IconName[] = ['wifi', 'signal', 'bluetooth', 'flashlight', 'rotate', 'plane', 'pin', 'moon'];
+const TILES: Array<{icon: IconName; label: string; on?: boolean}> = ICONS.map((icon, i) => ({icon, label: T.monthly.tiles[i], on: i < 2}));
 
 export const AUTO_ROTATE_INDEX = 4;
 
@@ -77,7 +70,7 @@ export const QuickSettings: React.FC<{open: number; autoRotate: number}> = ({ope
               >
                 <Icon name={t.icon} size={84} stroke={2} />
               </div>
-              <div style={{marginTop: 22, textAlign: 'center', fontSize: 34, fontWeight: 500, color: 'rgba(255,255,255,0.78)', whiteSpace: 'nowrap', marginLeft: -40, marginRight: -40}}>
+              <div style={{marginTop: 20, textAlign: 'center', fontSize: 31, lineHeight: 1.12, fontWeight: 500, color: 'rgba(255,255,255,0.78)', marginLeft: -26, marginRight: -26}}>
                 {t.label}
               </div>
             </div>

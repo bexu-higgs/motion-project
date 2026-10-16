@@ -6,6 +6,7 @@ import {easeInOut, pop, tw, vis} from '../lib/anim';
 import {Pop, StepHeader, Tag} from '../components/Text';
 import {Icon, type IconName} from '../components/Icon';
 import {Sfx} from '../components/Sfx';
+import {T} from '../copy';
 
 const THREE_HOURS = 3 * 3600;
 const pad = (n: number) => String(n).padStart(2, '0');
@@ -36,15 +37,11 @@ export const S09Deadline: React.FC = () => {
   const ticks: number[] = [];
   for (let t = cdStart; t < cdEnd; t += 10) ticks.push(t);
 
-  const steps: Array<{icon: IconName; label: string}> = [
-    {icon: 'user', label: 'Sign up'},
-    {icon: 'check', label: 'Choose plan'},
-    {icon: 'card', label: 'Pay'},
-  ];
+  const steps: Array<{icon: IconName; label: string}> = (['user', 'check', 'card'] as IconName[]).map((icon, i) => ({icon, label: T.deadline.steps[i]}));
 
   return (
     <AbsoluteFill style={{fontFamily: FONT}}>
-      <StepHeader kicker="Important" tone="amber" title="The discount lasts 3 hours" at={2} out={end - 10} />
+      <StepHeader kicker={T.deadline.kicker} tone="amber" title={T.deadline.title} at={2} out={end - 10} />
 
       {/* warning */}
       {f < warnOut + 12 && (
@@ -55,7 +52,7 @@ export const S09Deadline: React.FC = () => {
 
       {/* statement */}
       <div style={{position: 'absolute', left: 120, top: 360, opacity: vis(f, c.at('s9_2'), planAt - 4, 12)}}>
-        {['Discount available', 'for 3 hours'].map((t, i) => {
+        {T.deadline.big.map((t, i) => {
           const p = tw(f, c.at('s9_2') + i * 6, c.at('s9_2') + 20 + i * 6);
           return (
             <div key={t} style={{overflow: 'hidden'}}>
@@ -64,16 +61,16 @@ export const S09Deadline: React.FC = () => {
           );
         })}
         <div style={{marginTop: 22, fontSize: 32, fontWeight: 500, color: C.dim, opacity: tw(f, c.mid('s9_2', 0.3), c.mid('s9_2', 0.3) + 12)}}>
-          from the moment you first create your account
+          {T.deadline.from}
         </div>
         <Pop at={cdEnd} x={0} y={210} from="scale" style={{position: 'relative'}}>
-          <Tag text="After 3 hours the discount is gone" tone="red" icon="x" solid size={24} />
+          <Tag text={T.deadline.gone} tone="red" icon="x" solid size={24} />
         </Pop>
       </div>
 
       {/* countdown (conceptual, sped up) */}
       {f >= ringIn && (
-        <div style={{position: 'absolute', inset: 0, opacity: (1 - 0.6 * dimRing) * Math.min(1, ringP * 1.3)}}>
+        <div style={{position: 'absolute', inset: 0, opacity: (1 - 0.82 * dimRing) * Math.min(1, ringP * 1.3)}}>
           <svg style={{position: 'absolute', left: RING_X - R - 30, top: RING_Y - R - 30, transform: `scale(${0.85 + 0.15 * ringP})`}} width={2 * R + 60} height={2 * R + 60}>
             <circle cx={R + 30} cy={R + 30} r={R} fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.08)" strokeWidth={18} />
             <circle
@@ -94,22 +91,22 @@ export const S09Deadline: React.FC = () => {
             <Icon name="clock" size={44} color={ringColor} style={{margin: '0 auto 14px'}} />
             <div style={{fontSize: 92, fontWeight: 750, letterSpacing: '-0.02em', fontVariantNumeric: 'tabular-nums', color: expired ? C.red : C.text}}>{hms(Math.ceil(left))}</div>
             <div style={{marginTop: 8, display: 'flex', justifyContent: 'center', gap: 34, fontSize: 20, fontWeight: 600, letterSpacing: '0.12em', color: C.faint, textTransform: 'uppercase'}}>
-              <span>hours</span>
-              <span>min</span>
-              <span>sec</span>
+              {T.deadline.units.map((u) => (
+                <span key={u}>{u}</span>
+              ))}
             </div>
           </div>
           <div style={{position: 'absolute', left: RING_X, top: RING_Y + R + 60, transform: 'translateX(-50%)', textAlign: 'center', whiteSpace: 'nowrap'}}>
-            <Tag text="Discount available for 3 hours" tone="amber" icon="clock" size={22} />
-            <div style={{marginTop: 12, fontSize: 20, color: C.faint, fontWeight: 500}}>sped-up illustration</div>
+            <Tag text={T.deadline.ringTag} tone="amber" icon="clock" size={22} />
+            <div style={{marginTop: 12, fontSize: 20, color: C.faint, fontWeight: 500}}>{T.deadline.sped}</div>
           </div>
         </div>
       )}
 
       {/* do it all inside the window */}
       {f >= planAt && (
-        <div style={{position: 'absolute', left: 120, top: 380, opacity: vis(f, planAt, end - 12, 12)}}>
-          <div style={{fontSize: 30, fontWeight: 600, color: C.dim, marginBottom: 26, opacity: tw(f, planAt, planAt + 12)}}>After signing up with my link:</div>
+        <div style={{position: 'absolute', left: 120, top: 380, display: 'inline-block', opacity: vis(f, planAt, end - 12, 12)}}>
+          <div style={{fontSize: 30, fontWeight: 600, color: C.dim, marginBottom: 26, opacity: tw(f, planAt, planAt + 12)}}>{T.deadline.after}</div>
           <div style={{display: 'flex', alignItems: 'center', gap: 18}}>
             {steps.map((s, i) => {
               const at = planAt + 8 + i * 14;
@@ -141,20 +138,14 @@ export const S09Deadline: React.FC = () => {
               );
             })}
           </div>
-          {/* bracket */}
-          <svg width={860} height={50} style={{display: 'block', marginTop: 18}}>
-            <path
-              d="M 6 6 Q 6 26 30 26 L 400 26 Q 430 26 430 46 Q 430 26 460 26 L 830 26 Q 854 26 854 6"
-              fill="none"
-              stroke={C.amber}
-              strokeWidth={3.5}
-              strokeDasharray={1100}
-              strokeDashoffset={1100 * (1 - tw(f, planAt + 44, planAt + 66, 0, 1, easeInOut))}
-            />
-          </svg>
-          <div style={{marginTop: 14, marginLeft: 430, transform: 'translateX(-50%)', display: 'inline-block'}}>
-            <Pop at={planAt + 60} x={0} y={0} from="scale" style={{position: 'relative'}}>
-              <Tag text="All within 3 hours" tone="amber" icon="clock" solid size={26} />
+          {/* bracket under all three steps */}
+          <div style={{position: 'relative', height: 30, marginTop: 16, transformOrigin: 'center', transform: `scaleX(${tw(f, planAt + 44, planAt + 64, 0, 1, easeInOut)})`}}>
+            <div style={{position: 'absolute', left: 4, right: 4, top: 0, height: 22, border: `3.5px solid ${C.amber}`, borderTop: 'none', borderRadius: '0 0 18px 18px'}} />
+            <div style={{position: 'absolute', left: '50%', top: 18, width: 3.5, height: 12, marginLeft: -1.75, background: C.amber}} />
+          </div>
+          <div style={{marginTop: 14, textAlign: 'center'}}>
+            <Pop at={planAt + 60} x={0} y={0} from="scale" style={{position: 'relative', display: 'inline-block'}}>
+              <Tag text={T.deadline.within} tone="amber" icon="clock" solid size={26} />
             </Pop>
           </div>
         </div>

@@ -1,7 +1,8 @@
 import React from 'react';
 import {C, FONT} from '../theme';
+import {MONTHS_KK} from '../copy';
 
-export const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+export const MONTHS = MONTHS_KK;
 
 /** 12 month tiles; lit(i) returns 0..1 for each tile. */
 export const MonthGrid: React.FC<{

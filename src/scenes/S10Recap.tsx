@@ -7,15 +7,9 @@ import {Cutout} from '../components/Screen';
 import {StepHeader, Tag} from '../components/Text';
 import {Icon} from '../components/Icon';
 import {Sfx} from '../components/Sfx';
+import {T} from '../copy';
 
-const ITEMS = [
-  'Open the referral link',
-  'Create an account',
-  'Open Go Premium from your profile',
-  'Select Monthly',
-  'Choose Max and verify the discounted price',
-  'Complete payment within 3 hours',
-];
+const ITEMS = T.recap.items;
 
 export const S10Recap: React.FC = () => {
   const f = useCurrentFrame();
@@ -38,7 +32,7 @@ export const S10Recap: React.FC = () => {
       </AbsoluteFill>
       <AbsoluteFill style={{background: 'radial-gradient(ellipse at 30% 50%, rgba(5,7,10,0.55), rgba(5,7,10,0.9))'}} />
 
-      <StepHeader kicker="Recap" title="That’s it!" at={2} out={listOut} />
+      <StepHeader kicker={T.recap.kicker} title={T.recap.title} at={2} out={listOut} />
 
       <div style={{position: 'absolute', left: 120, top: 320, opacity: 1 - tw(f, listOut, listOut + 12, 0, 1, easeIn)}}>
         {ITEMS.map((item, i) => {
@@ -81,15 +75,15 @@ export const S10Recap: React.FC = () => {
               <Cutout name="welcomeLogo" width={132} radius={32} />
             </div>
             <div style={{marginTop: 34, fontSize: 130, fontWeight: 850, letterSpacing: '-0.04em', color: C.text, lineHeight: 1}}>HIGGSFIELD MAX</div>
-            <div style={{marginTop: 22, fontSize: 46, fontWeight: 400, letterSpacing: '0.42em', color: C.cyan, paddingLeft: '0.42em'}}>DISCOUNT GUIDE</div>
+            <div style={{marginTop: 22, fontSize: 46, fontWeight: 400, letterSpacing: '0.42em', color: C.cyan, paddingLeft: '0.42em'}}>{T.recap.guide}</div>
             <div style={{marginTop: 36, width: 520 * tw(f, titleAt + 10, titleAt + 34), height: 2, background: `linear-gradient(90deg, transparent, ${C.cyan}, transparent)`}} />
           </div>
           <div style={{position: 'absolute', top: 820, display: 'flex', gap: 22}}>
             <div style={{opacity: vis(f, c.at('s10_3'), Infinity, 12)}}>
-              <Tag text="Save this video" tone="neutral" icon="bookmark" size={22} />
+              <Tag text={T.recap.save} tone="neutral" icon="bookmark" size={22} />
             </div>
             <div style={{opacity: vis(f, c.at('s10_4'), Infinity, 12)}}>
-              <Tag text="Questions? Write to me" tone="cyan" icon="message" size={22} />
+              <Tag text={T.recap.ask} tone="cyan" icon="message" size={22} />
             </div>
           </div>
         </AbsoluteFill>

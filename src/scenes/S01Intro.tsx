@@ -8,6 +8,7 @@ import {Shot, Cutout} from '../components/Screen';
 import {Tag} from '../components/Text';
 import {Icon, type IconName} from '../components/Icon';
 import {Sfx} from '../components/Sfx';
+import {T} from '../copy';
 
 const HOME_INTRO: [number, number] = [1490, 560];
 
@@ -105,9 +106,9 @@ export const S01Intro: React.FC = () => {
         {/* title */}
         <div style={{position: 'absolute', left: 120, top: 150, fontFamily: FONT}}>
           <div style={{opacity: vis(f, 10), transform: `translateX(${(1 - tw(f, 10, 28)) * -30}px)`}}>
-            <Tag text="Beginner tutorial" tone="cyan" icon="phone" size={21} />
+            <Tag text={T.intro.kicker} tone="cyan" icon="phone" size={21} />
           </div>
-          {['Higgsfield MAX', 'discount guide'].map((line, i) => {
+          {T.intro.title.map((line, i) => {
             const p = tw(f, 16 + i * 6, 40 + i * 6);
             return (
               <div key={line} style={{overflow: 'hidden', marginTop: i === 0 ? 26 : 0, paddingBottom: 6}}>
@@ -129,11 +130,11 @@ export const S01Intro: React.FC = () => {
         </div>
         {/* referral link → higgsfield → max discount */}
         <div style={{position: 'absolute', left: 120, top: 560, display: 'flex', alignItems: 'center', gap: 20}}>
-          <Node label="Referral link" icon="link" on={tw(f, click, click + 8)} appear={tw(f, flowIn - 6, flowIn + 12)} />
+          <Node label={T.intro.nodes[0]} icon="link" on={tw(f, click, click + 8)} appear={tw(f, flowIn - 6, flowIn + 12)} />
           <Connector p={tw(f, click + 4, n2, 0, 1, easeInOut)} appear={tw(f, flowIn - 2, flowIn + 14)} />
-          <Node label="Higgsfield" logo on={tw(f, n2, n2 + 8)} appear={tw(f, flowIn, flowIn + 18)} />
+          <Node label={T.intro.nodes[1]} logo on={tw(f, n2, n2 + 8)} appear={tw(f, flowIn, flowIn + 18)} />
           <Connector p={tw(f, n2 + 4, n3, 0, 1, easeInOut)} appear={tw(f, flowIn + 4, flowIn + 20)} />
-          <Node label="Max discount" icon="percent" on={tw(f, n3, n3 + 8)} appear={tw(f, flowIn + 6, flowIn + 24)} />
+          <Node label={T.intro.nodes[2]} icon="percent" on={tw(f, n3, n3 + 8)} appear={tw(f, flowIn + 6, flowIn + 24)} />
         </div>
         {/* six steps preview */}
         <div style={{position: 'absolute', left: 120, top: 740, display: 'flex', alignItems: 'center', gap: 16, fontFamily: FONT}}>
@@ -162,7 +163,7 @@ export const S01Intro: React.FC = () => {
               </div>
             );
           })}
-          <div style={{marginLeft: 10, fontSize: 28, fontWeight: 600, color: C.dim, opacity: tw(f, stepsAt + 24, stepsAt + 36)}}>simple steps</div>
+          <div style={{marginLeft: 10, fontSize: 28, fontWeight: 600, color: C.dim, opacity: tw(f, stepsAt + 24, stepsAt + 36)}}>{T.intro.steps}</div>
         </div>
         <Cursor x={cx} y={cy} press={press} o={cursorO} />
       </AbsoluteFill>

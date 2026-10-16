@@ -10,6 +10,7 @@ import {Flow, LeftScrim, Pop, StepHeader, Tag} from '../components/Text';
 import {Icon} from '../components/Icon';
 import {Sfx} from '../components/Sfx';
 import {boxCenter, regionBox, type Box} from '../lib/regions';
+import {T} from '../copy';
 
 const SLIDER_1800: Box = [171, 822, 144, 60];
 
@@ -36,7 +37,7 @@ const BankCard: React.FC<{tilt: number}> = ({tilt}) => (
       <Icon name="card" size={44} stroke={2} />
     </div>
     <div style={{position: 'absolute', left: 40, top: 160, fontSize: 38, letterSpacing: '0.18em', fontWeight: 600}}>•••• •••• •••• ••••</div>
-    <div style={{position: 'absolute', left: 40, bottom: 40, fontSize: 18, letterSpacing: '0.16em', color: 'rgba(255,255,255,0.55)', fontWeight: 600}}>BANK CARD</div>
+    <div style={{position: 'absolute', left: 40, bottom: 40, fontSize: 18, letterSpacing: '0.16em', color: 'rgba(255,255,255,0.55)', fontWeight: 600}}>{T.payment.bankCard.toUpperCase()}</div>
     <div style={{position: 'absolute', right: 40, bottom: 40, fontSize: 22, letterSpacing: '0.12em', color: 'rgba(255,255,255,0.7)', fontWeight: 600}}>•• / ••</div>
   </div>
 );
@@ -123,14 +124,14 @@ export const S08Payment: React.FC = () => {
           <LeftScrim amount={tw(cam.s, 1.05, 1.6) * (1 - phoneOut)} />
         </>
       )}
-      <StepHeader step={6} title="Get Max & pay" at={2} out={end - 10} />
-      <Flow items={['Choose credits', 'Get Max']} activeAt={[tapOption, getMaxHl]} doneAt={tapGetMax} x={120} y={410} at={c.at('s8_2')} out={payIn} size={22} />
+      <StepHeader step={6} title={T.payment.title} at={2} out={end - 10} />
+      <Flow items={T.payment.flow} activeAt={[tapOption, getMaxHl]} doneAt={tapGetMax} x={120} y={410} at={c.at('s8_2')} out={payIn} size={22} />
 
       {/* payment page — generic illustration */}
       {f >= payIn && (
         <div style={{position: 'absolute', inset: 0, opacity: vis(f, payIn, end - 12, 12), fontFamily: FONT}}>
           <Pop at={payIn} x={1800} y={120} anchor="tr" from="scale">
-            <Tag text="Payment page" tone="neutral" icon="lock" size={22} />
+            <Tag text={T.payment.page} tone="neutral" icon="lock" size={22} />
           </Pop>
           <Pop at={payIn + 4} x={140} y={330} from="left">
             <BankCard tilt={tilt} />
@@ -147,14 +148,14 @@ export const S08Payment: React.FC = () => {
               }}
             >
               <div style={{display: 'flex', alignItems: 'center', gap: 14, fontSize: 30, fontWeight: 750, color: C.text}}>
-                <Icon name="card" size={34} color={C.cyan} /> Card details
+                <Icon name="card" size={34} color={C.cyan} /> {T.payment.cardDetails}
               </div>
               <div style={{marginTop: 26}}>
-                <Field label="Card number" dots={16} p={f1} w={808} />
+                <Field label={T.payment.cardNumber} dots={16} p={f1} w={808} />
               </div>
               <div style={{marginTop: 20, display: 'flex', gap: 24}}>
-                <Field label="Expiry date" dots={4} p={f2} w={392} />
-                <Field label="Security code" dots={3} p={f3} w={392} />
+                <Field label={T.payment.expiry} dots={4} p={f2} w={392} />
+                <Field label={T.payment.cvc} dots={3} p={f3} w={392} />
               </div>
               <div
                 style={{
@@ -175,11 +176,11 @@ export const S08Payment: React.FC = () => {
               >
                 {f >= tapPay + 4 ? (
                   <>
-                    <Icon name="check" size={36} stroke={3} /> Payment confirmed
+                    <Icon name="check" size={36} stroke={3} /> {T.payment.confirmed}
                   </>
                 ) : (
                   <>
-                    <Icon name="lock" size={30} stroke={2.6} /> Confirm payment
+                    <Icon name="lock" size={30} stroke={2.6} /> {T.payment.confirm}
                   </>
                 )}
               </div>
@@ -196,8 +197,8 @@ export const S08Payment: React.FC = () => {
                 border: '1.5px solid rgba(255,181,71,0.45)',
               }}
             >
-              <div style={{fontSize: 20, fontWeight: 750, letterSpacing: '0.14em', color: C.amber, textTransform: 'uppercase', marginBottom: 14}}>Check before you pay</div>
-              {['Monthly billing', 'Max plan', 'Discounted price'].map((t, i) => {
+              <div style={{fontSize: 20, fontWeight: 750, letterSpacing: '0.14em', color: C.amber, textTransform: 'uppercase', marginBottom: 14}}>{T.payment.checkTitle}</div>
+              {T.payment.checks.map((t, i) => {
                 const on = tw(f, checks[i], checks[i] + 8);
                 return (
                   <div key={t} style={{display: 'flex', alignItems: 'center', gap: 16, marginTop: i ? 12 : 0}}>
