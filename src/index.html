@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="kk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Module 03 — Prompt Writing</title>
+<style>
+  @font-face { font-family: "Inter"; src: url(assets/fonts/Inter-Regular.woff2) format("woff2"); font-weight: 400; }
+  @font-face { font-family: "Inter"; src: url(assets/fonts/Inter-Medium.woff2) format("woff2"); font-weight: 500; }
+  @font-face { font-family: "Inter"; src: url(assets/fonts/Inter-SemiBold.woff2) format("woff2"); font-weight: 600; }
+  @font-face { font-family: "Inter"; src: url(assets/fonts/Inter-Bold.woff2) format("woff2"); font-weight: 700; }
+  @font-face { font-family: "Inter Display"; src: url(assets/fonts/InterDisplay-Light.woff2) format("woff2"); font-weight: 300; }
+  @font-face { font-family: "Inter Display"; src: url(assets/fonts/InterDisplay-SemiBold.woff2) format("woff2"); font-weight: 600; }
+  @font-face { font-family: "Inter Display"; src: url(assets/fonts/InterDisplay-Bold.woff2) format("woff2"); font-weight: 700; }
+  @font-face { font-family: "JetBrains Mono"; src: url(assets/fonts/JetBrainsMono-Regular.woff2) format("woff2"); font-weight: 400; }
+  @font-face { font-family: "JetBrains Mono"; src: url(assets/fonts/JetBrainsMono-Medium.woff2) format("woff2"); font-weight: 500; }
+  :root { color-scheme: dark; }
+  html, body { margin: 0; height: 100%; background: #050608; color: #c9d0db; font: 14px/1.4 Inter, sans-serif; }
+  body { display: flex; flex-direction: column; }
+  #stage { flex: 1; display: flex; align-items: center; justify-content: center; min-height: 0; padding: 12px; }
+  canvas { max-width: 100%; max-height: 100%; aspect-ratio: 16 / 9; background: #000; box-shadow: 0 20px 60px rgba(0,0,0,.6); }
+  #bar { display: flex; gap: 12px; align-items: center; padding: 10px 16px 14px; flex-wrap: wrap; }
+  #bar button { background: #151922; color: #e8ecf2; border: 1px solid #262c38; border-radius: 8px; padding: 6px 10px; font: inherit; cursor: pointer; }
+  #bar button:hover { border-color: #2fe0f2; }
+  #scrub { flex: 1; min-width: 200px; accent-color: #2fe0f2; }
+  #time { font-family: "JetBrains Mono", monospace; min-width: 120px; }
+  #chapters { display: flex; gap: 6px; flex-wrap: wrap; }
+  body.render #bar { display: none; }
+  body.render #stage { padding: 0; }
+  body.render canvas { box-shadow: none; }
+</style>
+<script src="js/core.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/illus-city.js"></script>
+<script src="js/illus-portrait.js"></script>
+<script src="js/illus-desert.js"></script>
+<script src="js/timeline.js"></script>
+<script src="data/vo-manifest.js"></script>
+<script src="js/scenes/s1-power.js"></script>
+<script src="js/scenes/s2-structure.js"></script>
+<script src="js/scenes/s3-subject.js"></script>
+<script src="js/scenes/s4-camera.js"></script>
+<script src="js/scenes/s5-negative.js"></script>
+<script src="js/scenes/s6-improve.js"></script>
+<script src="js/scenes/s7-exercise.js"></script>
+<script src="js/scenes/s8-logic.js"></script>
+</head>
+<body>
+<div id="stage"><canvas id="c" width="1920" height="1080"></canvas></div>
+<div id="bar">
+  <button id="play">Play</button>
+  <input id="scrub" type="range" min="0" max="120" step="0.0333" value="0">
+  <span id="time">0.00 / 120.00</span>
+  <div id="chapters"></div>
+</div>
+<audio id="audio" src="../audio/mix.m4a" preload="auto"></audio>
+<script src="js/main.js"></script>
+</body>
+</html>
