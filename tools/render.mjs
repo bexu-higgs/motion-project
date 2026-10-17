@@ -85,8 +85,8 @@ const write = (stream, buf) => new Promise((res) => (stream.write(buf) ? res() :
 
   if (args.includes('--storyboard')) {
     const beats = [
-      [0.6, '01 · Point of light'], [2.6, '01 · Workspace + idea'], [4.7, '01 · IDEA → PROMPT'], [9.6, '01 · Title over the generated shot'],
-      [13.2, '02 · Blank prompt → five slots'], [18.4, '02 · Five parts drive the preview'], [20.9, '02 · One cohesive prompt'], [24.5, '02 · Vague vs detailed'],
+      [0.6, '01 · Point of light'], [2.6, '01 · Workspace + idea'], [5.4, '01 · IDEA → PROMPT'], [9.6, '01 · Title over the generated shot'],
+      [14.2, '02 · Blank prompt → five slots'], [18.4, '02 · Five parts drive the preview'], [20.9, '02 · One cohesive prompt'], [24.5, '02 · Vague vs detailed'],
       [27.6, '03 · Empty space, neutral figure'], [30.0, '03 · WHERE? The street builds'], [32.4, '03 · WHAT HAPPENS? Walks to camera'], [37.0, '03 · Specific instead of «a person walks»'],
       [41.8, '04 · Camera angle'], [46.2, '04 · Close-up'], [48.8, '04 · Dolly in vs tracking'], [52.8, '04 · Lighting: dramatic side light'],
       [58.8, '05 · Unwanted elements flagged'], [63.2, '05 · Negative terms remove them'], [68.4, '05 · Not a guarantee (≠ 100%)'], [77.0, '06 · Vague phrases identified'],
