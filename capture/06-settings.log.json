@@ -1,0 +1,152 @@
+[
+ {
+  "t": -0.03,
+  "step": "at",
+  "arg": "0.3"
+ },
+ {
+  "t": 0.25,
+  "step": "click",
+  "arg": "{\"selector\":\"button:has-text(\\\"5s\\\") >> nth=0\"}"
+ },
+ {
+  "t": 1.11,
+  "step": "at",
+  "arg": "1.9"
+ },
+ {
+  "t": 1.84,
+  "step": "press",
+  "arg": "\"Escape\""
+ },
+ {
+  "t": 1.89,
+  "step": "at",
+  "arg": "2.2"
+ },
+ {
+  "t": 2.15,
+  "step": "click",
+  "arg": "{\"selector\":\"button:has-text(\\\"1080p\\\") >> nth=0\"}"
+ },
+ {
+  "t": 2.86,
+  "step": "at",
+  "arg": "3.6"
+ },
+ {
+  "t": 3.55,
+  "step": "press",
+  "arg": "\"Escape\""
+ },
+ {
+  "t": 3.57,
+  "step": "at",
+  "arg": "4"
+ },
+ {
+  "t": 3.94,
+  "step": "click",
+  "arg": "{\"selector\":\"button:has-text(\\\"5s\\\") >> nth=0\"}"
+ },
+ {
+  "t": 4.64,
+  "step": "at",
+  "arg": "5.8"
+ },
+ {
+  "t": 5.75,
+  "step": "press",
+  "arg": "\"Escape\""
+ },
+ {
+  "t": 5.78,
+  "step": "at",
+  "arg": "6.3"
+ },
+ {
+  "t": 6.25,
+  "step": "click",
+  "arg": "{\"selector\":\"button:has-text(\\\"1080p\\\") >> nth=0\"}"
+ },
+ {
+  "t": 6.93,
+  "step": "at",
+  "arg": "7.2"
+ },
+ {
+  "t": 7.15,
+  "step": "move",
+  "arg": "{\"text\":\"720p\",\"exact\":true}"
+ },
+ {
+  "t": 7.6,
+  "step": "at",
+  "arg": "8"
+ },
+ {
+  "t": 7.95,
+  "step": "move",
+  "arg": "{\"selector\":\"text=1080p >> nth=1\"}"
+ },
+ {
+  "t": 8.38,
+  "step": "at",
+  "arg": "9"
+ },
+ {
+  "t": 8.95,
+  "step": "press",
+  "arg": "\"Escape\""
+ },
+ {
+  "t": 8.97,
+  "step": "at",
+  "arg": "9.6"
+ },
+ {
+  "t": 9.54,
+  "step": "click",
+  "arg": "{\"selector\":\"button:has-text(\\\"16:9\\\") >> nth=0\"}"
+ },
+ {
+  "t": 10.12,
+  "step": "at",
+  "arg": "10.6"
+ },
+ {
+  "t": 10.55,
+  "step": "move",
+  "arg": "{\"text\":\"9:16\",\"exact\":true}"
+ },
+ {
+  "t": 10.97,
+  "step": "at",
+  "arg": "11.4"
+ },
+ {
+  "t": 11.34,
+  "step": "click",
+  "arg": "{\"text\":\"9:16\",\"exact\":true}"
+ },
+ {
+  "t": 11.86,
+  "step": "at",
+  "arg": "12"
+ },
+ {
+  "t": 11.95,
+  "step": "move",
+  "arg": "{\"x\":560,\"y\":560}"
+ },
+ {
+  "t": 12.56,
+  "step": "at",
+  "arg": "16.6"
+ },
+ {
+  "t": 16.55,
+  "step": "end",
+  "arg": ""
+ }
+]

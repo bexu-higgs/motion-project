@@ -8,55 +8,24 @@
 //   "shots": [{ "id": "02-video-section", "steps": [
 //     {"goto": "https://higgsfield.ai/..."}, {"wait": 1.5},
 //     {"move": {"text": "Video"}}, {"click": {"text": "Video"}},
-//     {"type": {"selector": "textarea", "text": "...", "cps": 22}},
+//     {"type": {"selector": "textarea", "text": "...", "cps": 22, "noclick": false}},
+//     {"at": 6.5}   ← wait until 6.5 s after recording started (sync to narration)
+//     {"waitFor": "css"}, {"mark": true}, {"since": 1.2}   ← timing relative to an event
+//     (e.g. a page finishing loading; the log gives the mark's time for cutting)
 //     {"upload": {"selector": "input[type=file]", "file": "assets/media/start-frame.jpg"}},
-//     {"scroll": 400}, {"shot": "name.png"} ] }] }
+//     {"scroll": 400}, {"press": "Escape"}, {"shot": "name.png"},
+//     {"dismiss": {"role": "button", "name": "Close promotion"}}, {"record": true} ] }] }
+// Steps before {"record": true} are not recorded (if present; otherwise recording
+// starts at the first goto/wait).
 // Targets: {"text": "..."} | {"selector": "css"} | {"role": "button", "name": "..."} | {"x": 0, "y": 0}
 import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
-import { chromium } from "playwright-core";
 import { ROOT } from "./server.mjs";
+import { launch, newPage } from "./browser.mjs";
 
 const argv = process.argv.slice(2);
 const FPS = 30;
-
-function chromePath() {
-  if (process.env.CHROME_PATH) return process.env.CHROME_PATH;
-  const base = process.env.PLAYWRIGHT_BROWSERS_PATH || "/opt/pw-browsers";
-  if (!fs.existsSync(base)) return undefined;
-  const dir = fs.readdirSync(base).filter((d) => /^chromium-\d+$/.test(d)).sort().pop();
-  return dir ? path.join(base, dir, "chrome-linux", "chrome") : undefined;
-}
-
-// Visible pointer + click ripple (headless Chromium draws no cursor).
-const CURSOR = () => {
-  const install = () => {
-    if (document.getElementById("__cur")) return;
-    const c = document.createElement("div");
-    c.id = "__cur";
-    c.innerHTML = `<svg width="30" height="30" viewBox="0 0 24 24"><path d="M4 2l15 10-7 1.5L8.5 21z" fill="#fff" stroke="#111" stroke-width="1.4" stroke-linejoin="round"/></svg>`;
-    Object.assign(c.style, { position: "fixed", left: "0", top: "0", zIndex: 2147483647, pointerEvents: "none", transform: "translate(-200px,-200px)", filter: "drop-shadow(0 2px 4px rgba(0,0,0,.5))" });
-    document.documentElement.appendChild(c);
-    addEventListener("mousemove", (e) => (c.style.transform = `translate(${e.clientX - 4}px, ${e.clientY - 2}px)`), true);
-    addEventListener("mousedown", (e) => {
-      const r = document.createElement("div");
-      Object.assign(r.style, { position: "fixed", left: `${e.clientX - 22}px`, top: `${e.clientY - 22}px`, width: "44px", height: "44px", borderRadius: "50%",
-        border: "3px solid #22d3ee", zIndex: 2147483646, pointerEvents: "none", transition: "transform .45s ease-out, opacity .45s ease-out", transform: "scale(.3)", opacity: "1" });
-      document.documentElement.appendChild(r);
-      requestAnimationFrame(() => { r.style.transform = "scale(1.4)"; r.style.opacity = "0"; });
-      setTimeout(() => r.remove(), 600);
-    }, true);
-  };
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", install);
-  else install();
-};
-
-async function newPage(browser, vp, scale) {
-  const ctx = await browser.newContext({ viewport: vp, deviceScaleFactor: scale, locale: "en-US" });
-  await ctx.addInitScript(CURSOR);
-  return ctx.newPage();
-}
 
 function locate(page, t) {
   if (t.selector) return page.locator(t.selector).first();
@@ -68,18 +37,26 @@ function locate(page, t) {
 async function pointAt(page, t, state) {
   let x = t.x, y = t.y;
   if (x == null) {
-    const loc = locate(page, t);
-    await loc.scrollIntoViewIfNeeded();
-    const b = await loc.boundingBox();
+    // no scrollIntoView: it waits for the element to be "stable", which stalls
+    // while the page is busy rendering; targets are already on screen
+    const b = await locate(page, t).boundingBox({ timeout: 5000 });
     x = b.x + b.width / 2; y = b.y + b.height / 2;
   }
+  // eased glide, ~0.35–0.8 s depending on distance (each step is one round trip)
   const d = Math.hypot(x - state.x, y - state.y);
-  await page.mouse.move(x, y, { steps: Math.max(12, Math.round(d / 18)) });
+  const steps = Math.max(6, Math.min(16, Math.round(d / 45)));
+  const t0 = Date.now(), dur = Math.min(800, 350 + d * 0.6);
+  for (let i = 1; i <= steps; i++) {
+    const p = i / steps, e = p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
+    await page.mouse.move(state.x + (x - state.x) * e, state.y + (y - state.y) * e);
+    const wait = t0 + dur * p - Date.now();
+    if (wait > 0) await page.waitForTimeout(wait);
+  }
   state.x = x; state.y = y;
 }
 
 async function inspect(url) {
-  const browser = await chromium.launch({ executablePath: chromePath() });
+  const browser = await launch();
   const page = await newPage(browser, { width: 1280, height: 720 }, 1);
   await page.goto(url, { waitUntil: "networkidle", timeout: 60000 }).catch((e) => console.error(e.message));
   const dir = path.join(ROOT, "out/inspect");
@@ -102,54 +79,84 @@ async function inspect(url) {
 async function record(shot, browser, cfg) {
   const page = await newPage(browser, cfg.viewport, cfg.scale);
   const cdp = await page.context().newCDPSession(page);
-  const frames = [];
-  cdp.on("Page.screencastFrame", async (f) => {
-    frames.push({ data: f.data, ts: f.metadata.timestamp });
-    await cdp.send("Page.screencastFrameAck", { sessionId: f.sessionId }).catch(() => {});
+  // frames go straight to disk (2× frames are large); only timestamps stay in memory
+  const tmp = path.join(ROOT, "out/.cap", shot.id);
+  fs.rmSync(tmp, { recursive: true, force: true });
+  fs.mkdirSync(tmp, { recursive: true });
+  const ts = [];
+  cdp.on("Page.screencastFrame", (f) => {
+    cdp.send("Page.screencastFrameAck", { sessionId: f.sessionId }).catch(() => {});
+    const i = ts.length;
+    ts.push(f.metadata.timestamp);
+    fs.writeFile(path.join(tmp, `${String(i).padStart(5, "0")}.jpg`), Buffer.from(f.data, "base64"), () => {});
   });
   const state = { x: cfg.viewport.width / 2, y: cfg.viewport.height / 2 };
-  let started = false;
+  let started = false, recAt = 0, markAt = 0;
+  const log = [];
   const start = async () => {
     if (started) return;
     started = true;
-    await cdp.send("Page.startScreencast", { format: "jpeg", quality: 92, everyNthFrame: 1 });
+    recAt = Date.now();
+    await cdp.send("Page.startScreencast", { format: "jpeg", quality: 88, everyNthFrame: 1,
+      maxWidth: cfg.viewport.width * cfg.scale, maxHeight: cfg.viewport.height * cfg.scale });
   };
+  const explicit = shot.steps.some((s) => s.record);
   for (const s of shot.steps) {
-    if (s.goto) { await page.goto(s.goto, { waitUntil: "networkidle", timeout: 60000 }); await start(); }
-    else if (s.wait) { await start(); await page.waitForTimeout(s.wait * 1000); }
+    if (started) log.push({ abs: Date.now() / 1000, step: Object.keys(s)[0], arg: JSON.stringify(Object.values(s)[0]).slice(0, 70) });
+    if (s.goto) { await page.goto(s.goto, { waitUntil: "networkidle", timeout: 60000 }).catch(() => {}); if (!explicit) await start(); }
+    else if (s.record) await start();
+    else if (s.at != null) { const w = recAt + s.at * 1000 - Date.now(); if (w > 0) await page.waitForTimeout(w); }
+    else if (s.waitFor) await page.locator(s.waitFor).first().waitFor({ state: "visible", timeout: 60000 });
+    else if (s.mark) markAt = Date.now();
+    else if (s.since != null) { const w = markAt + s.since * 1000 - Date.now(); if (w > 0) await page.waitForTimeout(w); }
+    else if (s.wait) { if (!explicit) await start(); await page.waitForTimeout(s.wait * 1000); }
+    else if (s.press) await page.keyboard.press(s.press);
+    else if (s.dismiss) { const b = locate(page, s.dismiss); if (await b.count()) await b.click().catch(() => {}); }
     else if (s.move) await pointAt(page, s.move, state);
     else if (s.hover) await pointAt(page, s.hover, state);
     else if (s.click) { await pointAt(page, s.click, state); await page.mouse.down(); await page.waitForTimeout(80); await page.mouse.up(); }
     else if (s.type) {
-      await pointAt(page, s.type, state);
-      await page.mouse.click(state.x, state.y);
-      await page.keyboard.type(s.type.text, { delay: 1000 / (s.type.cps || 22) });
+      if (!s.type.noclick) {
+        await pointAt(page, s.type, state);
+        await page.mouse.click(state.x, state.y);
+      }
+      // time-driven typing: insert whatever should be visible by now, so the
+      // on-screen speed is exactly `cps` regardless of round-trip overhead
+      const text = s.type.text, cps = s.type.cps || 22, tStart = Date.now();
+      let n = 0;
+      while (n < text.length) {
+        const want = Math.min(text.length, Math.floor(((Date.now() - tStart) / 1000) * cps) + 1);
+        if (want > n) { await page.keyboard.insertText(text.slice(n, want)); n = want; }
+        else await page.waitForTimeout(15);
+      }
     } else if (s.upload) await locate(page, s.upload).setInputFiles(path.join(ROOT, s.upload.file));
     else if (s.scroll) await page.mouse.wheel(0, s.scroll);
     else if (s.shot) await page.screenshot({ path: path.join(ROOT, "out", s.shot) });
   }
+  log.push({ abs: Date.now() / 1000, step: "end", arg: "" });
   await page.waitForTimeout(400);
   await cdp.send("Page.stopScreencast").catch(() => {});
+  await new Promise((r) => setTimeout(r, 500)); // let pending frame writes finish
   await page.context().close();
-  if (frames.length < 2) throw new Error(`${shot.id}: no frames recorded`);
+  if (ts.length < 2) throw new Error(`${shot.id}: no frames recorded`);
   // variable-rate screencast → constant 30 fps video
-  const tmp = path.join(ROOT, "out/.cap", shot.id);
-  fs.rmSync(tmp, { recursive: true, force: true });
-  fs.mkdirSync(tmp, { recursive: true });
   const lines = [];
-  frames.forEach((f, i) => {
-    const file = path.join(tmp, `${String(i).padStart(5, "0")}.jpg`);
-    fs.writeFileSync(file, Buffer.from(f.data, "base64"));
-    const next = frames[i + 1]?.ts ?? f.ts + 1 / FPS;
-    lines.push(`file '${file}'`, `duration ${Math.max(0.001, next - f.ts).toFixed(4)}`);
+  ts.forEach((t, i) => {
+    const next = ts[i + 1] ?? t + 1 / FPS;
+    lines.push(`file '${path.join(tmp, `${String(i).padStart(5, "0")}.jpg`)}'`, `duration ${Math.max(0.001, next - t).toFixed(4)}`);
   });
-  lines.push(`file '${path.join(tmp, `${String(frames.length - 1).padStart(5, "0")}.jpg`)}'`);
+  lines.push(`file '${path.join(tmp, `${String(ts.length - 1).padStart(5, "0")}.jpg`)}'`);
   fs.writeFileSync(path.join(tmp, "list.txt"), lines.join("\n"));
   const out = path.join(ROOT, "assets/captures", `${shot.id}.mp4`);
   execFileSync("ffmpeg", ["-v", "error", "-y", "-f", "concat", "-safe", "0", "-i", path.join(tmp, "list.txt"),
-    "-vf", `fps=${FPS},scale=trunc(iw/2)*2:trunc(ih/2)*2`, "-c:v", "libx264", "-crf", "14", "-pix_fmt", "yuv420p", out]);
+    "-vf", `fps=${FPS},scale=trunc(iw/2)*2:trunc(ih/2)*2`, "-c:v", "libx264", "-crf", "16", "-preset", "medium", "-pix_fmt", "yuv420p", out]);
   fs.rmSync(tmp, { recursive: true, force: true });
-  console.log(`${shot.id}: ${frames.length} frames → ${path.relative(ROOT, out)}`);
+  // step times relative to the first video frame, for syncing with the narration
+  const steps = log.map(({ abs, step, arg }) => ({ t: Math.round((abs - ts[0]) * 100) / 100, step, arg }));
+  fs.writeFileSync(path.join(ROOT, "capture", `${shot.id}.log.json`), JSON.stringify(steps, null, 1) + "\n");
+  const gaps = ts.slice(1).map((t, i) => t - ts[i]).sort((a, b) => a - b);
+  const p90 = gaps[Math.floor(gaps.length * 0.9)] || 0;
+  console.log(`${shot.id}: ${ts.length} frames, ${(ts[ts.length - 1] - ts[0]).toFixed(1)}s, median gap ${(gaps[gaps.length >> 1] * 1000).toFixed(0)} ms, p90 ${(p90 * 1000).toFixed(0)} ms → ${path.relative(ROOT, out)}`);
 }
 
 if (argv[0] === "--inspect") {
@@ -158,7 +165,7 @@ if (argv[0] === "--inspect") {
   const i = argv.indexOf("--shots");
   const file = i >= 0 ? argv.splice(i, 2)[1] : "capture/shots.json";
   const cfg = JSON.parse(fs.readFileSync(path.join(ROOT, file), "utf8"));
-  const browser = await chromium.launch({ executablePath: chromePath() });
+  const browser = await launch(cfg.scale);
   for (const shot of cfg.shots.filter((s) => !argv.length || argv.includes(s.id))) await record(shot, browser, cfg);
   await browser.close();
 }

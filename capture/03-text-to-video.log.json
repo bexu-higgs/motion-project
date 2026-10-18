@@ -1,0 +1,47 @@
+[
+ {
+  "t": -0.06,
+  "step": "at",
+  "arg": "0.4"
+ },
+ {
+  "t": 0.31,
+  "step": "click",
+  "arg": "{\"selector\":\"[role=textbox][aria-label=\\\"Prompt\\\"]\"}"
+ },
+ {
+  "t": 1.2,
+  "step": "move",
+  "arg": "{\"x\":300,\"y\":520}"
+ },
+ {
+  "t": 1.63,
+  "step": "at",
+  "arg": "6.6"
+ },
+ {
+  "t": 6.51,
+  "step": "type",
+  "arg": "{\"selector\":\"[role=textbox][aria-label=\\\"Prompt\\\"]\",\"cps\":30,\"noclick\""
+ },
+ {
+  "t": 12.92,
+  "step": "at",
+  "arg": "18"
+ },
+ {
+  "t": 17.91,
+  "step": "move",
+  "arg": "{\"selector\":\"button[type=submit]:has-text(\\\"Generate\\\")\"}"
+ },
+ {
+  "t": 18.46,
+  "step": "at",
+  "arg": "24.6"
+ },
+ {
+  "t": 24.51,
+  "step": "end",
+  "arg": ""
+ }
+]

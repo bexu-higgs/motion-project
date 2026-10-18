@@ -3,17 +3,348 @@
   "logo": "assets/brand/higgsfield-logo.png",
   "startFrame": "assets/media/start-frame.jpg",
   "captures": {
-    "video-section": { "file": "assets/captures/02-video-section.mp4", "trimStart": 0, "speed": 1, "zoom": [], "highlights": [] },
-    "t2v-ui":        { "file": "assets/captures/03-text-to-video.mp4", "trimStart": 0, "speed": 1, "zoom": [], "highlights": [] },
-    "t2v-result":    { "file": "assets/captures/03b-t2v-result.mp4",   "trimStart": 0, "speed": 1 },
-    "i2v-ui":        { "file": "assets/captures/04-image-to-video.mp4","trimStart": 0, "speed": 1, "zoom": [], "highlights": [] },
-    "i2v-result":    { "file": "assets/captures/04b-i2v-result.mp4",   "trimStart": 0, "speed": 1 },
-    "model-picker":  { "file": "assets/captures/05-model-picker.mp4",  "trimStart": 0, "speed": 1, "zoom": [], "highlights": [] },
-    "settings-ui":   { "file": "assets/captures/06-settings.mp4",      "trimStart": 0, "speed": 1, "zoom": [], "highlights": [] },
-    "review-v1":     { "file": "assets/captures/08-review-v1.mp4",     "trimStart": 0, "speed": 1 },
-    "review-v2":     { "file": "assets/captures/08-review-v2.mp4",     "trimStart": 0, "speed": 1 },
-    "final-clip":    { "file": "assets/captures/09-final-clip.mp4",    "trimStart": 0, "speed": 1 }
+    "video-section": {
+      "file": "assets/captures/02-video-section.mp4",
+      "trimStart": 0,
+      "speed": 1,
+      "zoom": [
+        {
+          "t": 0,
+          "x": 0.5,
+          "y": 0,
+          "s": 1
+        },
+        {
+          "t": 1.0,
+          "x": 0.5,
+          "y": 0,
+          "s": 1
+        },
+        {
+          "t": 2.2,
+          "x": 0.2,
+          "y": 0,
+          "s": 1.9
+        },
+        {
+          "t": 4.0,
+          "x": 0.2,
+          "y": 0,
+          "s": 1.9
+        },
+        {
+          "t": 8.2,
+          "x": 0.5,
+          "y": 0.35,
+          "s": 1.0
+        },
+        {
+          "t": 8.8,
+          "x": 0.5,
+          "y": 0.35,
+          "s": 1.0
+        },
+        {
+          "t": 9.6,
+          "x": 0.15,
+          "y": 0.5,
+          "s": 2.2
+        }
+      ],
+      "highlights": [
+        {
+          "t": 9.5,
+          "d": 2.0,
+          "x": 0.0156,
+          "y": 0.4733,
+          "w": 0.2437,
+          "h": 0.1389,
+          "label": "Prompt"
+        },
+        {
+          "t": 11.7,
+          "d": 4.0,
+          "x": 0.0281,
+          "y": 0.3489,
+          "w": 0.2188,
+          "h": 0.1089,
+          "label": "Add references"
+        }
+      ],
+      "fit": "cover",
+      "retime": [
+        [
+          0,
+          0.9
+        ],
+        [
+          1.3,
+          2.2
+        ],
+        [
+          1.3,
+          3.4
+        ],
+        [
+          1.9,
+          4.0
+        ],
+        [
+          1.9,
+          8.2
+        ],
+        [
+          2.95,
+          8.2
+        ]
+      ]
+    },
+    "t2v-ui": {
+      "file": "assets/captures/03-text-to-video.mp4",
+      "trimStart": 0,
+      "speed": 1,
+      "zoom": [
+        {
+          "t": 0,
+          "x": 0.5,
+          "y": 0.4,
+          "s": 1
+        },
+        {
+          "t": 0.3,
+          "x": 0.5,
+          "y": 0.4,
+          "s": 1
+        },
+        {
+          "t": 1.3,
+          "x": 0.15,
+          "y": 0.57,
+          "s": 2.4
+        },
+        {
+          "t": 17.3,
+          "x": 0.15,
+          "y": 0.57,
+          "s": 2.4
+        },
+        {
+          "t": 18.1,
+          "x": 0.15,
+          "y": 0.8,
+          "s": 2.4
+        }
+      ],
+      "highlights": [
+        {
+          "t": 18.4,
+          "d": 5.6,
+          "x": 0.0211,
+          "y": 0.8778,
+          "w": 0.2328,
+          "h": 0.0667,
+          "label": "Generate"
+        }
+      ],
+      "fit": "cover"
+    },
+    "t2v-result": {
+      "file": "assets/captures/03b-t2v-result.mp4",
+      "trimStart": 0,
+      "speed": 1
+    },
+    "i2v-ui": {
+      "file": "assets/captures/04-image-to-video.mp4",
+      "trimStart": 0,
+      "speed": 1,
+      "zoom": [],
+      "highlights": []
+    },
+    "i2v-result": {
+      "file": "assets/captures/04b-i2v-result.mp4",
+      "trimStart": 0,
+      "speed": 1
+    },
+    "model-picker": {
+      "file": "assets/captures/05-model-picker.mp4",
+      "trimStart": 0,
+      "speed": 1,
+      "zoom": [
+        {
+          "t": 0,
+          "x": 0.15,
+          "y": 0.7,
+          "s": 1.8
+        },
+        {
+          "t": 0.9,
+          "x": 0.15,
+          "y": 0.7,
+          "s": 1.8
+        },
+        {
+          "t": 1.6,
+          "x": 0.36,
+          "y": 0.5,
+          "s": 1.3
+        },
+        {
+          "t": 9.3,
+          "x": 0.36,
+          "y": 0.5,
+          "s": 1.3
+        },
+        {
+          "t": 10.2,
+          "x": 0.42,
+          "y": 0.3,
+          "s": 2.6
+        },
+        {
+          "t": 15.8,
+          "x": 0.42,
+          "y": 0.3,
+          "s": 2.6
+        },
+        {
+          "t": 16.8,
+          "x": 0.15,
+          "y": 0.71,
+          "s": 2.4
+        }
+      ],
+      "highlights": [
+        {
+          "t": 10.4,
+          "d": 5.6,
+          "x": 0.2687,
+          "y": 0.2644,
+          "w": 0.3,
+          "h": 0.0667,
+          "label": "Seedance 2.5"
+        },
+        {
+          "t": 16.9,
+          "d": 4.2,
+          "x": 0.0148,
+          "y": 0.6589,
+          "w": 0.2453,
+          "h": 0.0667,
+          "label": "Model"
+        }
+      ],
+      "fit": "cover"
+    },
+    "settings-ui": {
+      "file": "assets/captures/06-settings.mp4",
+      "trimStart": 0,
+      "speed": 1,
+      "zoom": [
+        {
+          "t": 0,
+          "x": 0.19,
+          "y": 0.615,
+          "s": 1.6
+        },
+        {
+          "t": 0.2,
+          "x": 0.19,
+          "y": 0.615,
+          "s": 1.6
+        },
+        {
+          "t": 0.9,
+          "x": 0.19,
+          "y": 0.615,
+          "s": 2.4
+        }
+      ],
+      "highlights": [
+        {
+          "t": 0.7,
+          "d": 1.2,
+          "x": 0.0148,
+          "y": 0.7211,
+          "w": 0.0922,
+          "h": 0.0578,
+          "dim": false
+        },
+        {
+          "t": 4.4,
+          "d": 1.4,
+          "x": 0.0148,
+          "y": 0.7211,
+          "w": 0.0922,
+          "h": 0.0578,
+          "label": "5s",
+          "dim": false
+        },
+        {
+          "t": 2.5,
+          "d": 1.0,
+          "x": 0.1805,
+          "y": 0.7211,
+          "w": 0.0797,
+          "h": 0.0578,
+          "dim": false
+        },
+        {
+          "t": 6.6,
+          "d": 2.3,
+          "x": 0.1805,
+          "y": 0.7211,
+          "w": 0.0797,
+          "h": 0.0578,
+          "label": "1080p",
+          "dim": false
+        },
+        {
+          "t": 9.8,
+          "d": 2.6,
+          "x": 0.1039,
+          "y": 0.7211,
+          "w": 0.0797,
+          "h": 0.0578,
+          "dim": false
+        }
+      ],
+      "fit": "cover"
+    },
+    "review-v1": {
+      "file": "assets/captures/08-review-v1.mp4",
+      "trimStart": 0,
+      "speed": 1
+    },
+    "review-v2": {
+      "file": "assets/captures/08-review-v2.mp4",
+      "trimStart": 0,
+      "speed": 1
+    },
+    "final-clip": {
+      "file": "assets/captures/09-final-clip.mp4",
+      "trimStart": 0,
+      "speed": 1
+    }
   },
-  "model": { "name": "" },
-  "settings": { "durations": [], "resolutions": [], "aspectRatios": [] }
+  "model": {
+    "name": "Seedance 2.5"
+  },
+  "settings": {
+    "durations": [
+      "4s-30s"
+    ],
+    "resolutions": [
+      "480p",
+      "720p",
+      "1080p"
+    ],
+    "aspectRatios": [
+      "21:9",
+      "16:9",
+      "4:3",
+      "1:1",
+      "3:4",
+      "9:16"
+    ]
+  }
 }

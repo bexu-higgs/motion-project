@@ -106,7 +106,7 @@ function intro(root, ctx, sc) {
 function video(root, ctx, sc) {
   const hd = header(root, sc);
   const slot = new Slot(root, ctx, {
-    id: "video-section", box: TOP_SLOT, tag: "Higgsfield · Video бөлімі",
+    id: "video-section", box: TOP_SLOT, tag: "Higgsfield · Video",
     note: "Нақты интерфейс: Video бөлімін ашу және екі жолды көрсету",
   });
   const mk = (x, color, title, kk, desc, src) => {
@@ -124,8 +124,8 @@ function video(root, ctx, sc) {
     el("div", "wf-desc", c, desc);
     return { c, color, srcBox, arrow, film };
   };
-  const A = mk(40, VIOLET, "Text-to-Video", "Мәтіннен видео", "Жазбаша сипаттамадан басталады", "text");
-  const B = mk(554, CYAN, "Image-to-Video", "Суреттен видео", "Жүктелген суреттен басталады", "image");
+  const A = mk(40, VIOLET, "Text-to-Video", "Мәтіннен видео", "Prompt өрісіне мәтін жазасыз", "text");
+  const B = mk(554, CYAN, "Image-to-Video", "Суреттен видео", "Add references арқылы сурет жүктейсіз", "image");
 
   const runDiagram = (W, t, at) => {
     const k = prog(t, at, 1.6);
@@ -167,7 +167,7 @@ function t2v(root, ctx, sc) {
   const hd = header(root, sc);
   const R = ctx.lesson.roles;
   const slot = new Slot(root, ctx, {
-    id: "t2v-ui", box: TOP_SLOT, tag: "Higgsfield · Text-to-Video",
+    id: "t2v-ui", box: TOP_SLOT, tag: "Higgsfield · Video · Prompt",
     note: "Нақты интерфейс: промпт өрісіне мысалды жазу, промпт толық болған соң генерацияны бастау",
   });
   const c = card(root, { x: 40, y: CONTENT_Y, w: 1000, h: 440 });
@@ -178,7 +178,7 @@ function t2v(root, ctx, sc) {
   const pwrap = place(el("div", "abs", c), { x: 30, y: 136, w: 940 });
   const pv = new PromptView(pwrap, ctx.lesson.prompts.t2v, R);
   pv.root.style.fontSize = "33px";
-  const ready = place(el("div", "ready abs", c, `<span class="ok">${ICON.check}</span>Промпт толық — енді генерацияны бастаңыз`), { x: 28, y: 362 });
+  const ready = place(el("div", "ready abs", c, `<span class="ok">${ICON.check}</span>Промпт толық — енді Generate`), { x: 28, y: 362 });
   const caveat = place(el("div", "caveat abs", root, "Нәтиже әр генерацияда өзгеше болуы мүмкін"), { x: 40, y: CONTENT_Y + 452, w: 1000 });
   const pip = new Slot(root, ctx, {
     id: "t2v-result", box: { x: 640, y: 640, w: 380, h: 290 }, tag: "Бір генерация нәтижесі",
@@ -197,7 +197,7 @@ function t2v(root, ctx, sc) {
     order.forEach((r, i) => enter(chips[r], t, l0 + ((l1 - l0) * i) / order.length, { y: 18, s: 0.9, blur: 4 }));
     // type the example, then highlight its parts one by one
     const typeAt = ctx.cue(2) + 0.2;
-    const cps = 40;
+    const cps = 30; // same speed as the typing in the recording
     const typeEnd = typeAt + pv.total / cps;
     const hlAt = typeEnd + 0.4;
     const hl = {};
@@ -225,7 +225,7 @@ function i2v(root, ctx, sc) {
   const hd = header(root, sc);
   const R = ctx.lesson.roles;
   const slot = new Slot(root, ctx, {
-    id: "i2v-ui", box: TOP_SLOT, tag: "Higgsfield · Image-to-Video",
+    id: "i2v-ui", box: TOP_SLOT, tag: "Higgsfield · Video · Add references",
     note: "Нақты интерфейс: суретті жүктеу, нұсқаулықты жазу, генерацияны бастау",
   });
   const tileBox = { x: 40, y: CONTENT_Y + 46, w: 330, h: 300 };
@@ -286,7 +286,7 @@ function i2v(root, ctx, sc) {
 function model(root, ctx, sc) {
   const hd = header(root, sc);
   const slot = new Slot(root, ctx, {
-    id: "model-picker", box: TOP_SLOT, tag: "Higgsfield · модельдер тізімі",
+    id: "model-picker", box: TOP_SLOT, tag: "Higgsfield · Model",
     note: "Нақты интерфейс: модель тізімін ашу, сипаттаманы қарау, бір модельді таңдау",
   });
   const c = card(root, { x: 40, y: CONTENT_Y, w: 1000, h: 440 });
@@ -334,14 +334,14 @@ function settings(root, ctx, sc) {
   const hd = header(root, sc);
   const S = ctx.config.settings || {};
   const slot = new Slot(root, ctx, {
-    id: "settings-ui", box: TOP_SLOT, tag: "Higgsfield · баптаулар",
+    id: "settings-ui", box: TOP_SLOT, tag: "Higgsfield · 5s · 16:9 · 1080p",
     note: "Нақты интерфейс: таңдалған модельдің ұзақтық, ажыратымдылық, кадр пішімі опциялары",
   });
   const vals = (arr) => (arr && arr.length ? `<div class="vals">${arr.map((v) => `<i>${v}</i>`).join("")}</div>` : "");
   const tiles = [
     [ICON.clock, "Ұзақтық", "Алғашқы сынаққа — қысқа клип", S.durations, VIOLET],
     [ICON.detail, "Ажыратымдылық", "Сурет детальдарына әсер етеді", S.resolutions, "#60A5FA"],
-    [ICON.frame, "Кадр пішімі", "Кадрдың формасын анықтайды", S.aspectRatios, CYAN],
+    [ICON.frame, "Кадр пішімі", "Кадрдың формасын анықтайды", null, CYAN],
   ].map(([ic, t1, d, v, col], i) =>
     card(root, { x: 40 + i * 340, y: CONTENT_Y, w: 320, h: 200 }, "tile").appendChild(
       el("div", "tile-in", null, `<div class="tile-h"><span style="color:${col}">${ic}</span><b>${t1}</b></div><div class="tile-d">${d}</div>${vals(v)}`)
@@ -358,10 +358,13 @@ function settings(root, ctx, sc) {
   });
   const arrows = [0, 1].map((i) => place(el("div", "farrow abs", flow, ICON.arrow), { x: 300 + i * 350 + 4, y: 78, w: 42, h: 42 }));
   // phase B: frame shapes (labels only for ratios the selected model offers)
+  // grouped by orientation; ratios listed are the ones the selected model offers
+  const LABEL = { v: "Тік", h: "Көлденең", s: "Шаршы" };
   const listed = (S.aspectRatios || []).map((r) => [r, aspectOf(r)]).filter((x) => x[1]);
   const shapes = listed.length
-    ? listed.map(([r, k]) => ({ k, label: { v: "Тік", h: "Көлденең", s: "Шаршы" }[k], ratio: r }))
-    : [{ k: "v", label: "Тік" }, { k: "h", label: "Көлденең" }, { k: "s", label: "Шаршы" }];
+    ? ["v", "h", "s"].filter((k) => listed.some((x) => x[1] === k))
+        .map((k) => ({ k, label: LABEL[k], ratio: listed.filter((x) => x[1] === k).map((x) => x[0]).join(" · ") }))
+    : ["v", "h", "s"].map((k) => ({ k, label: LABEL[k] }));
   const dia = place(el("div", "aspects", root), { x: 40, y: CONTENT_Y + 222, w: 1000, h: 210 });
   const dims = { v: [86, 152], h: [196, 110], s: [132, 132] };
   const gap = 1000 / shapes.length;
@@ -369,7 +372,7 @@ function settings(root, ctx, sc) {
     const [w, h] = dims[s.k];
     const g = place(el("div", "ashape abs", dia), { x: i * gap + gap / 2 - 110, y: 0, w: 220, h: 210 });
     place(el("div", `abox abox-${s.k}`, g), { x: 110 - w / 2, y: 82 - h / 2, w, h });
-    el("div", "alabel", g, s.ratio ? `${s.label} · ${s.ratio}` : s.label);
+    el("div", "alabel", g, s.ratio ? `${s.label}<small>${s.ratio}</small>` : s.label);
     return g;
   });
 

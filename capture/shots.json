@@ -1,0 +1,434 @@
+{
+ "viewport": {
+  "width": 1280,
+  "height": 900
+ },
+ "scale": 1.5,
+ "shots": [
+  {
+   "id": "02-video-section",
+   "steps": [
+    {
+     "goto": "https://higgsfield.ai/ai/video"
+    },
+    {
+     "wait": 3
+    },
+    {
+     "dismiss": {
+      "role": "button",
+      "name": "Close promotion"
+     }
+    },
+    {
+     "wait": 0.5
+    },
+    {
+     "goto": "https://higgsfield.ai/"
+    },
+    {
+     "wait": 2.5
+    },
+    {
+     "move": {
+      "x": 700,
+      "y": 460
+     }
+    },
+    {
+     "wait": 0.3
+    },
+    {
+     "record": true
+    },
+    {
+     "at": 0.6
+    },
+    {
+     "click": {
+      "selector": "nav a[href=\"/ai/video\"]"
+     }
+    },
+    {
+     "waitFor": "[role=textbox][aria-label=\"Prompt\"]"
+    },
+    {
+     "wait": 0.4
+    },
+    {
+     "mark": true
+    },
+    {
+     "since": 1.6
+    },
+    {
+     "move": {
+      "selector": "[role=textbox][aria-label=\"Prompt\"]"
+     }
+    },
+    {
+     "since": 3.7
+    },
+    {
+     "move": {
+      "selector": "button:has-text(\"Add references\")"
+     }
+    },
+    {
+     "since": 12.0
+    }
+   ]
+  },
+  {
+   "id": "03-text-to-video",
+   "steps": [
+    {
+     "goto": "https://higgsfield.ai/ai/video"
+    },
+    {
+     "wait": 3
+    },
+    {
+     "dismiss": {
+      "role": "button",
+      "name": "Close promotion"
+     }
+    },
+    {
+     "wait": 0.5
+    },
+    {
+     "goto": "https://higgsfield.ai/ai/video"
+    },
+    {
+     "wait": 3
+    },
+    {
+     "move": {
+      "x": 760,
+      "y": 460
+     }
+    },
+    {
+     "wait": 0.3
+    },
+    {
+     "waitFor": "[role=textbox][aria-label=\"Prompt\"]"
+    },
+    {
+     "wait": 1.0
+    },
+    {
+     "record": true
+    },
+    {
+     "at": 0.4
+    },
+    {
+     "click": {
+      "selector": "[role=textbox][aria-label=\"Prompt\"]"
+     }
+    },
+    {
+     "move": {
+      "x": 300,
+      "y": 520
+     }
+    },
+    {
+     "at": 6.6
+    },
+    {
+     "type": {
+      "selector": "[role=textbox][aria-label=\"Prompt\"]",
+      "cps": 30,
+      "noclick": true,
+      "text": "A character walks slowly through a neon-lit city street in light rain at night. The camera follows smoothly from behind. Reflections shimmer on the pavement, cinematic lighting, steady motion."
+     }
+    },
+    {
+     "at": 18.0
+    },
+    {
+     "move": {
+      "selector": "button[type=submit]:has-text(\"Generate\")"
+     }
+    },
+    {
+     "at": 24.6
+    }
+   ]
+  },
+  {
+   "id": "05-model-picker",
+   "steps": [
+    {
+     "goto": "https://higgsfield.ai/ai/video"
+    },
+    {
+     "wait": 3
+    },
+    {
+     "dismiss": {
+      "role": "button",
+      "name": "Close promotion"
+     }
+    },
+    {
+     "wait": 0.5
+    },
+    {
+     "goto": "https://higgsfield.ai/ai/video"
+    },
+    {
+     "wait": 3
+    },
+    {
+     "move": {
+      "x": 760,
+      "y": 460
+     }
+    },
+    {
+     "wait": 0.3
+    },
+    {
+     "waitFor": "[role=textbox][aria-label=\"Prompt\"]"
+    },
+    {
+     "wait": 1.0
+    },
+    {
+     "record": true
+    },
+    {
+     "at": 0.3
+    },
+    {
+     "click": {
+      "selector": "button[data-model-select-trigger]"
+     }
+    },
+    {
+     "at": 2.0
+    },
+    {
+     "move": {
+      "selector": "[data-model-group-options] button:has-text(\"Seedance 2.5 Draft\")"
+     }
+    },
+    {
+     "at": 3.0
+    },
+    {
+     "move": {
+      "selector": "[data-model-group-options] button:has-text(\"Higgsfield Genjutsu\")"
+     }
+    },
+    {
+     "at": 4.0
+    },
+    {
+     "move": {
+      "selector": "[data-model-group-options] button:has-text(\"Seedance 2.0\") >> nth=0"
+     }
+    },
+    {
+     "at": 5.0
+    },
+    {
+     "scroll": 380
+    },
+    {
+     "at": 7.0
+    },
+    {
+     "scroll": -380
+    },
+    {
+     "at": 9.8
+    },
+    {
+     "move": {
+      "selector": "[data-model-group-options] button:has-text(\"Seedance 2.5\") >> nth=0"
+     }
+    },
+    {
+     "at": 16.2
+    },
+    {
+     "click": {
+      "selector": "[data-model-group-options] button:has-text(\"Seedance 2.5\") >> nth=0"
+     }
+    },
+    {
+     "at": 17.0
+    },
+    {
+     "move": {
+      "x": 520,
+      "y": 520
+     }
+    },
+    {
+     "at": 21.4
+    }
+   ]
+  },
+  {
+   "id": "06-settings",
+   "steps": [
+    {
+     "goto": "https://higgsfield.ai/ai/video"
+    },
+    {
+     "wait": 3
+    },
+    {
+     "dismiss": {
+      "role": "button",
+      "name": "Close promotion"
+     }
+    },
+    {
+     "wait": 0.5
+    },
+    {
+     "goto": "https://higgsfield.ai/ai/video"
+    },
+    {
+     "wait": 3
+    },
+    {
+     "move": {
+      "x": 520,
+      "y": 560
+     }
+    },
+    {
+     "wait": 0.3
+    },
+    {
+     "waitFor": "[role=textbox][aria-label=\"Prompt\"]"
+    },
+    {
+     "wait": 1.0
+    },
+    {
+     "record": true
+    },
+    {
+     "at": 0.3
+    },
+    {
+     "click": {
+      "selector": "button:has-text(\"5s\") >> nth=0"
+     }
+    },
+    {
+     "at": 1.9
+    },
+    {
+     "press": "Escape"
+    },
+    {
+     "at": 2.2
+    },
+    {
+     "click": {
+      "selector": "button:has-text(\"1080p\") >> nth=0"
+     }
+    },
+    {
+     "at": 3.6
+    },
+    {
+     "press": "Escape"
+    },
+    {
+     "at": 4.0
+    },
+    {
+     "click": {
+      "selector": "button:has-text(\"5s\") >> nth=0"
+     }
+    },
+    {
+     "at": 5.8
+    },
+    {
+     "press": "Escape"
+    },
+    {
+     "at": 6.3
+    },
+    {
+     "click": {
+      "selector": "button:has-text(\"1080p\") >> nth=0"
+     }
+    },
+    {
+     "at": 7.2
+    },
+    {
+     "move": {
+      "text": "720p",
+      "exact": true
+     }
+    },
+    {
+     "at": 8.0
+    },
+    {
+     "move": {
+      "selector": "text=1080p >> nth=1"
+     }
+    },
+    {
+     "at": 9.0
+    },
+    {
+     "press": "Escape"
+    },
+    {
+     "at": 9.6
+    },
+    {
+     "click": {
+      "selector": "button:has-text(\"16:9\") >> nth=0"
+     }
+    },
+    {
+     "at": 10.6
+    },
+    {
+     "move": {
+      "text": "9:16",
+      "exact": true
+     }
+    },
+    {
+     "at": 11.4
+    },
+    {
+     "click": {
+      "text": "9:16",
+      "exact": true
+     }
+    },
+    {
+     "at": 12.0
+    },
+    {
+     "move": {
+      "x": 560,
+      "y": 560
+     }
+    },
+    {
+     "at": 16.6
+    }
+   ]
+  }
+ ]
+}

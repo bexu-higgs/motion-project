@@ -105,21 +105,32 @@ export class Slot {
     this.media = m || null;
     this.cfg = (kind === "capture" && ctx.config.captures?.[id]) || {};
     const a = m ? m.width / m.height : aspect || 16 / 9;
-    const { w, h } = fit(a, box);
-    const x = box.x + (box.w - w) / 2;
-    const y = align === "top" ? box.y : box.y + (box.h - h) / 2;
-    this.w = w; this.h = h;
-    this.el = place(el("div", "slot", parent), { x, y, w, h });
+    // contain: the frame takes the media's shape; cover: the frame fills the box
+    // and the media is cropped (zoom keyframes then choose what is visible)
+    let fw, fh, mw, mh;
+    if (m && this.cfg.fit === "cover") {
+      fw = box.w; fh = box.h;
+      if (a > fw / fh) { mh = fh; mw = fh * a; } else { mw = fw; mh = fw / a; }
+    } else {
+      ({ w: fw, h: fh } = fit(a, box));
+      mw = fw; mh = fh;
+    }
+    const x = box.x + (box.w - fw) / 2;
+    const y = align === "top" ? box.y : box.y + (box.h - fh) / 2;
+    this.w = fw; this.h = fh; this.mw = mw; this.mh = mh;
+    this.el = place(el("div", "slot", parent), { x, y, w: fw, h: fh });
     if (tag) this.tag = el("div", "tag", this.el, `<i class="rec"></i><span>${tag}</span>`);
     this.frame = el("div", "frame", this.el);
-    this.mediaEl = el("div", "media", this.frame);
+    this.mediaEl = place(el("div", "media", this.frame), { w: mw, h: mh });
+    this.mediaEl.style.transform = `translate(${(fw - mw) / 2}px, ${(fh - mh) / 2}px)`;
     this.src = "";
     if (m) {
       this.img = el("img", "", this.mediaEl);
       this.img.decoding = "sync";
+      // highlight rings live in the frame (not the zoomed media) so their line
+      // and label keep the same size at any zoom; positions follow the zoom
       this.hls = (this.cfg.highlights || []).map((hlc) => {
-        const n = el("div", "hl", this.mediaEl, hlc.label ? `<span>${hlc.label}</span>` : "");
-        place(n, { x: hlc.x * w, y: hlc.y * h, w: hlc.w * w, h: hlc.h * h });
+        const n = el("div", `hl${hlc.dim === false ? " nodim" : ""}`, this.frame, hlc.label ? `<span>${hlc.label}</span>` : "");
         return { n, c: hlc };
       });
       if (kind === "image") this.setSrc("/" + m.src);
@@ -137,28 +148,50 @@ export class Slot {
     this.ctx.pending.push(this.img.decode().catch(() => {}));
   }
 
+  // Scene time → recording time. `retime` is a list of [sceneT, clipT] anchors
+  // (piecewise linear; two anchors at the same sceneT make a cut, two at the
+  // same clipT a hold); before the first / after the last it runs at 1×.
+  clipTime(tm) {
+    const R = this.cfg.retime;
+    if (!R || !R.length) return Math.max(0, tm) * (this.cfg.speed || 1);
+    if (tm < R[0][0]) return Math.max(0, R[0][1] - (R[0][0] - tm));
+    let i = 0;
+    while (i + 1 < R.length && R[i + 1][0] <= tm) i++;
+    const a = R[i], b = R[i + 1];
+    if (!b) return a[1] + (tm - a[0]);
+    return lerp(a[1], b[1], (tm - a[0]) / (b[0] - a[0]));
+  }
+
   // tm: seconds since this clip started playing (negative = hold first frame)
   update(tm) {
     if (!this.media || this.kind === "image") return;
     const m = this.media;
-    const speed = this.cfg.speed || 1;
-    const idx = clamp(Math.floor(Math.max(0, tm) * speed * m.fps), 0, m.frames - 1) + 1;
+    const tc = this.clipTime(tm);
+    let tx = (this.w - this.mw) / 2, ty = (this.h - this.mh) / 2, s = 1;
+    const idx = clamp(Math.floor(tc * m.fps), 0, m.frames - 1) + 1;
     this.setSrc(`/${m.dir}/${String(idx).padStart(5, "0")}.jpg`);
-    // optional camera moves inside the recording: [{t, x, y, s}] with x,y = focus (0..1)
+    // camera moves inside the recording, keyed by recording time:
+    // [{t, x, y, s}] with x,y = focus point (0..1) and s = zoom
     const zk = this.cfg.zoom || [];
     if (zk.length) {
-      const tt = Math.max(0, tm);
       let a = zk[0], b = zk[0];
-      for (let i = 0; i < zk.length; i++) { if (zk[i].t <= tt) { a = zk[i]; b = zk[i + 1] || zk[i]; } }
-      const p = b === a ? 1 : E.inOut3(clamp((tt - a.t) / (b.t - a.t)));
-      const s = lerp(a.s, b.s, p), fx = lerp(a.x, b.x, p), fy = lerp(a.y, b.y, p);
-      const tx = clamp(this.w / 2 - fx * this.w * s, this.w - this.w * s, 0);
-      const ty = clamp(this.h / 2 - fy * this.h * s, this.h - this.h * s, 0);
-      this.mediaEl.style.transform = `translate(${tx}px, ${ty}px) scale(${s})`;
+      for (let i = 0; i < zk.length; i++) { if (zk[i].t <= tc) { a = zk[i]; b = zk[i + 1] || zk[i]; } }
+      const p = b === a ? 1 : E.inOut3(clamp((tc - a.t) / (b.t - a.t)));
+      s = lerp(a.s, b.s, p);
+      const fx = lerp(a.x, b.x, p), fy = lerp(a.y, b.y, p);
+      tx = clamp(this.w / 2 - fx * this.mw * s, this.w - this.mw * s, 0);
+      ty = clamp(this.h / 2 - fy * this.mh * s, this.h - this.mh * s, 0);
+      this.mediaEl.style.transform = `translate(${tx.toFixed(2)}px, ${ty.toFixed(2)}px) scale(${s.toFixed(4)})`;
     }
     for (const { n, c } of this.hls || []) {
-      const o = life(tm, c.t, c.t + c.d, 0.35, 0.35);
-      n.style.opacity = o; n.style.visibility = o > 0.001 ? "visible" : "hidden";
+      const o = life(tc, c.t, c.t + c.d, 0.35, 0.35);
+      n.style.opacity = o.toFixed(3);
+      n.style.visibility = o > 0.001 ? "visible" : "hidden";
+      if (o > 0.001) {
+        const pop = lerp(1.08, 1, E.out3(clamp((tc - c.t) / 0.35)));
+        const w = c.w * this.mw * s * pop, h = c.h * this.mh * s * pop;
+        place(n, { x: tx + (c.x + c.w / 2) * this.mw * s - w / 2, y: ty + (c.y + c.h / 2) * this.mh * s - h / 2, w, h });
+      }
     }
   }
 }

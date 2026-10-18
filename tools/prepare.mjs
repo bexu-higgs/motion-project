@@ -45,7 +45,7 @@ for (const [id, c] of Object.entries(config.captures)) {
     const args = ["-v", "error", "-y"];
     if (c.trimStart) args.push("-ss", String(c.trimStart));
     if (c.trimEnd) args.push("-to", String(c.trimEnd));
-    args.push("-i", src, "-vf", `fps=${FPS},scale='min(1600,iw)':-2:flags=lanczos`, "-q:v", "2", rel(`${dir}/%05d.jpg`));
+    args.push("-i", src, "-vf", `fps=${FPS},scale='min(1920,iw)':-2:flags=lanczos`, "-q:v", "2", rel(`${dir}/%05d.jpg`));
     console.log(`frames: ${id} ← ${c.file}`);
     execFileSync("ffmpeg", args, { stdio: "inherit" });
     fs.writeFileSync(stamp, key);

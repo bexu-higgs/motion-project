@@ -1,0 +1,57 @@
+[
+ {
+  "t": -0.06,
+  "step": "at",
+  "arg": "0.6"
+ },
+ {
+  "t": 0.54,
+  "step": "click",
+  "arg": "{\"selector\":\"nav a[href=\\\"/ai/video\\\"]\"}"
+ },
+ {
+  "t": 3.61,
+  "step": "waitFor",
+  "arg": "\"[role=textbox][aria-label=\\\"Prompt\\\"]\""
+ },
+ {
+  "t": 7.5,
+  "step": "wait",
+  "arg": "0.4"
+ },
+ {
+  "t": 7.9,
+  "step": "mark",
+  "arg": "true"
+ },
+ {
+  "t": 7.9,
+  "step": "since",
+  "arg": "1.6"
+ },
+ {
+  "t": 9.5,
+  "step": "move",
+  "arg": "{\"selector\":\"[role=textbox][aria-label=\\\"Prompt\\\"]\"}"
+ },
+ {
+  "t": 10.18,
+  "step": "since",
+  "arg": "3.7"
+ },
+ {
+  "t": 11.6,
+  "step": "move",
+  "arg": "{\"selector\":\"button:has-text(\\\"Add references\\\")\"}"
+ },
+ {
+  "t": 12.07,
+  "step": "since",
+  "arg": "12"
+ },
+ {
+  "t": 19.9,
+  "step": "end",
+  "arg": ""
+ }
+]

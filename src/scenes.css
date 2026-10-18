@@ -100,7 +100,8 @@
 .farrow svg { width: 100%; height: 100%; }
 .abox { position: absolute; border-radius: 12px; border: 3px solid rgba(255, 255, 255, 0.35); background: rgba(255, 255, 255, 0.04); }
 .abox-v { border-color: var(--cyan); box-shadow: 0 0 30px rgba(34, 211, 238, 0.35); background: rgba(34, 211, 238, 0.08); }
-.alabel { position: absolute; left: 0; right: 0; top: 172px; text-align: center; font-size: 26px; font-weight: 600; color: var(--ink-2); }
+.alabel { position: absolute; left: -40px; right: -40px; top: 162px; text-align: center; font-size: 26px; font-weight: 600; color: var(--ink-2); }
+.alabel small { display: block; margin-top: 4px; font-size: 21px; font-weight: 500; color: var(--ink-3); font-variant-numeric: tabular-nums; }
 
 /* split */
 .col { padding: 30px; }
