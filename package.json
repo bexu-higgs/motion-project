@@ -1,0 +1,16 @@
+{
+  "name": "higgsfield-ai-video-kk",
+  "private": true,
+  "type": "module",
+  "description": "Kazakh motion-design tutorial: generating a first AI video in Higgsfield (9:16, 1080×1920)",
+  "scripts": {
+    "prepare-assets": "node tools/prepare.mjs",
+    "preview": "node tools/prepare.mjs && node tools/server.mjs",
+    "stills": "node tools/prepare.mjs && node tools/render.mjs --stills 3,8,18,40,62,85,104,124,138,152,160,163.5",
+    "render": "node tools/prepare.mjs && node tools/render.mjs",
+    "check": "node tools/check.mjs"
+  },
+  "devDependencies": {
+    "playwright-core": "1.56.1"
+  }
+}
