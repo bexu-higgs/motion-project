@@ -23,6 +23,10 @@ def _ids(name: str) -> frozenset[int]:
     return frozenset(int(x) for x in raw.replace(" ", "").split(",") if x)
 
 
+class StartupError(RuntimeError):
+    """Іске қосу кезіндегі түсінікті қате (баптау, токен, желі, деректер базасы)."""
+
+
 @dataclass(frozen=True)
 class Settings:
     bot_token: str
@@ -45,10 +49,10 @@ class Settings:
             load_dotenv()
         token = os.getenv("BOT_TOKEN", "").strip()
         if not token:
-            raise RuntimeError("BOT_TOKEN орта айнымалысы көрсетілмеген")
+            raise StartupError("BOT_TOKEN көрсетілмеген: .env файлына @BotFather берген токенді жазыңыз.")
         database_url = os.getenv("DATABASE_URL", "").strip()
         if not database_url:
-            raise RuntimeError("DATABASE_URL орта айнымалысы көрсетілмеген")
+            raise StartupError("DATABASE_URL көрсетілмеген: .env файлына PostgreSQL мекенжайын жазыңыз.")
         return cls(
             bot_token=token,
             database_url=database_url,

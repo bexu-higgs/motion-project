@@ -6,9 +6,11 @@ import logging
 from collections.abc import Awaitable, Callable
 from typing import Any
 
+import asyncpg
 from aiogram import BaseMiddleware, Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
+from aiogram.exceptions import TelegramNetworkError, TelegramUnauthorizedError
 from aiogram.types import (
     BotCommand,
     BotCommandScopeAllGroupChats,
@@ -18,7 +20,7 @@ from aiogram.types import (
     TelegramObject,
 )
 
-from ..config import Settings
+from ..config import Settings, StartupError
 from ..controller import GameManager
 from ..db.repo import Repo
 from .common import full_name
@@ -98,28 +100,39 @@ def build_dispatcher(
 
 async def run(settings: Settings) -> None:
     bot = Bot(settings.bot_token, default=DefaultBotProperties(parse_mode=ParseMode.HTML))
-    repo = await Repo.connect(settings.database_url)
-    me = await bot.get_me()
-    notifier = TelegramNotifier(bot, me.username)
-    manager = GameManager(
-        notifier,
-        repo,
-        registration_seconds=settings.registration_seconds,
-        time_scale=settings.time_scale,
-        restrict_dead=settings.restrict_dead,
-        silence_night=settings.silence_night,
-        mute_non_players=settings.mute_non_players,
-    )
-
-    dp = build_dispatcher(repo, manager, notifier, settings)
-
-    await manager.recover_stale()
-    await bot.set_my_commands(PRIVATE_COMMANDS, scope=BotCommandScopeAllPrivateChats())
-    await bot.set_my_commands(GROUP_COMMANDS, scope=BotCommandScopeAllGroupChats())
-    log.info("Бот іске қосылды: @%s", me.username)
     try:
-        await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
+        try:
+            me = await bot.get_me()
+        except TelegramUnauthorizedError as e:
+            raise StartupError(
+                "BOT_TOKEN қате: @BotFather берген токенді .env файлына толық көшіріңіз."
+            ) from e
+        except TelegramNetworkError as e:
+            raise StartupError(f"Telegram серверіне қосылу мүмкін болмады: {e.message}") from e
+        try:
+            repo = await Repo.connect(settings.database_url)
+        except (OSError, TimeoutError, asyncpg.PostgresError) as e:
+            raise StartupError(f"PostgreSQL-ге қосылу мүмкін болмады (DATABASE_URL тексеріңіз): {e}") from e
+
+        notifier = TelegramNotifier(bot, me.username)
+        manager = GameManager(
+            notifier,
+            repo,
+            registration_seconds=settings.registration_seconds,
+            time_scale=settings.time_scale,
+            restrict_dead=settings.restrict_dead,
+            silence_night=settings.silence_night,
+            mute_non_players=settings.mute_non_players,
+        )
+        dp = build_dispatcher(repo, manager, notifier, settings)
+        try:
+            await manager.recover_stale()
+            await bot.set_my_commands(PRIVATE_COMMANDS, scope=BotCommandScopeAllPrivateChats())
+            await bot.set_my_commands(GROUP_COMMANDS, scope=BotCommandScopeAllGroupChats())
+            log.info("Бот іске қосылды: @%s", me.username)
+            await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
+        finally:
+            await manager.shutdown()
+            await repo.close()
     finally:
-        await manager.shutdown()
-        await repo.close()
         await bot.session.close()
