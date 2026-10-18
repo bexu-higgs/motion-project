@@ -72,12 +72,26 @@ for (const key of ["logo", "startFrame"]) {
   manifest.images[key] = { src: out, ...size };
 }
 
-manifest.audio = config.audio ? findAudio(config.audio) : null;
-if (config.audio && !manifest.audio) manifest.missing.push(config.audio);
+const voice = config.audio ? findAudio(config.audio) : null;
+if (config.audio && !voice) manifest.missing.push(config.audio);
 
 // timing: aligned to the real voice-over if available, otherwise the estimate
 const alignedPath = rel("script/timing.aligned.json");
 const timing = fs.existsSync(alignedPath) ? JSON.parse(fs.readFileSync(alignedPath, "utf8")) : estimateTiming(lesson);
+
+// voice-over track: the author's recording, cut and placed per scene as
+// tools/align.py decided, loudness-normalised for social platforms
+if (voice) {
+  const segs = timing.audio?.segments || [{ from: 0, to: 1e6, at: 0 }];
+  const parts = segs.map((g, i) => {
+    const len = g.to - g.from;
+    const ms = Math.round(g.at * 1000);
+    return `[0:a]atrim=start=${g.from}:end=${g.to},asetpts=PTS-STARTPTS,afade=t=in:d=0.01,afade=t=out:st=${Math.max(0, len - 0.03).toFixed(3)}:d=0.03,adelay=${ms}|${ms}[s${i}]`;
+  });
+  const mix = `${segs.map((_, i) => `[s${i}]`).join("")}amix=inputs=${segs.length}:normalize=0,apad,atrim=0:${timing.duration},loudnorm=I=-16:TP=-1.5:LRA=11,aresample=48000[out]`;
+  execFileSync("ffmpeg", ["-v", "error", "-y", "-i", rel(voice), "-filter_complex", [...parts, mix].join(";"), "-map", "[out]", "-ac", "1", rel("build/voiceover.timed.wav")]);
+  manifest.audio = "build/voiceover.timed.wav";
+}
 fs.writeFileSync(rel("build/timing.json"), JSON.stringify(timing, null, 2));
 fs.writeFileSync(rel("script/captions_kk.srt"), toSrt(timing));
 fs.writeFileSync(rel("build/manifest.json"), JSON.stringify(manifest, null, 2));

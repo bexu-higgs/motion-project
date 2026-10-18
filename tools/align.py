@@ -1,12 +1,16 @@
 #!/usr/bin/env python3
 """Align caption lines and scene windows to the real Kazakh voice-over.
 
-    python3 tools/align.py [assets/audio/voiceover.wav]
+    python3 tools/align.py [audio] [--native]
 
 Finds the pauses in the recording and picks, for every boundary between two
 caption lines, the pause that best matches the line lengths (dynamic
 programming). Writes script/timing.aligned.json, which tools/prepare.mjs then
 uses instead of the estimate. The file is plain JSON and can be hand-tuned.
+
+Default (storyboard) mode keeps the storyboard's scene windows and moves each
+scene's narration to the start of its scene; --native keeps the recording's own
+pacing (shorter video, no added pauses).
 """
 import json
 import subprocess
@@ -127,7 +131,8 @@ def align(lines, t0, t1, cands):
 def main():
     cfg = json.loads((ROOT / "project.config.json").read_text())
     lesson = json.loads((ROOT / "src/lesson.json").read_text())
-    audio = Path(sys.argv[1]) if len(sys.argv) > 1 else None
+    args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    audio = Path(args[0]).resolve() if args else None
     if audio is None:
         base = ROOT / cfg["audio"]
         for ext in (base.suffix, ".wav", ".mp3", ".m4a", ".aac", ".flac", ".ogg"):
@@ -147,23 +152,60 @@ def main():
         {"scene": sid, "index": i, "start": a, "end": b, "text": t}
         for (sid, i, t), (a, b) in zip(lines, spans)
     ]
-    scenes, ids = [], [s["id"] for s in lesson["scenes"]]
-    for k, sid in enumerate(ids):
-        first = next(c for c in captions if c["scene"] == sid)
-        start = 0.0 if k == 0 else round(first["start"] - SCENE_LEAD, 3)
-        scenes.append({"id": sid, "start": start})
-    for k in range(len(scenes) - 1):
-        scenes[k]["end"] = scenes[k + 1]["start"]
-    total = round(max(dur, captions[-1]["end"] + OUTRO), 3)
-    scenes[-1]["end"] = total
-    out = {"source": f"aligned:{audio.relative_to(ROOT) if audio.is_relative_to(ROOT) else audio}",
-           "duration": total, "scenes": scenes, "captions": captions}
+    native = "--native" in sys.argv
+    if native:
+        scenes, segments, total = native_scenes(lesson, captions, dur)
+    else:
+        scenes, segments, total = storyboard_scenes(lesson, captions)
+    src = audio.relative_to(ROOT) if audio.is_relative_to(ROOT) else audio
+    out = {"source": f"aligned:{src}", "mode": "native" if native else "storyboard", "duration": total,
+           "audio": {"src": str(src), "segments": segments}, "scenes": scenes, "captions": captions}
     dst = ROOT / "script/timing.aligned.json"
     dst.write_text(json.dumps(out, ensure_ascii=False, indent=2) + "\n")
     print(f"audio {dur:.2f}s, speech {t0:.2f}–{t1:.2f}s, {len(pauses)} pauses (+{len(cands) - len(pauses)} dips) → {len(captions)} lines")
     for s in scenes:
         print(f"  {s['id']:9s} {s['start']:7.2f} – {s['end']:7.2f}")
-    print(f"wrote {dst.relative_to(ROOT)} (video length {total:.1f}s)")
+    print(f"wrote {dst.relative_to(ROOT)} ({out['mode']}, video length {total:.1f}s)")
+
+
+def native_scenes(lesson, captions, dur):
+    """Scenes follow the recording as is."""
+    scenes = []
+    for k, s in enumerate(lesson["scenes"]):
+        first = next(c for c in captions if c["scene"] == s["id"])
+        scenes.append({"id": s["id"], "start": 0.0 if k == 0 else round(first["start"] - SCENE_LEAD, 3)})
+    for k in range(len(scenes) - 1):
+        scenes[k]["end"] = scenes[k + 1]["start"]
+    total = round(max(dur, captions[-1]["end"] + OUTRO), 3)
+    scenes[-1]["end"] = total
+    return scenes, [{"from": 0.0, "to": round(dur, 3), "at": 0.0}], total
+
+
+def storyboard_scenes(lesson, captions):
+    """Each scene keeps its storyboard window (longer only if its narration
+    needs it); that scene's part of the recording is placed at its start, so
+    the on-screen demonstrations get their time. Captions move with it."""
+    scenes, segments, t = [], [], 0.0
+    last = len(lesson["scenes"]) - 1
+    spans = [(min(c["start"] for c in captions if c["scene"] == s["id"]),
+              max(c["end"] for c in captions if c["scene"] == s["id"])) for s in lesson["scenes"]]
+    for k, s in enumerate(lesson["scenes"]):
+        caps = [c for c in captions if c["scene"] == s["id"]]
+        a, b = spans[k]
+        lead = 1.0 if k == 0 else SCENE_LEAD
+        tail = OUTRO if k == last else 0.6
+        length = round(max(s["end"] - s["start"], lead + (b - a) + tail), 3)
+        shift = t + lead - a
+        for c in caps:
+            c["start"] = round(c["start"] + shift, 3)
+            c["end"] = round(c["end"] + shift, 3)
+        # cut inside the pauses around this scene's narration, never into a neighbour
+        pre = min(0.08, a if k == 0 else (a - spans[k - 1][1]) / 2)
+        post = 0.25 if k == last else min(0.25, (spans[k + 1][0] - b) / 2)
+        segments.append({"from": round(a - pre, 3), "to": round(b + post, 3), "at": round(t + lead - pre, 3)})
+        scenes.append({"id": s["id"], "start": round(t, 3), "end": round(t + length, 3)})
+        t += length
+    return scenes, segments, round(t, 3)
 
 
 if __name__ == "__main__":

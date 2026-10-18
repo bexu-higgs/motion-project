@@ -1,6 +1,6 @@
 {
-  "audio": "assets/audio/voiceover.wav",
-  "logo": "assets/brand/higgsfield-logo.svg",
+  "audio": "assets/audio/voiceover.mp3",
+  "logo": "assets/brand/higgsfield-logo.png",
   "startFrame": "assets/media/start-frame.jpg",
   "captures": {
     "video-section": { "file": "assets/captures/02-video-section.mp4", "trimStart": 0, "speed": 1, "zoom": [], "highlights": [] },
