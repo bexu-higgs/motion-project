@@ -543,10 +543,10 @@ function practice(root, ctx, sc) {
   const cmpLabel = place(el("div", "label abs", cmp, "Нұсқаларды салыстырыңыз"), { x: 0, y: 0 });
   const ids = [["review-v1", "1"], ["review-v2", "2"], ["final-clip", "3"]];
   const tiles = ids.map(([id, n], i) => {
-    const s = new Slot(cmp, ctx, { id, box: { x: i * 345, y: 70, w: 310, h: 310 }, align: "top", tag: `${n}-нұсқа`, note: "Генерация нұсқасы" });
+    const s = new Slot(cmp, ctx, { id, box: { x: i * 345, y: 92, w: 310, h: 300 }, align: "top", tag: `${n}-нұсқа`, note: "Генерация нұсқасы" });
     return s;
   });
-  const best = place(el("div", "best abs", cmp, `${ICON.check}Ең сәттісі`), { x: 2 * 345, y: 394, w: 310 });
+  const best = place(el("div", "best abs", cmp, `${ICON.check}Ең сәттісі`), { x: 2 * 345, y: 402, w: 310 });
   const finalSlot = new Slot(root, ctx, { id: "final-clip", box: { x: 40, y: 400, w: 1000, h: 1040 }, tag: "Дайын кинематографиялық видео", note: "Практика нәтижесі: дайын клип" });
   const endLogo = logoBlock(root, ctx);
   const endCap = place(el("div", "end-cap", root, L.endCaption), { x: 40, y: 1010, w: 1000 });
