@@ -1,7 +1,7 @@
 {
   "source": "aligned:assets/audio/voiceover.mp3",
   "mode": "storyboard",
-  "duration": 166.87,
+  "duration": 168.84,
   "audio": {
     "src": "assets/audio/voiceover.mp3",
     "segments": [
@@ -96,7 +96,7 @@
     {
       "id": "practice",
       "start": 146.87,
-      "end": 166.87
+      "end": 168.84
     }
   ],
   "captions": [

@@ -35,11 +35,10 @@ npm run render           # → out/higgsfield-ai-video-kk.mp4
 
 Талаптар: Node 18+, ffmpeg, Python 3 + numpy (тек `align.py` үшін), Chromium (Playwright табады немесе `CHROME_PATH`).
 
-## Финалға не керек
+## Финал
 
-Барлық материал орнында болғанда ғана финал рендерленеді (`npm run check`). Әзірге жоқ материалдың орнында сары **DRAFT** белгісі тұрады, ол тек жұмыс нұсқасына арналған.
+Дайын видео: [`renders/higgsfield-ai-video-kk.mp4`](renders/higgsfield-ai-video-kk.mp4) (1080×1920, 30 fps, 2:49, H.264 + AAC, −16 LUFS).
+Субтитрлер: [`script/captions_kk.srt`](script/captions_kk.srt).
 
-1. `assets/audio/voiceover.wav` (немесе mp3/m4a): автордың қазақша дауысы, видеодағы жалғыз аудио.
-2. `assets/brand/higgsfield-logo.svg`: ресми логотип.
-3. `assets/captures/*.mp4` және `assets/media/start-frame.jpg`: Higgsfield-тің нақты интерфейс жазбалары мен генерациялары ([тізім](capture/SHOTLIST.md)).
-4. `project.config.json`: таңдалған модельдің нақты атауы мен баптаулары (тек интерфейсте көрінетін мәндер).
+Материалдар: автордың қазақша дауысы (`assets/audio/`), ресми логотип (`assets/brand/`), Higgsfield-тің нақты интерфейс жазбалары мен автордың генерациялары (`assets/captures/`, [тізім](capture/SHOTLIST.md)), бастапқы фото (`assets/media/`).
+Бір нәрсені өзгерткен соң: `npm run check && npm run render`.

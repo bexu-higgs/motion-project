@@ -24,7 +24,7 @@ SR = 16000
 HOP = 0.01  # 10 ms analysis frames
 MIN_GAP = 0.16  # shortest pause that can separate two caption lines
 SCENE_LEAD = 0.5  # scene starts this long before its first line
-OUTRO = 7.2  # final clip + end card after the last line
+OUTRO = 9.4  # the finished clip (5 s) + end card after the last line
 
 
 def load(path):
