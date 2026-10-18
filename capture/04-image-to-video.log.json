@@ -1,0 +1,72 @@
+[
+ {
+  "t": -0.07,
+  "step": "at",
+  "arg": "0.3"
+ },
+ {
+  "t": 0.21,
+  "step": "click",
+  "arg": "{\"selector\":\"button:has-text(\\\"Add references\\\")\"}"
+ },
+ {
+  "t": 1.24,
+  "step": "at",
+  "arg": "1.8"
+ },
+ {
+  "t": 1.71,
+  "step": "move",
+  "arg": "{\"text\":\"Upload file\",\"exact\":true}"
+ },
+ {
+  "t": 2.46,
+  "step": "at",
+  "arg": "3.5"
+ },
+ {
+  "t": 3.41,
+  "step": "press",
+  "arg": "\"Escape\""
+ },
+ {
+  "t": 3.46,
+  "step": "at",
+  "arg": "3.8"
+ },
+ {
+  "t": 3.71,
+  "step": "type",
+  "arg": "{\"selector\":\"[role=textbox][aria-label=\\\"Prompt\\\"]\",\"cps\":42,\"text\":\"T"
+ },
+ {
+  "t": 9.18,
+  "step": "at",
+  "arg": "11"
+ },
+ {
+  "t": 10.91,
+  "step": "move",
+  "arg": "{\"x\":300,\"y\":560}"
+ },
+ {
+  "t": 11.35,
+  "step": "at",
+  "arg": "15.4"
+ },
+ {
+  "t": 15.31,
+  "step": "move",
+  "arg": "{\"selector\":\"button[type=submit]:has-text(\\\"Generate\\\")\"}"
+ },
+ {
+  "t": 15.85,
+  "step": "at",
+  "arg": "24.6"
+ },
+ {
+  "t": 24.51,
+  "step": "end",
+  "arg": ""
+ }
+]

@@ -118,7 +118,8 @@ export class Slot {
     }
     const x = box.x + (box.w - fw) / 2;
     const y = align === "top" ? box.y : box.y + (box.h - fh) / 2;
-    this.w = fw; this.h = fh; this.mw = mw; this.mh = mh;
+    this.x = x; this.y = y; this.w = fw; this.h = fh; this.mw = mw; this.mh = mh;
+    this.view = { tx: (fw - mw) / 2, ty: (fh - mh) / 2, s: 1 };
     this.el = place(el("div", "slot", parent), { x, y, w: fw, h: fh });
     if (tag) this.tag = el("div", "tag", this.el, `<i class="rec"></i><span>${tag}</span>`);
     this.frame = el("div", "frame", this.el);
@@ -186,6 +187,7 @@ export class Slot {
       ty = clamp(this.h / 2 - fy * this.mh * s, this.h - this.mh * s, 0);
       this.mediaEl.style.transform = `translate(${tx.toFixed(2)}px, ${ty.toFixed(2)}px) scale(${s.toFixed(4)})`;
     }
+    this.view = { tx, ty, s };
     for (const { n, c } of this.hls || []) {
       const o = life(tc, c.t, c.t + c.d, 0.35, 0.35);
       n.style.opacity = o.toFixed(3);
@@ -198,6 +200,12 @@ export class Slot {
     }
   }
 }
+
+// A rectangle given in recording coordinates (0..1) → frame pixels, following the zoom.
+Slot.prototype.mapRect = function (nx, ny, nw, nh) {
+  const { tx, ty, s } = this.view;
+  return { x: tx + nx * this.mw * s, y: ty + ny * this.mh * s, w: nw * this.mw * s, h: nh * this.mh * s };
+};
 
 // ---------------------------------------------------------------- prompt view
 export class PromptView {

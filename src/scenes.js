@@ -233,8 +233,13 @@ function i2v(root, ctx, sc) {
   // the generated clip is vertical: a tall window over the right side of the recording
   const result = new Slot(root, ctx, { id: "i2v-result", box: { x: 742, y: 438, w: 270, h: 480 }, tag: "Нәтиже · 1-нұсқа", note: "Осы суреттен шыққан клип", aspect: 9 / 16 });
   result.el.classList.add("pip");
-  const upl = place(el("div", "upload-badge", root, ICON.upload), { x: tileBox.x + 125, y: tileBox.y + 110, w: 80, h: 80 });
   const scan = el("div", "scan", start.frame);
+  // the photo travels from the tile into the recording's "Add references" field
+  // (an animated overlay: the logged-in "uploaded" state of the site is not shown)
+  const startSrc = ctx.manifest.images?.startFrame ? "/" + ctx.manifest.images.startFrame.src : "";
+  const flyer = el("div", "flyer", root, startSrc ? `<img src="${startSrc}">` : "");
+  const docked = el("div", "flyer docked", slot.frame, startSrc ? `<img src="${startSrc}">` : "");
+  const DOCK = [50 / 1280, 333 / 900, 46 / 1280, 62 / 900]; // left of the Add references label
   const c = card(root, { x: 400, y: CONTENT_Y, w: 640, h: 346 });
   const label = place(el("div", "label abs", c, "Промпт"), { x: 28, y: 24 });
   const pwrap = place(el("div", "abs", c), { x: 28, y: 60, w: 590 });
@@ -254,12 +259,23 @@ function i2v(root, ctx, sc) {
     slot.update(t - 0.6);
     // upload the start frame
     const u0 = ctx.cue(0) + 0.3;
-    const tile = enter(start.el, t, u0, { y: 30, s: 0.95 });
-    const up = E.out3(prog(t, u0, 0.6));
-    css(upl, { o: up * (1 - prog(t, u0 + 1.0, 0.35)), y: (1 - up) * -50 });
-    start.frame.querySelector(".media").style.opacity = prog(t, u0 + 0.8, 0.5).toFixed(3);
-    const sp = prog(t, u0 + 0.8, 0.9);
+    enter(start.el, t, u0, { y: 30, s: 0.95 });
+    const sp = prog(t, u0 + 0.3, 0.9);
     css(scan, { o: Math.sin(Math.PI * sp), y: lerp(-40, start.h, sp) });
+    // after the picker closes in the recording (clip 3.4 s), the photo flies in
+    const flyAt = 0.6 + 3.6, f = E.inOut3(prog(t, flyAt, 0.85));
+    const dock = slot.mapRect(...DOCK);
+    const to = { x: slot.x + dock.x, y: slot.y + dock.y, w: dock.w, h: dock.h };
+    const from = { x: start.x, y: start.y, w: start.w, h: start.h };
+    const flying = t >= flyAt && f < 1;
+    place(flyer, { x: lerp(from.x, to.x, f), y: lerp(from.y, to.y, f), w: lerp(from.w, to.w, f), h: lerp(from.h, to.h, f) });
+    flyer.style.opacity = flying ? "1" : "0";
+    flyer.style.visibility = flying ? "visible" : "hidden";
+    place(docked, dock);
+    const land = prog(t, flyAt + 0.85, 0.6);
+    docked.style.opacity = f >= 1 ? "1" : "0";
+    docked.style.visibility = f >= 1 ? "visible" : "hidden";
+    docked.style.boxShadow = f >= 1 ? `0 0 0 3px ${hexA(CYAN, 0.9 * (1 - land))}, 0 0 ${24 * (1 - land) + 6}px ${hexA(CYAN, 0.6 * (1 - land) + 0.15)}` : "none";
     // the instruction
     enter(c, t, ctx.cue(0) + 0.6, { y: 40 });
     const typeAt = ctx.cue(1) + 0.2, cps = 42;
@@ -275,7 +291,7 @@ function i2v(root, ctx, sc) {
     const ruleAt = Math.max(ctx.cue(3), hlAt + 2.6);
     roles.forEach((r, i) => enter(chips[r], t, hlAt + i * 0.8, { y: 16, s: 0.9, blur: 4, out: ruleAt - 0.2 }));
     enter(rule, t, ruleAt, { y: 24 });
-    // the clip generated from this starting frame
+    // the clip generated from this starting frame (tile stays visible as the reference)
     const resAt = Math.max(ctx.cueEnd(4) - 1.0, ruleAt + 1.5);
     enter(result.el, t, resAt, { y: 30, s: 0.85 });
     result.update(t - resAt - 0.2);

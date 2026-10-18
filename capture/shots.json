@@ -160,6 +160,103 @@
    ]
   },
   {
+   "id": "04-image-to-video",
+   "steps": [
+    {
+     "goto": "https://higgsfield.ai/ai/video"
+    },
+    {
+     "wait": 3
+    },
+    {
+     "dismiss": {
+      "role": "button",
+      "name": "Close promotion"
+     }
+    },
+    {
+     "wait": 0.5
+    },
+    {
+     "goto": "https://higgsfield.ai/ai/video"
+    },
+    {
+     "wait": 3
+    },
+    {
+     "move": {
+      "x": 760,
+      "y": 460
+     }
+    },
+    {
+     "wait": 0.3
+    },
+    {
+     "waitFor": "[role=textbox][aria-label=\"Prompt\"]"
+    },
+    {
+     "wait": 1.0
+    },
+    {
+     "record": true
+    },
+    {
+     "at": 0.3
+    },
+    {
+     "click": {
+      "selector": "button:has-text(\"Add references\")"
+     }
+    },
+    {
+     "at": 1.8
+    },
+    {
+     "move": {
+      "text": "Upload file",
+      "exact": true
+     }
+    },
+    {
+     "at": 3.5
+    },
+    {
+     "press": "Escape"
+    },
+    {
+     "at": 3.8
+    },
+    {
+     "type": {
+      "selector": "[role=textbox][aria-label=\"Prompt\"]",
+      "cps": 42,
+      "text": "The person slowly turns toward the camera and gives a subtle smile. The camera makes a gentle push-in. Preserve the person’s face, clothing, framing, and lighting. Keep the movement smooth and natural."
+     }
+    },
+    {
+     "at": 11.0
+    },
+    {
+     "move": {
+      "x": 300,
+      "y": 560
+     }
+    },
+    {
+     "at": 15.4
+    },
+    {
+     "move": {
+      "selector": "button[type=submit]:has-text(\"Generate\")"
+     }
+    },
+    {
+     "at": 24.6
+    }
+   ]
+  },
+  {
    "id": "05-model-picker",
    "steps": [
     {
