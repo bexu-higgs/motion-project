@@ -33,6 +33,32 @@ function findAudio(p) {
 
 const manifest = { captures: {}, images: {}, audio: null, missing: [] };
 
+// Clicks and keystrokes in a recording made by tools/capture.mjs, in recording
+// time: the log has when each step started, shots.json what the step did.
+const shots = fs.existsSync(rel("capture/shots.json")) ? JSON.parse(fs.readFileSync(rel("capture/shots.json"), "utf8")).shots : [];
+function captureSounds(file) {
+  const id = path.basename(file, path.extname(file));
+  const shot = shots.find((s) => s.id === id);
+  const logFile = rel(`capture/${id}.log.json`);
+  if (!shot || !fs.existsSync(logFile)) return [];
+  const log = JSON.parse(fs.readFileSync(logFile, "utf8"));
+  const steps = shot.steps.slice(shot.steps.findIndex((s) => s.record) + 1);
+  const out = [];
+  log.forEach((e, i) => {
+    const step = steps[i] || {};
+    const next = log[i + 1]?.t ?? e.t + 1;
+    // the button goes down at the end of the cursor glide, ~0.09 s before the next step
+    if (step.click) out.push({ tc: +(next - 0.09).toFixed(3), type: "click" });
+    if (step.type) {
+      let t0 = e.t;
+      if (!step.type.noclick) { out.push({ tc: +(e.t + 0.6).toFixed(3), type: "click" }); t0 = e.t + 0.65; }
+      const cps = step.type.cps || 22;
+      [...step.type.text].forEach((ch, k) => out.push({ tc: +(t0 + k / cps).toFixed(3), type: ch === " " ? "space" : "key" }));
+    }
+  });
+  return out;
+}
+
 for (const [id, c] of Object.entries(config.captures)) {
   const src = rel(c.file);
   if (!fs.existsSync(src)) { manifest.missing.push(c.file); continue; }
@@ -54,7 +80,7 @@ for (const [id, c] of Object.entries(config.captures)) {
   }
   const frames = fs.readdirSync(rel(dir)).filter((f) => f.endsWith(".jpg")).length;
   const { width, height } = probe(rel(`${dir}/00001.jpg`));
-  manifest.captures[id] = { dir, frames, fps: FPS, width, height };
+  manifest.captures[id] = { dir, frames, fps: FPS, width, height, sounds: captureSounds(c.file) };
 }
 
 for (const key of ["logo", "startFrame"]) {

@@ -76,6 +76,8 @@ function intro(root, ctx, sc) {
   const row = el("div", "plan-row", plan);
   const steps = ctx.lesson.scenes.slice(1).map((s) => s.step);
   const chips = steps.map((s, i) => el("div", "chip plan-chip", row, `<b>${String(i + 2).padStart(2, "0")}</b>${s}`));
+  ctx.sfx.push({ t: 0.3, type: "rise" }, { t: 3.45, type: "whoosh", gain: 0.6 });
+  chips.forEach((c, i) => ctx.sfx.push({ t: 5.8 + i * 0.12, type: "tick", gain: 0.25 }));
 
   return (t) => {
     // logo: reveal big in the centre, then settle above the title
@@ -146,12 +148,15 @@ function video(root, ctx, sc) {
     W.film.style.borderColor = hexA(W.color, 0.2 + 0.5 * f);
   };
 
+  // timing (shared by the animation and the sound cues)
+  const cIn = ctx.cue(0) + 0.6;
+  const aOn = ctx.cue(1), bOn = ctx.cue(2);
+  ctx.slotSounds(slot, 0.6);
+  ctx.sfx.push({ t: aOn, type: "pop" }, { t: bOn, type: "pop" });
   return (t) => {
     hd(t);
     enter(slot.el, t, 0.25, { y: 40, s: 0.97 });
     slot.update(t - 0.6);
-    const cIn = ctx.cue(0) + 0.6;
-    const aOn = ctx.cue(1), bOn = ctx.cue(2);
     [A, B].forEach((W, i) => {
       const o = enter(W.c, t, cIn + i * 0.15, { y: 40 });
       const act = E.out3(prog(t, i === 0 ? aOn : bOn, 0.5));
@@ -187,19 +192,25 @@ function t2v(root, ctx, sc) {
   pip.el.classList.add("pip");
   const hlOrder = ["subject", "action", "setting", "camera", "mood"];
 
+  // timing (shared by the animation and the sound cues)
+  const l0 = ctx.cue(0) + 0.4, l1 = ctx.cueEnd(1);
+  const typeAt = ctx.cue(2) + 0.2;
+  const cps = 30; // same speed as the typing in the recording
+  const typeEnd = typeAt + pv.total / cps;
+  const hlAt = typeEnd + 0.4;
+  const readyAt = Math.min(hlAt + hlOrder.length * 1.0 + 0.2, ctx.dur - 4.2);
+  ctx.slotSounds(slot, 0.6);
+  order.forEach((r, i) => ctx.sfx.push({ t: l0 + ((l1 - l0) * i) / order.length, type: "tick", gain: 0.35 }));
+  hlOrder.forEach((r, i) => ctx.sfx.push({ t: hlAt + i * 1.0, type: "tick", gain: 0.55 }));
+  ctx.sfx.push({ t: readyAt, type: "check" }, { t: readyAt + 1.0, type: "pop" });
   return (t) => {
     hd(t);
     enter(slot.el, t, 0.25, { y: 40, s: 0.97 });
     slot.update(t - 0.6);
     enter(c, t, ctx.cue(0) + 0.2, { y: 40 });
     // legend chips appear while the narration lists the ingredients
-    const l0 = ctx.cue(0) + 0.4, l1 = ctx.cueEnd(1);
     order.forEach((r, i) => enter(chips[r], t, l0 + ((l1 - l0) * i) / order.length, { y: 18, s: 0.9, blur: 4 }));
     // type the example, then highlight its parts one by one
-    const typeAt = ctx.cue(2) + 0.2;
-    const cps = 30; // same speed as the typing in the recording
-    const typeEnd = typeAt + pv.total / cps;
-    const hlAt = typeEnd + 0.4;
     const hl = {};
     hlOrder.forEach((r, i) => {
       const p = E.out3(prog(t, hlAt + i * 1.0, 0.45));
@@ -210,7 +221,6 @@ function t2v(root, ctx, sc) {
     });
     const typing = t >= typeAt && t < typeEnd + 0.1;
     const blink = Math.floor(t * 2.2) % 2 === 0 ? 1 : 0;
-    const readyAt = Math.min(hlAt + hlOrder.length * 1.0 + 0.2, ctx.dur - 4.2);
     enter(label, t, typeAt - 0.4, { y: 10, blur: 0 });
     pv.update({ chars: typed(t, typeAt, cps), hl, caret: t < typeAt - 0.2 ? 0 : typing ? 1 : t < readyAt ? blink : 0 });
     enter(ready, t, readyAt, { y: 14, s: 0.95 });
@@ -253,17 +263,28 @@ function i2v(root, ctx, sc) {
     `<b>Бір кадр — бір әрекет</b><span class="yes">${ICON.check}1 әрекет</span><span class="no">${ICON.cross}бірнеше әрекет</span>`),
     { x: 40, y: CONTENT_Y + 360, w: 1000, h: 70 });
 
+  // timing (shared by the animation and the sound cues)
+  const u0 = ctx.cue(0) + 0.3;
+  const flyAt = 0.6 + 3.6;
+  const typeAt = ctx.cue(1) + 0.2, cps = 42;
+  const typeEnd = typeAt + pv.total / cps;
+  const hlAt = typeEnd + 0.3;
+  const ruleAt = Math.max(ctx.cue(3), hlAt + 2.6);
+  const resAt = Math.max(ctx.cueEnd(4) - 1.0, ruleAt + 1.5);
+  ctx.slotSounds(slot, 0.6);
+  ctx.sfx.push({ t: u0, type: "pop", gain: 0.7 }, { t: flyAt, type: "whoosh", gain: 0.8 }, { t: flyAt + 0.85, type: "pop" });
+  ["action", "camera", "preserve", "mood"].forEach((r, i) => ctx.sfx.push({ t: hlAt + i * 0.8, type: "tick", gain: 0.55 }));
+  ctx.sfx.push({ t: ruleAt, type: "pop", gain: 0.7 }, { t: resAt, type: "pop" });
   return (t) => {
     hd(t);
     enter(slot.el, t, 0.25, { y: 40, s: 0.97 });
     slot.update(t - 0.6);
     // upload the start frame
-    const u0 = ctx.cue(0) + 0.3;
     enter(start.el, t, u0, { y: 30, s: 0.95 });
     const sp = prog(t, u0 + 0.3, 0.9);
     css(scan, { o: Math.sin(Math.PI * sp), y: lerp(-40, start.h, sp) });
     // after the picker closes in the recording (clip 3.4 s), the photo flies in
-    const flyAt = 0.6 + 3.6, f = E.inOut3(prog(t, flyAt, 0.85));
+    const f = E.inOut3(prog(t, flyAt, 0.85));
     const dock = slot.mapRect(...DOCK);
     const to = { x: slot.x + dock.x, y: slot.y + dock.y, w: dock.w, h: dock.h };
     const from = { x: start.x, y: start.y, w: start.w, h: start.h };
@@ -278,9 +299,6 @@ function i2v(root, ctx, sc) {
     docked.style.boxShadow = f >= 1 ? `0 0 0 3px ${hexA(CYAN, 0.9 * (1 - land))}, 0 0 ${24 * (1 - land) + 6}px ${hexA(CYAN, 0.6 * (1 - land) + 0.15)}` : "none";
     // the instruction
     enter(c, t, ctx.cue(0) + 0.6, { y: 40 });
-    const typeAt = ctx.cue(1) + 0.2, cps = 42;
-    const typeEnd = typeAt + pv.total / cps;
-    const hlAt = typeEnd + 0.3;
     const hl = {};
     ["action", "camera", "preserve", "mood"].forEach((r, i) => {
       hl[r] = E.out3(prog(t, hlAt + i * 0.8, 0.4));
@@ -288,11 +306,9 @@ function i2v(root, ctx, sc) {
     const blink = Math.floor(t * 2.2) % 2 === 0 ? 1 : 0;
     pv.update({ chars: typed(t, typeAt, cps), hl, caret: t < typeAt - 0.3 ? 0 : t < typeEnd ? 1 : blink * (1 - prog(t, hlAt + 3, 0.2)) });
     enter(label, t, typeAt - 0.4, { y: 10, blur: 0 });
-    const ruleAt = Math.max(ctx.cue(3), hlAt + 2.6);
     roles.forEach((r, i) => enter(chips[r], t, hlAt + i * 0.8, { y: 16, s: 0.9, blur: 4, out: ruleAt - 0.2 }));
     enter(rule, t, ruleAt, { y: 24 });
     // the clip generated from this starting frame (tile stays visible as the reference)
-    const resAt = Math.max(ctx.cueEnd(4) - 1.0, ruleAt + 1.5);
     enter(result.el, t, resAt, { y: 30, s: 0.85 });
     result.update(t - resAt - 0.2);
   };
@@ -322,12 +338,17 @@ function model(root, ctx, sc) {
     `<div class="chip">${ICON.sparkle}<span>Бір негізгі модель → бүкіл сабақ</span></div>` +
     (name ? `<div class="chip model-name">${name}</div>` : "")), { x: 28, y: 368 });
 
+  // timing (shared by the animation and the sound cues)
+  const times = [ctx.cue(1), lerp(ctx.cue(1), ctx.cue(2), 0.55), ctx.cue(2), ctx.cue(3)];
+  ctx.slotSounds(slot, 0.6);
+  times.forEach((x) => ctx.sfx.push({ t: x, type: "tick", gain: 0.4 }));
+  rows.forEach((r, i) => ctx.sfx.push({ t: ctx.cue(4) + 0.2 + i * 0.35, type: "check", gain: 0.8 }));
+  ctx.sfx.push({ t: ctx.cue(5), type: "pop", gain: 0.7 });
   return (t) => {
     hd(t);
     enter(slot.el, t, 0.25, { y: 40, s: 0.97 });
     slot.update(t - 0.6);
     enter(c, t, ctx.cue(0) + 0.1, { y: 40 });
-    const times = [ctx.cue(1), lerp(ctx.cue(1), ctx.cue(2), 0.55), ctx.cue(2), ctx.cue(3)];
     rows.forEach((r, i) => {
       enter(r, t, times[i], { x: -30, y: 0, blur: 4 });
       const k = E.outBack(prog(t, ctx.cue(4) + 0.2 + i * 0.35, 0.45));
@@ -392,14 +413,18 @@ function settings(root, ctx, sc) {
     return g;
   });
 
+  // timing (shared by the animation and the sound cues)
+  const tAt = [ctx.cue(0) + 0.4, ctx.cue(0) + 1.6, ctx.cue(3)];
+  const bAt = ctx.cue(3) + 0.3;
+  const nAt = [ctx.cue(1), ctx.cue(2), ctx.cue(2) + 1.4];
+  ctx.slotSounds(slot, 0.6);
+  [...tAt, ...nAt].forEach((x) => ctx.sfx.push({ t: x, type: "tick", gain: 0.4 }));
+  shapeEls.forEach((g, i) => ctx.sfx.push({ t: bAt + 0.2 + i * 0.25, type: "tick", gain: 0.4 }));
   return (t) => {
     hd(t);
     enter(slot.el, t, 0.25, { y: 40, s: 0.97 });
     slot.update(t - 0.6);
-    const tAt = [ctx.cue(0) + 0.4, ctx.cue(0) + 1.6, ctx.cue(3)];
     tiles.forEach((n, i) => enter(n, t, tAt[i], { y: 36, s: 0.96 }));
-    const bAt = ctx.cue(3) + 0.3;
-    const nAt = [ctx.cue(1), ctx.cue(2), ctx.cue(2) + 1.4];
     nodes.forEach((n, i) => enter(n, t, nAt[i], { x: -24, y: 0, out: bAt - 0.3 }));
     arrows.forEach((a, i) => enter(a, t, nAt[i + 1] - 0.25, { x: -14, y: 0, blur: 0, out: bAt - 0.3 }));
     shapeEls.forEach((g, i) => enter(g, t, bAt + 0.2 + i * 0.25, { y: 30, s: 0.9 }));
@@ -439,9 +464,12 @@ function split(root, ctx, sc) {
   const feat = A.art.querySelector(".feat"), mouth = A.art.querySelector(".mouth"), face = A.art.querySelector(".face");
   const shot = B.art.querySelector(".shot"), brs = [...B.art.querySelectorAll(".br")];
 
+  // timing (shared by the animation and the sound cues)
+  const aOn = ctx.cue(1), bOn = ctx.cue(2);
+  const cAt = Math.max(ctx.cueEnd(2) + 0.3, bOn + 2.2);
+  ctx.sfx.push({ t: aOn, type: "pop" }, { t: bOn, type: "pop" }, { t: cAt, type: "whoosh", gain: 0.7 }, { t: cAt + 1.6, type: "tick", gain: 0.4 });
   return (t) => {
     hd(t);
-    const aOn = ctx.cue(1), bOn = ctx.cue(2);
     [A, B].forEach((W, i) => {
       const o = enter(W.c, t, ctx.cue(0) + 0.3 + i * 0.15, { y: 40 });
       const act = E.out3(prog(t, i ? bOn : aOn, 0.5));
@@ -461,7 +489,6 @@ function split(root, ctx, sc) {
     shot.style.transform = `scale(${lerp(1, 1.5, pi)})`;
     brs.forEach((b) => (b.style.transform = `scale(${lerp(1, 0.84, pi)})`));
     // combine both instructions into one prompt
-    const cAt = Math.max(ctx.cueEnd(2) + 0.3, bOn + 2.2);
     enter(comb, t, cAt - 0.3, { y: 30 });
     const pa = E.out3(prog(t, cAt, 0.8)), pb = E.out3(prog(t, cAt + 0.5, 0.8));
     pv.update({ hl: { action: pa, camera: pb } });
@@ -499,9 +526,13 @@ function review(root, ctx, sc) {
   pv.root.style.fontSize = "29px";
   pv.root.style.lineHeight = "1.45";
 
+  // timing (shared by the animation and the sound cues)
+  const regenAt = Math.min(ctx.cue(2) + 2.2, ctx.dur - 4.2);
+  const at = [ctx.cue(0) + 0.5, lerp(ctx.cue(0), ctx.cueEnd(0), 0.6), ctx.cue(1) + 0.4];
+  at.forEach((x) => ctx.sfx.push({ t: x + 0.6, type: "check", gain: 0.8 }));
+  ctx.sfx.push({ t: ctx.cue(2) + 0.7, type: "tick", gain: 0.5 }, { t: regenAt, type: "whoosh", gain: 0.8 }, { t: regenAt + 0.6, type: "pop" });
   return (t) => {
     hd(t);
-    const regenAt = Math.min(ctx.cue(2) + 2.2, ctx.dur - 4.2);
     const sw = E.inOut3(prog(t, regenAt + 0.6, 0.6));
     const o1 = enter(v1.el, t, 0.25, { y: 40, s: 0.97 });
     v1.el.style.opacity = (o1 * (1 - sw)).toFixed(3);
@@ -509,7 +540,6 @@ function review(root, ctx, sc) {
     v1.update(t - 0.6);
     v2.update(t - (regenAt + 0.6));
     enter(c, t, ctx.cue(0) + 0.2, { y: 36 });
-    const at = [ctx.cue(0) + 0.5, lerp(ctx.cue(0), ctx.cueEnd(0), 0.6), ctx.cue(1) + 0.4];
     items.forEach((n, i) => {
       enter(n, t, at[i], { x: -24, y: 0, blur: 4 });
       const k = E.outBack(prog(t, at[i] + 0.6, 0.45));
@@ -552,13 +582,17 @@ function practice(root, ctx, sc) {
   const endCap = place(el("div", "end-cap", root, L.endCaption), { x: 40, y: 1010, w: 1000 });
   const endBar = place(el("div", "gbar", root), { x: 420, y: 1120, w: 240, h: 6 });
 
+  // timing (shared by the animation and the sound cues)
+  const finalAt = Math.max(ctx.cueEnd(2) + 0.4, 11.5);
+  const endAt = ctx.dur - 3.8;
+  const tick = [ctx.cue(0) + 1.2, ctx.cue(1) + 0.2, ctx.cue(1) + 1.6, ctx.cue(1) + 3.0];
+  const cAt = ctx.cue(2);
+  tick.forEach((x) => ctx.sfx.push({ t: x, type: "check", gain: 0.85 }));
+  ctx.sfx.push({ t: cAt + 1.6, type: "pop" }, { t: finalAt, type: "whoosh", gain: 0.8 }, { t: endAt + 0.2, type: "chime" });
   return (t) => {
-    const finalAt = Math.max(ctx.cueEnd(2) + 0.4, 11.5);
-    const endAt = ctx.dur - 3.8;
     // header + checklist
     hd(t, endAt - 0.3);
     enter(list, t, 0.3, { y: 40, out: finalAt - 0.2 });
-    const tick = [ctx.cue(0) + 1.2, ctx.cue(1) + 0.2, ctx.cue(1) + 1.6, ctx.cue(1) + 3.0];
     rows.forEach((r, i) => {
       enter(r, t, 0.5 + i * 0.15, { x: -24, y: 0, blur: 4 });
       const k = E.outBack(prog(t, tick[i], 0.5));
@@ -569,7 +603,6 @@ function practice(root, ctx, sc) {
       r.style.color = k > 0.5 ? "#fff" : "";
     });
     // compare variants
-    const cAt = ctx.cue(2);
     enter(cmpLabel, t, cAt - 0.2, { y: 14, out: finalAt - 0.2 });
     tiles.forEach((s, i) => {
       enter(s.el, t, cAt + i * 0.15, { y: 30, s: 0.94, out: finalAt - 0.2 });

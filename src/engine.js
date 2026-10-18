@@ -201,6 +201,25 @@ export class Slot {
   }
 }
 
+// Recording time → time since the clip started playing (inverse of retime);
+// null if that moment is cut out.
+Slot.prototype.playTime = function (tc) {
+  const R = this.cfg.retime;
+  if (!R || !R.length) return tc / (this.cfg.speed || 1);
+  if (tc <= R[0][1]) return R[0][0] - (R[0][1] - tc);
+  for (let i = 0; i + 1 < R.length; i++) {
+    const [ta, ca] = R[i], [tb, cb] = R[i + 1];
+    if (tb > ta && cb > ca && tc >= ca && tc <= cb) return ta + ((tc - ca) * (tb - ta)) / (cb - ca);
+  }
+  const last = R[R.length - 1];
+  return tc >= last[1] ? last[0] + (tc - last[1]) : null;
+};
+
+// Sound cues of the recording (clicks, typed characters), from build/manifest.json.
+Slot.prototype.sounds = function () {
+  return this.media?.sounds || [];
+};
+
 // A rectangle given in recording coordinates (0..1) → frame pixels, following the zoom.
 Slot.prototype.mapRect = function (nx, ny, nw, nh) {
   const { tx, ty, s } = this.view;

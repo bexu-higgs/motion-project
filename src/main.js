@@ -63,11 +63,27 @@ const scenes = sceneDefs.map((sc, idx) => {
     dur: sc.end - sc.start,
     cue: (i) => (caps[i] ? caps[i].start - sc.start : 0),
     cueEnd: (i) => (caps[i] ? caps[i].end - sc.start : 0),
+    // sound cues in scene time: {t, type, gain}
+    sfx: [],
+    slotSounds(slot, playAt) {
+      for (const snd of slot.sounds()) {
+        const tm = slot.playTime(snd.tc);
+        if (tm == null) continue;
+        const t = playAt + tm;
+        if (t >= 0 && t <= sc.end - sc.start) this.sfx.push({ t, type: snd.type });
+      }
+    },
   };
   Object.defineProperty(ctx, "pending", { get: () => ctxBase.pending });
   const update = SCENES[sc.id](root, ctx, sc);
-  return { sc, idx, root, update };
+  return { sc, idx, root, update, ctx };
 });
+
+// every sound cue on the video timeline (read by tools/render.mjs --sfx)
+window.SFX = [
+  ...scenes.flatMap((s) => s.ctx.sfx.map((e) => ({ ...e, t: +(s.sc.start + e.t).toFixed(3) }))),
+  ...sceneDefs.slice(1).map((s) => ({ t: +(s.start - 0.35).toFixed(3), type: "sweep" })),
+].sort((a, b) => a.t - b.t);
 
 // ---------------------------------------------------------------- HUD
 const hud = el("div", "layer", stage);

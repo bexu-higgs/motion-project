@@ -19,7 +19,8 @@ project.config.json    нақты жазбалар, логотип, аудио, 
 tools/capture.mjs      Higgsfield интерфейсін жазу (курсормен, 30 fps)
 tools/align.py         субтитрлер мен сахналарды дикторға синхрондау
 tools/prepare.mjs      жазбаларды кадр тізбегіне айналдыру + manifest + SRT
-tools/render.mjs       кадрлап рендер → out/higgsfield-ai-video-kk.mp4
+tools/render.mjs       кадрлап рендер → out/higgsfield-ai-video-kk.mp4 (--sfx: дыбыс белгілерінің тізімі)
+tools/audio.py         UI дыбыстары + фондық музыка (синтезделген) + дауыс → build/mix.wav
 ```
 
 ## Командалар
@@ -31,13 +32,16 @@ npm run stills           # бақылау кадрлары → out/stills/
 python3 tools/align.py   # assets/audio/voiceover.* бойынша уақытты есептеу
 npm run check            # финалға дайындықты тексеру
 npm run render           # → out/higgsfield-ai-video-kk.mp4
+npm run remux            # тек дыбысты қайта жинап, дайын видеоға салу
 ```
 
 Талаптар: Node 18+, ffmpeg, Python 3 + numpy (тек `align.py` үшін), Chromium (Playwright табады немесе `CHROME_PATH`).
 
 ## Финал
 
-Дайын видео: [`renders/higgsfield-ai-video-kk.mp4`](renders/higgsfield-ai-video-kk.mp4) (1080×1920, 30 fps, 2:49, H.264 + AAC, −16 LUFS).
+Дайын видео: [`renders/higgsfield-ai-video-kk.mp4`](renders/higgsfield-ai-video-kk.mp4) (1080×1920, 30 fps, 2:49, H.264 + AAC стерео, ≈ −16 LUFS).
+
+Дыбыс: автордың қазақша дауысы; әр басуда, теру кезінде, белгілер мен сахна ауысуларында UI дыбыстары; дауыс астында басылатын баяу тыныш музыка (Fmaj9–Cmaj7–Am9–G6, 68 BPM). Барлық эффект пен музыка `tools/audio.py` ішінде синтезделеді, лицензиялайтын дайын үлгі жоқ.
 Субтитрлер: [`script/captions_kk.srt`](script/captions_kk.srt).
 
 Материалдар: автордың қазақша дауысы (`assets/audio/`), ресми логотип (`assets/brand/`), Higgsfield-тің нақты интерфейс жазбалары мен автордың генерациялары (`assets/captures/`, [тізім](capture/SHOTLIST.md)), бастапқы фото (`assets/media/`).

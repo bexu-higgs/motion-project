@@ -46,6 +46,15 @@ const probe = await openPage();
 const duration = Number(args.to ?? (await probe.page.evaluate(() => window.DURATION)));
 const fps = await probe.page.evaluate(() => window.FPS);
 
+if (args.sfx) {
+  const cues = await probe.page.evaluate(() => window.SFX);
+  fs.writeFileSync(path.join(ROOT, "build/sfx.json"), JSON.stringify({ duration, cues }, null, 1));
+  console.log(`build/sfx.json: ${cues.length} cues`);
+  await browser.close();
+  server.close();
+  process.exit(0);
+}
+
 if (args.stills) {
   fs.mkdirSync(path.join(outDir, "stills"), { recursive: true });
   for (const t of String(args.stills).split(",").map(Number)) {
@@ -102,9 +111,11 @@ fs.writeFileSync(list, chunks.map((c) => `file '${c}'`).join("\n"));
 const manifest = JSON.parse(fs.readFileSync(path.join(ROOT, "build/manifest.json"), "utf8"));
 const out = path.join(outDir, args.out || "higgsfield-ai-video-kk.mp4");
 const ff = ["-v", "error", "-y", "-f", "concat", "-safe", "0", "-i", list];
-if (manifest.audio && !args.from) {
-  // the user's Kazakh voice-over is the only audio track
-  ff.push("-i", path.join(ROOT, manifest.audio), "-map", "0:v", "-map", "1:a", "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-af", "apad", "-shortest");
+// the soundtrack: the mixed voice + music + UI sounds (tools/audio.py) if present,
+// otherwise the author's voice-over alone
+const soundtrack = fs.existsSync(path.join(ROOT, "build/mix.wav")) ? "build/mix.wav" : manifest.audio;
+if (soundtrack && !args.from) {
+  ff.push("-i", path.join(ROOT, soundtrack), "-map", "0:v", "-map", "1:a", "-c:a", "aac", "-b:a", "192k", "-ar", "48000", "-af", "apad", "-shortest");
 }
 ff.push("-c:v", "libx264", "-preset", "slow", "-crf", "18", "-pix_fmt", "yuv420p", "-profile:v", "high", "-movflags", "+faststart", out);
 execFileSync("ffmpeg", ff, { stdio: "inherit" });

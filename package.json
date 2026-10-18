@@ -7,8 +7,10 @@
     "prepare-assets": "node tools/prepare.mjs",
     "preview": "node tools/prepare.mjs && node tools/server.mjs",
     "stills": "node tools/prepare.mjs && node tools/render.mjs --stills 3,8,18,40,62,85,104,124,138,152,160,163.5",
-    "render": "node tools/prepare.mjs && node tools/render.mjs",
-    "check": "node tools/check.mjs"
+    "render": "npm run audio && node tools/render.mjs",
+    "check": "node tools/check.mjs",
+    "audio": "node tools/prepare.mjs && node tools/render.mjs --sfx && python3 tools/audio.py",
+    "remux": "npm run audio && ffmpeg -v error -y -i renders/higgsfield-ai-video-kk.mp4 -i build/mix.wav -map 0:v -map 1:a -c:v copy -c:a aac -b:a 192k -shortest -movflags +faststart out/remux.mp4 && mv out/remux.mp4 renders/higgsfield-ai-video-kk.mp4"
   },
   "devDependencies": {
     "playwright-core": "1.56.1"
