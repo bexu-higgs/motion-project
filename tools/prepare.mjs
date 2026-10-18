@@ -38,14 +38,16 @@ for (const [id, c] of Object.entries(config.captures)) {
   if (!fs.existsSync(src)) { manifest.missing.push(c.file); continue; }
   const dir = `build/captures/${id}`;
   const stamp = rel(`${dir}/.source`);
-  const key = `${c.file}|${fs.statSync(src).mtimeMs}|${c.trimStart || 0}|${c.trimEnd || ""}`;
+  const key = `${c.file}|${fs.statSync(src).mtimeMs}|${c.trimStart || 0}|${c.trimEnd || ""}|${JSON.stringify(c.crop || null)}`;
   if (!fs.existsSync(stamp) || fs.readFileSync(stamp, "utf8") !== key) {
     fs.rmSync(rel(dir), { recursive: true, force: true });
     fs.mkdirSync(rel(dir), { recursive: true });
     const args = ["-v", "error", "-y"];
     if (c.trimStart) args.push("-ss", String(c.trimStart));
     if (c.trimEnd) args.push("-to", String(c.trimEnd));
-    args.push("-i", src, "-vf", `fps=${FPS},scale='min(1920,iw)':-2:flags=lanczos`, "-q:v", "2", rel(`${dir}/%05d.jpg`));
+    // optional crop {x, y, w, h} in source pixels, e.g. to cut an edge watermark
+    const crop = c.crop ? `crop=${c.crop.w}:${c.crop.h}:${c.crop.x}:${c.crop.y},` : "";
+    args.push("-i", src, "-vf", `${crop}fps=${FPS},scale='min(1920,iw)':-2:flags=lanczos`, "-q:v", "2", rel(`${dir}/%05d.jpg`));
     console.log(`frames: ${id} ← ${c.file}`);
     execFileSync("ffmpeg", args, { stdio: "inherit" });
     fs.writeFileSync(stamp, key);

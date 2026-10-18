@@ -97,8 +97,9 @@ export const ICON = {
 // Shows a real screen recording / generated clip / image when it exists in the
 // build manifest. Otherwise draws a clearly-marked draft placeholder.
 export class Slot {
-  constructor(parent, ctx, { id, kind = "capture", box, align = "center", tag, note, aspect }) {
+  constructor(parent, ctx, { id, kind = "capture", box, align = "center", tag, note, aspect, loop = false }) {
     this.ctx = ctx;
+    this.loop = loop;
     this.id = id;
     this.kind = kind;
     const m = kind === "image" ? ctx.manifest.images?.[id] : ctx.manifest.captures?.[id];
@@ -124,6 +125,7 @@ export class Slot {
     this.mediaEl = place(el("div", "media", this.frame), { w: mw, h: mh });
     this.mediaEl.style.transform = `translate(${(fw - mw) / 2}px, ${(fh - mh) / 2}px)`;
     this.src = "";
+    if (m && this.cfg.ai) el("div", "ai-badge", this.frame, `<b>AI</b>${this.cfg.ai === true ? "Higgsfield" : this.cfg.ai}`);
     if (m) {
       this.img = el("img", "", this.mediaEl);
       this.img.decoding = "sync";
@@ -166,7 +168,8 @@ export class Slot {
   update(tm) {
     if (!this.media || this.kind === "image") return;
     const m = this.media;
-    const tc = this.clipTime(tm);
+    let tc = this.clipTime(tm);
+    if (this.loop && tc > 0) tc %= m.frames / m.fps;
     let tx = (this.w - this.mw) / 2, ty = (this.h - this.mh) / 2, s = 1;
     const idx = clamp(Math.floor(tc * m.fps), 0, m.frames - 1) + 1;
     this.setSrc(`/${m.dir}/${String(idx).padStart(5, "0")}.jpg`);

@@ -140,7 +140,7 @@
           "t": 18.4,
           "d": 5.6,
           "x": 0.0211,
-          "y": 0.8778,
+          "y": 0.8478,
           "w": 0.2328,
           "h": 0.0667,
           "label": "Generate"
@@ -151,7 +151,14 @@
     "t2v-result": {
       "file": "assets/captures/03b-t2v-result.mp4",
       "trimStart": 0,
-      "speed": 1
+      "speed": 1,
+      "crop": {
+        "x": 50,
+        "y": 89,
+        "w": 670,
+        "h": 1191
+      },
+      "ai": true
     },
     "i2v-ui": {
       "file": "assets/captures/04-image-to-video.mp4",
@@ -163,7 +170,14 @@
     "i2v-result": {
       "file": "assets/captures/04b-i2v-result.mp4",
       "trimStart": 0,
-      "speed": 1
+      "speed": 1,
+      "crop": {
+        "x": 50,
+        "y": 89,
+        "w": 670,
+        "h": 1191
+      },
+      "ai": true
     },
     "model-picker": {
       "file": "assets/captures/05-model-picker.mp4",
@@ -311,19 +325,40 @@
       "fit": "cover"
     },
     "review-v1": {
-      "file": "assets/captures/08-review-v1.mp4",
+      "file": "assets/captures/04b-i2v-result.mp4",
       "trimStart": 0,
-      "speed": 1
+      "speed": 1,
+      "crop": {
+        "x": 50,
+        "y": 89,
+        "w": 670,
+        "h": 1191
+      },
+      "ai": true
     },
     "review-v2": {
       "file": "assets/captures/08-review-v2.mp4",
       "trimStart": 0,
-      "speed": 1
+      "speed": 1,
+      "crop": {
+        "x": 50,
+        "y": 89,
+        "w": 670,
+        "h": 1191
+      },
+      "ai": true
     },
     "final-clip": {
       "file": "assets/captures/09-final-clip.mp4",
       "trimStart": 0,
-      "speed": 1
+      "speed": 1,
+      "crop": {
+        "x": 50,
+        "y": 89,
+        "w": 670,
+        "h": 1191
+      },
+      "ai": true
     }
   },
   "model": {

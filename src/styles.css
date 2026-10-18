@@ -90,6 +90,10 @@ body.render #stage { position: absolute; left: 0; top: 0; }
 .slot .hl { position: absolute; border-radius: 14px; border: 3px solid var(--cyan); box-shadow: 0 0 0 9999px rgba(5, 5, 8, 0.42), 0 0 26px rgba(34, 211, 238, 0.75); }
 .slot .hl.nodim { box-shadow: 0 0 26px rgba(34, 211, 238, 0.75), inset 0 0 18px rgba(34, 211, 238, 0.25); }
 .slot .hl span { position: absolute; left: -3px; top: -50px; padding: 7px 14px; border-radius: 11px; background: var(--cyan); color: #04121a; font-size: 22px; font-weight: 700; white-space: nowrap; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4); }
+.slot .ai-badge { position: absolute; left: 12px; top: 12px; z-index: 2; display: flex; align-items: center; gap: 7px; height: 30px; padding: 0 11px 0 4px;
+  border-radius: 15px; background: rgba(8, 8, 12, 0.62); border: 1px solid rgba(255, 255, 255, 0.14); font-size: 16px; font-weight: 600; color: #e8eaf0; }
+.slot .ai-badge b { height: 22px; padding: 0 7px; border-radius: 11px; display: grid; place-items: center; font-size: 13px; font-weight: 800; letter-spacing: 0.04em;
+  color: #0b0b10; background: linear-gradient(90deg, var(--purple-2), var(--cyan)); }
 .slot .ph {
   position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 14px; text-align: center; padding: 30px;
   background: repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.025) 0 18px, rgba(255, 255, 255, 0.05) 18px 36px), #0d0e12;

@@ -181,7 +181,7 @@ function t2v(root, ctx, sc) {
   const ready = place(el("div", "ready abs", c, `<span class="ok">${ICON.check}</span>Промпт толық — енді Generate`), { x: 28, y: 362 });
   const caveat = place(el("div", "caveat abs", root, "Нәтиже әр генерацияда өзгеше болуы мүмкін"), { x: 40, y: CONTENT_Y + 452, w: 1000 });
   const pip = new Slot(root, ctx, {
-    id: "t2v-result", box: { x: 640, y: 640, w: 380, h: 290 }, tag: "Бір генерация нәтижесі",
+    id: "t2v-result", box: { x: 742, y: 438, w: 270, h: 480 }, tag: "Бір генерация нәтижесі",
     note: "Осы промпттан шыққан клип",
   });
   pip.el.classList.add("pip");
@@ -230,7 +230,9 @@ function i2v(root, ctx, sc) {
   });
   const tileBox = { x: 40, y: CONTENT_Y + 46, w: 330, h: 300 };
   const start = new Slot(root, ctx, { id: "startFrame", kind: "image", box: tileBox, tag: "Бастапқы кадр", note: "Адамның бір фотосы", aspect: 3 / 4 });
-  const result = new Slot(root, ctx, { id: "i2v-result", box: tileBox, tag: "Нәтиже", note: "Осы суреттен шыққан клип", aspect: 3 / 4 });
+  // the generated clip is vertical: a tall window over the right side of the recording
+  const result = new Slot(root, ctx, { id: "i2v-result", box: { x: 742, y: 438, w: 270, h: 480 }, tag: "Нәтиже · 1-нұсқа", note: "Осы суреттен шыққан клип", aspect: 9 / 16 });
+  result.el.classList.add("pip");
   const upl = place(el("div", "upload-badge", root, ICON.upload), { x: tileBox.x + 125, y: tileBox.y + 110, w: 80, h: 80 });
   const scan = el("div", "scan", start.frame);
   const c = card(root, { x: 400, y: CONTENT_Y, w: 640, h: 346 });
@@ -273,12 +275,10 @@ function i2v(root, ctx, sc) {
     const ruleAt = Math.max(ctx.cue(3), hlAt + 2.6);
     roles.forEach((r, i) => enter(chips[r], t, hlAt + i * 0.8, { y: 16, s: 0.9, blur: 4, out: ruleAt - 0.2 }));
     enter(rule, t, ruleAt, { y: 24 });
-    // starting frame → generated clip
+    // the clip generated from this starting frame
     const resAt = Math.max(ctx.cueEnd(4) - 1.0, ruleAt + 1.5);
-    const r = E.inOut3(prog(t, resAt, 0.7));
-    start.el.style.opacity = (tile * (1 - r)).toFixed(3);
-    css(result.el, { o: r * tile, s: lerp(0.96, 1, r) });
-    result.update(t - resAt);
+    enter(result.el, t, resAt, { y: 30, s: 0.85 });
+    result.update(t - resAt - 0.2);
   };
 }
 
@@ -459,21 +459,33 @@ function split(root, ctx, sc) {
 // ------------------------------------------------------------------ 08 review & regenerate
 function review(root, ctx, sc) {
   const hd = header(root, sc);
-  const v1 = new Slot(root, ctx, { id: "review-v1", box: TOP_SLOT, tag: "1-нұсқа · генерация нәтижесі", note: "Image-to-Video нәтижесі (1-нұсқа)" });
-  const v2 = new Slot(root, ctx, { id: "review-v2", box: TOP_SLOT, tag: "2-нұсқа · бір өзгерістен кейін", note: "Бір өзгерістен кейінгі қайта генерация (2-нұсқа)" });
-  const c = card(root, { x: 40, y: CONTENT_Y, w: 1000, h: 250 });
+  const R = ctx.lesson.roles;
+  // vertical clip on the left, the review beside it
+  const clipBox = { x: 40, y: 390, w: 340, h: 604 };
+  const v1 = new Slot(root, ctx, { id: "review-v1", box: clipBox, tag: "1-нұсқа", note: "Image-to-Video нәтижесі (1-нұсқа)", aspect: 9 / 16, loop: true });
+  const v2 = new Slot(root, ctx, { id: "review-v2", box: clipBox, tag: "2-нұсқа · бір өзгерістен кейін", note: "Бір өзгерістен кейінгі қайта генерация", aspect: 9 / 16 });
+  const c = card(root, { x: 410, y: 390, w: 630, h: 300 });
+  place(el("div", "label abs", c, "Тексеру"), { x: 28, y: 24 });
   const items = ["Кейіпкер пішіні сақталды ма?", "Қозғалыс үздіксіз бе?", "Камера командасы орындалды ма?"].map((txt, i) =>
-    place(el("div", "crow abs", c, `<span class="cb">${ICON.check}</span>${txt}`), { x: 30, y: 26 + i * 70, w: 940 }));
-  const d = card(root, { x: 40, y: CONTENT_Y + 270, w: 1000, h: 160 });
-  place(el("div", "label abs", d, "Мысал · тек бір бөлікті өзгертіңіз"), { x: 30, y: 22 });
-  const oldL = place(el("div", "diff old abs", d, "The camera makes a gentle push-in."), { x: 30, y: 62 });
-  const newL = place(el("div", "diff new abs", d, "The camera slowly pushes in toward the face."), { x: 30, y: 104 });
-  const same = place(el("div", "same abs", d, "Қалғаны — өзгеріссіз"), { x: 690, y: 22, w: 280 });
-  const regen = place(el("div", "regen abs", root, `${ICON.refresh}`), { x: 960, y: 410, w: 60, h: 60 });
+    place(el("div", "crow abs", c, `<span class="cb">${ICON.check}</span>${txt}`), { x: 26, y: 70 + i * 72, w: 580 }));
+  const d = card(root, { x: 410, y: 712, w: 630, h: 282 });
+  place(el("div", "label abs", d, "Мысал · бір бөлікті өзгерту"), { x: 28, y: 24 });
+  const oldL = place(el("div", "diff old abs", d, "The camera makes a gentle push-in."), { x: 28, y: 70, w: 574 });
+  const newL = place(el("div", "diff new abs", d, "The camera slowly pushes in toward the face."), { x: 28, y: 116, w: 574 });
+  const same = place(el("div", "same abs", d, "Қалғаны — өзгеріссіз"), { x: 28, y: 226, w: 574 });
+  const regen = place(el("div", "regen abs", root, `${ICON.refresh}`), { x: 330, y: 400, w: 60, h: 60 });
+  // the second prompt: only the camera sentence differs from the first one
+  const pc = card(root, { x: 40, y: 1024, w: 1000, h: 250 });
+  place(el("div", "label abs", pc, "2-нұсқаның промпты"), { x: 30, y: 24 });
+  const pwrap = place(el("div", "abs", pc), { x: 30, y: 62, w: 940 });
+  const segs = ctx.lesson.prompts.i2v.map((g) => (g.role === "camera" ? { ...g, text: " The camera slowly pushes in toward the face." } : g));
+  const pv = new PromptView(pwrap, segs, R);
+  pv.root.style.fontSize = "29px";
+  pv.root.style.lineHeight = "1.45";
 
   return (t) => {
     hd(t);
-    const regenAt = Math.min(ctx.cue(2) + 2.2, ctx.dur - 3.0);
+    const regenAt = Math.min(ctx.cue(2) + 2.2, ctx.dur - 4.2);
     const sw = E.inOut3(prog(t, regenAt + 0.6, 0.6));
     const o1 = enter(v1.el, t, 0.25, { y: 40, s: 0.97 });
     v1.el.style.opacity = (o1 * (1 - sw)).toFixed(3);
@@ -496,6 +508,8 @@ function review(root, ctx, sc) {
     oldL.style.opacity = lerp(1, 0.5, st).toFixed(3);
     enter(newL, t, ctx.cue(2) + 1.1, { x: -20, y: 0, blur: 4 });
     enter(same, t, ctx.cue(2) + 1.5, { y: 0, blur: 0 });
+    enter(pc, t, ctx.cue(2) + 0.9, { y: 30 });
+    pv.update({ hl: { camera: E.out3(prog(t, ctx.cue(2) + 1.4, 0.5)) }, dim: 0.55 * E.out3(prog(t, ctx.cue(2) + 1.4, 0.5)) });
     const rg = life(t, regenAt, regenAt + 1.6, 0.3, 0.4);
     css(regen, { o: rg, rot: 360 * E.inOut3(prog(t, regenAt, 1.2)), s: lerp(0.6, 1, rg) });
   };
