@@ -133,6 +133,7 @@ class Session:
     confirm_dirty: bool = False
     task: asyncio.Task | None = None
     finished: bool = False
+    started_at: float = field(default_factory=time.monotonic)
 
     @property
     def game_id(self) -> int:
@@ -319,8 +320,8 @@ class GameManager:
         ]
         return "\n".join([
             lobby.t("lobby.title"),
-            "",
             lobby.t("lobby.time", seconds=left),
+            "",
             lobby.t("lobby.players", count=len(lobby.players), max=balance.MAX_PLAYERS),
             "\n".join(names) if names else lobby.t("lobby.empty"),
             "",
@@ -531,18 +532,15 @@ class GameManager:
                 game.t("game.unfulfilled", role=game.title(req.role), count=len(players)),
                 [[Button(game.t("game.refund_btn"), data=f"rr:{req.purchase_id}")]],
             )
-        roles = sorted({p.role for p in players}, key=list(Role).index)
-        counts = {r: sum(1 for p in players if p.role is r) for r in roles}
-        roles_line = ", ".join(f"{game.title(r)}{' ×' + str(counts[r]) if counts[r] > 1 else ''}" for r in roles)
-        lines = [game.t("game.started", count=len(players)), "", game.t("game.composition", roles=roles_line)]
+        lines = [game.t("game.started", count=len(players))]
         if failed:
             lines += ["", game.t("game.dm_failed", names=", ".join(p.mention for p in failed))]
         await self._say(lobby.chat_id, "\n".join(lines), self._bot_button(game.lang))
         if not session.finished:  # хабарламалар жіберілгенше ойын тоқтатылмаса
             session.task = asyncio.create_task(self._run(session))
 
-    def _bot_button(self, lang: str) -> Keyboard:
-        return [[Button(i18n.t(lang, "game.bot_btn"), url=self.notifier.start_link("menu"))]]
+    def _bot_button(self, lang: str, key: str = "game.bot_btn") -> Keyboard:
+        return [[Button(i18n.t(lang, key), url=self.notifier.start_link("menu"))]]
 
     # --- Ойын циклі ----------------------------------------------------------------------------
 
@@ -592,7 +590,10 @@ class GameManager:
         witch = g.resolve_night()
         choice = await self._ask_witch(s, witch) if witch is not None else None
         report = g.complete_night(choice)
-        await self._say(s.chat_id, report.public)
+        text = report.public
+        if g.check_winner() is None:  # ойын жалғасса — таңғы хабарда талқылау уақыты да айтылады
+            text += "\n\n" + g.day_text(int(s.timings.day))
+        await self._say(s.chat_id, text)
         await self._deliver(report.private)
         await self._after_deaths(s, report.deaths, last_words=True)
         # Қатарынан AFK_NIGHTS түн әрекетсіз қалғандар ойыннан шығарылады.
@@ -603,11 +604,10 @@ class GameManager:
 
     async def _day(self, s: Session) -> None:
         g = s.game
-        await self._say(s.chat_id, g.day_text(int(s.timings.day)))
         await self._wait(s, s.timings.day, lambda: False)
         if g.result is not None:
             return
-        await self._say(s.chat_id, g.start_vote(int(s.timings.vote)), self._bot_button(g.lang))
+        await self._say(s.chat_id, g.start_vote(int(s.timings.vote)), self._bot_button(g.lang, "game.vote_btn"))
         s.prompts = {}
         for p in g.alive():
             await self._send_vote_prompt(s, p.user_id)
@@ -616,7 +616,8 @@ class GameManager:
         if g.result is not None:
             return
         report = g.resolve_vote()
-        await self._say(s.chat_id, report.public)
+        if report.public:
+            await self._say(s.chat_id, report.public)
         if g.phase is Phase.CONFIRM:
             confirmed = await self._confirm(s)
             if confirmed is None:  # растау кезінде ойын аяқталды
@@ -901,7 +902,8 @@ class GameManager:
             saved = False
         if not saved:
             rewards = {}
-        await self._say(s.chat_id, g.final_text(rewards))
+        minutes = max(1, round((time.monotonic() - s.started_at) / 60))
+        await self._say(s.chat_id, g.final_text(minutes))
         await self._release(s)
         for p in g.ordered():
             if p.user_id in result.winners:

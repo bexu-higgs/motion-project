@@ -6,7 +6,8 @@ import pytest
 from mafia_bot.game import balance
 from mafia_bot.game.engine import AFK_NIGHTS, Game, Phase, Player, RoleRequest, assign_roles
 from mafia_bot.game.engine import ActionKind as A
-from mafia_bot.game.roles import Faction, Role, title
+from mafia_bot.game.roles import Faction, Role
+from mafia_bot.game.roles import name as title  # ойын мәтіндерінде рөл атауы смайликсіз
 
 from conftest import make_game
 
@@ -88,7 +89,7 @@ def test_mafia_kill_and_doctor_heal():
     g = make_game([Role.DON, Role.DOCTOR, Role.COMMISSIONER, Role.CIVILIAN])
     report, _ = night(g, {1: (A.MAFIA_KILL, 4), 2: (A.HEAL, 4), 3: (A.CHECK, 1)})
     assert g.players[4].alive and report.deaths == []
-    assert "Дәрігер біреудің өмірін сақтап қалды" in report.public
+    assert "Дәрігер біреуді құтқарып қалды" in report.public
     g.start_vote()
     finish_vote(g)
     g.start_night()
@@ -510,7 +511,8 @@ def to_confirm(g, target, voters):
         assert g.submit_vote(voter, target).ok
     report = g.resolve_vote()
     assert g.phase is Phase.CONFIRM and g.candidate == target
-    assert "👍/👎" in report.public and report.deaths == []
+    assert report.public == "" and report.deaths == []   # үміткер растау хабарында аталады
+    assert "дарға асылсын ба" in g.confirm_text(30) and "30 секунд" in g.confirm_text(30)
     return report
 
 
@@ -538,9 +540,10 @@ def test_confirmed_lynch_and_change_of_mind():
     g.submit_confirm(5, True)
     g.submit_confirm(5, False)  # пікірін өзгертті
     assert g.confirm_counts() == (3, 1)
+    assert "3 👍  |  1 👎" in g.confirm_closed_text()
     res = g.resolve_confirm()
-    assert res.deaths == [1] and title(Role.DON) in res.public
-    assert "P5" in res.public.split("👎")[-1]  # кім 👎 басқаны көрінеді
+    assert res.deaths == [1] and "күндізгі жиналыста дарға асылды" in res.public
+    assert "Ол Дон болды" in res.public
     assert g.check_winner().winner is Faction.TOWN
 
 
@@ -560,7 +563,7 @@ def test_candidate_leaving_ends_confirmation():
     g.desert(4)
     assert g.confirm_complete()
     res = g.resolve_confirm()
-    assert res.deaths == [] and "шығып кетті" in res.public
+    assert res.deaths == [] and "ойыннан шықты. Бүгін ешкім асылмайды" in res.public
 
 
 # --- AFK ------------------------------------------------------------------------------------
@@ -598,7 +601,7 @@ def test_afk_after_three_idle_nights_and_any_button_resets():
 def test_leave_reveals_role_publicly():
     g = make_game([Role.DON, Role.DOCTOR, Role.COMMISSIONER, Role.CIVILIAN, Role.CIVILIAN])
     report = g.desert(3)
-    assert "өз еркімен ойыннан шықты" in report.public and title(Role.COMMISSIONER) in report.public
+    assert "ойыннан шықты" in report.public and title(Role.COMMISSIONER) in report.public
     assert g.players[3].death_cause == "desert"
 
 
@@ -727,7 +730,7 @@ def test_higgs_survives_three_shots_and_dies_on_fourth():
     report, _ = night(g, {1: (A.MAFIA_KILL, 2), 5: (A.KILLER_KILL, 2)})
     assert report.deaths == [] and g.players[2].higgs_armor == 1
     assert sum("Higgs" in t for t in private_for(report, 2)) == 2
-    assert "Higgs" not in report.public  # ешкімге жарияланбайды
+    assert "Higgs өрісі" not in report.public  # ешкімге жарияланбайды
     next_night(g)
     report, _ = night(g, {1: (A.MAFIA_KILL, 2)})
     assert report.deaths == [] and g.players[2].higgs_armor == 0
@@ -821,7 +824,7 @@ def test_vote_announcement_per_voter():
     g.submit_vote(1, 2)
     g.submit_vote(3, None)
     assert "P1" in g.vote_announcement(1) and "P2" in g.vote_announcement(1)
-    assert "өз дауысын" in g.vote_announcement(1)
+    assert "дауыс берді" in g.vote_announcement(1)
     assert "қалыс" in g.vote_announcement(3)
 
 

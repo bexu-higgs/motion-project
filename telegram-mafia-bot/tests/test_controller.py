@@ -1,5 +1,6 @@
 import asyncio
 import random
+import re
 
 import pytest
 
@@ -184,21 +185,23 @@ async def test_votes_and_actions_are_announced_one_by_one():
     await manager.force_start(CHAT)
     await wait_until(lambda: storage.games.get(gid) == "finished", timeout=60)
     group = [m.text for m in notifier.to(CHAT)]
-    casts = [t for t in group if "өз дауысын" in t or "қалыс қалды" in t]
+    casts = [t for t in group if "дауыс берді:" in t or "қалыс қалды" in t]
     assert casts, "әр дауыс жеке хабар болуы керек"
     assert all(t.count("tg://user") <= 2 for t in casts)
     assert any("тергеу жүргізуде" in t or "тапаншасын көтерді" in t for t in group)
-    assert any("Дон" in t and "белгіледі" in t for t in group)
+    assert any(t == "Дон құрбанын таңдады..." for t in group)
+    assert not any(re.search("[\U0001F300-\U0001FAFF\u2600-\u27BF]", t) for t in group
+                   if "👍" not in t)  # ойын хабарларында смайлик жоқ
     # Әр дауыс өз дауыс беру кезеңінің ішінде, әр түнгі әрекет өз түнінің ішінде шығады.
     phase = None
     for text in group:
         if "-түн</b>" in text:
             phase = "night"
-        elif "Таң атты" in text or "Дауыс беру нәтижесі" in text or "Ойын аяқталды" in text:
+        elif "-күн</b>" in text or "асылсын ба" in text or "Ойын аяқталды" in text:
             phase = None
-        elif "Дауыс беру басталды" in text:
+        elif "Кінәлілерді анықтап" in text:
             phase = "vote"
-        elif "өз дауысын" in text or "қалыс қалды" in text:
+        elif "дауыс берді:" in text or "қалыс қалды" in text:
             assert phase == "vote", text
         elif "<i>" in text and text.count("\n") == 0 and "…" not in text and "..." in text:
             assert phase == "night", text
@@ -232,7 +235,7 @@ async def test_english_game():
     gid = next(iter(manager.lobby_by_game))
     for uid in range(1, 6):
         assert "You joined" in await manager.join(gid, uid, f"Player {uid}")
-    assert "Registration for Mafia is open" in notifier.to(CHAT)[0].text
+    assert "Registration is open" in notifier.to(CHAT)[0].text
     await manager.force_start(CHAT)
     await wait_until(lambda: storage.games.get(gid) == "finished", timeout=60)
     group = "\n".join(m.text for m in notifier.to(CHAT))
@@ -254,7 +257,7 @@ async def test_unreachable_player_is_reported():
     await manager.force_start(CHAT)
     await wait_until(lambda: CHAT in manager.sessions)
     start_msg = next(m for m in notifier.to(CHAT) if "Ойын басталды" in m.text)
-    assert "жеке хабарлама жібере алмады" in start_msg.text
+    assert "жаза алмады" in start_msg.text
     await manager.abort(CHAT)
 
 
@@ -335,9 +338,9 @@ async def test_lynch_needs_group_confirmation():
     for uid in voters[1:]:
         assert (await manager.confirm_vote(uid, gid, 1, True))[0]
     await wait_until(lambda: g.phase is not Phase.CONFIRM)
-    await wait_until(lambda: any("Растау нәтижесі" in m.text for m in notifier.to(CHAT)))
+    await wait_until(lambda: any("күндізгі жиналыста дарға асылды" in m.text for m in notifier.to(CHAT)))
     assert not g.players[target].alive and g.players[target].death_cause == "lynch"
-    assert any("Растау аяқталды" in text and "👍 <b>4</b>" in text for _, mid, text in notifier.edits)
+    assert any("Дауыс беру нәтижелері:\n4 👍  |  1 👎" == text for _, mid, text in notifier.edits)
     await manager.abort(CHAT)
 
 
@@ -355,7 +358,7 @@ async def test_afk_players_are_removed_after_three_nights():
     # 3-түннен кейін AFK ойыншылар шығарылады (жеңімпаз анықталса — қалғандары қажет емес).
     assert len(kicked) >= 2 and civilian not in kicked  # тұрғынның түнгі әрекеті жоқ — AFK саналмайды
     assert group.count("әрекет жасамағаны үшін ойыннан шығарылды") == len(kicked)
-    assert "Ойын <b>3</b> күнге созылды" in group
+    assert "<b>3-түн</b>" in group and "<b>4-түн</b>" not in group
     for uid in kicked:
         assert not rows[uid].won and not rows[uid].alive
         assert any("ойыннан шығарылдыңыз" in m.text for m in notifier.to(uid))

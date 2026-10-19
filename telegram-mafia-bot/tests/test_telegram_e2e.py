@@ -216,7 +216,7 @@ async def test_full_game_through_telegram_handlers(harness):
 
     # Топта тіркелуді ашу.
     await h.text(1, GROUP, "/game")
-    lobby_msg = next(c for c in tg.sent(GROUP) if "тіркелу ашық" in c.text)
+    lobby_msg = next(c for c in tg.sent(GROUP) if "тіркелу басталды" in c.text)
     join_url = keyboard_buttons(lobby_msg)[0].url
     assert join_url.startswith("https://t.me/mafia_test_bot?start=join_")
     payload = join_url.split("start=")[1]
@@ -267,9 +267,10 @@ async def test_full_game_through_telegram_handlers(harness):
     assert any("Ойын аяқталды" in c.text for c in tg.sent(GROUP))
     # 👍/👎 растау батырмалары топта басылды.
     group_text = "\n".join(c.text for c in tg.sent(GROUP))
-    if "Шешімді растау" in group_text:
-        assert "Растау нәтижесі" in group_text
-        assert any(isinstance(c, m.AnswerCallbackQuery) and "таңдауыңыз" in (c.text or "") for c in tg.calls)
+    if "асылсын ба" in group_text:
+        edits = [c.text for c in tg.calls if isinstance(c, m.EditMessageText) and c.chat_id == GROUP]
+        assert any(t.startswith("Дауыс беру нәтижелері:") for t in edits)
+        assert any(isinstance(c, m.AnswerCallbackQuery) and "Сіздің дауысыңыз" in (c.text or "") for c in tg.calls)
     # Өлгендердің шектеуі алынды.
     restricted = [c.user_id for c in tg.calls if isinstance(c, m.RestrictChatMember)
                   and c.permissions.can_send_messages is False]
@@ -458,8 +459,8 @@ async def test_chat_language_and_registration_time(harness):
     cfg = await h.repo.get_chat_settings(GROUP)
     assert cfg.lang == "tr" and cfg.registration_seconds == 30
     await h.text(4, GROUP, "/game")
-    lobby = next(c for c in tg.sent(GROUP) if "kayıt açık" in c.text)
-    assert "30 sn" in lobby.text or "29 sn" in lobby.text
+    lobby = next(c for c in tg.sent(GROUP) if "kaydı başladı" in c.text)
+    assert "Kayda 30 saniye" in lobby.text or "Kayda 29 saniye" in lobby.text
     await h.text(4, GROUP, "/stop")
     assert "yöneticileri" in tg.sent(GROUP)[-1].text  # әкімші емес — тоқтата алмайды
     await h.text(CHAT_ADMIN, GROUP, "/stop")
@@ -477,7 +478,7 @@ async def test_group_moderation(harness):
     tg = h.tg
     h.manager.time_scale = 50  # түн ұзақ болсын — ешкім әрекет жасамайды
     await h.text(CHAT_ADMIN, GROUP, "/game")
-    payload = keyboard_buttons(next(c for c in tg.sent(GROUP) if "тіркелу ашық" in c.text))[0].url.split("start=")[1]
+    payload = keyboard_buttons(next(c for c in tg.sent(GROUP) if "тіркелу басталды" in c.text))[0].url.split("start=")[1]
     for uid in range(1, 6):
         await h.text(uid, uid, f"/start {payload}")
     await h.text(CHAT_ADMIN, GROUP, "/startgame")
@@ -508,7 +509,7 @@ async def test_group_moderation(harness):
     assert deleted(await h.text(2, GROUP, "/give @p3 1")) and not tg.sent(GROUP)[-1].text.startswith("💎")
     # /leave: ойыншы шығады, рөлі топта ашылады.
     await h.text(4, GROUP, "/leave")
-    assert "өз еркімен ойыннан шықты" in tg.sent(GROUP)[-2].text + tg.sent(GROUP)[-1].text
+    assert "ойыннан шықты. Ол " in tg.sent(GROUP)[-2].text + tg.sent(GROUP)[-1].text
     # Өлген (ойыннан шыққан) ойыншы — өшіріліп, үнсіз етіледі.
     assert deleted(await h.text(4, GROUP, "мен әлі осындамын")) and mutes(4)
     # Ойын тоқтағанда үнсіздік алынады.

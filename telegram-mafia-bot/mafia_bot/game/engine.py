@@ -25,8 +25,8 @@ from .roles import (
     description,
     faction_of,
     faction_title,
-    title,
 )
+from .roles import name as role_name
 
 MAX_DAYS = 40          # шексіз ойынның алдын алу
 QUIET_CYCLES_DRAW = 3  # қатарынан өлімсіз өткен күн+түн саны -> тең ойын
@@ -334,7 +334,8 @@ class Game:
         return i18n.t(self.lang, key, **params)
 
     def title(self, role: Role) -> str:
-        return title(role, self.lang)
+        """Ойын мәтіндеріндегі рөл атауы (смайликсіз)."""
+        return role_name(role, self.lang)
 
     def action_label(self, kind: ActionKind) -> str:
         return self.t(f"action.{kind.value}")
@@ -392,13 +393,19 @@ class Game:
         return "\n".join(p.label for p in self.alive())
 
     def alive_roles_text(self) -> str:
-        counts = Counter(p.role for p in self.alive())
-        parts = []
-        for role in Role:
-            if counts[role]:
-                suffix = f" ×{counts[role]}" if counts[role] > 1 else ""
-                parts.append(f"{self.title(role)}{suffix}")
-        return ", ".join(parts)
+        """Тірілердің арасындағы рөлдер (әрқайсысы бір рет, кімде екені айтылмайды)."""
+        present = {p.role for p in self.alive()}
+        return ", ".join(self.title(role) for role in Role if role in present)
+
+    def alive_block(self) -> list[str]:
+        """«Тірі ойыншылар» тізімі, олардың ішіндегі рөлдер және жалпы саны."""
+        return [
+            self.t("night.alive"),
+            self.alive_list_text(),
+            "",
+            self.t("night.roles", roles=self.alive_roles_text()),
+            self.t("night.total", count=len(self.alive())),
+        ]
 
     def _team_line(self, players: list[Player]) -> str:
         return ", ".join(f"{q.mention} ({self.title(q.role)})" for q in players) or "—"
@@ -458,15 +465,7 @@ class Game:
         self.phase = Phase.NIGHT
         self.actions = {}
         self.defender_cover = None
-        return "\n".join([
-            self.t("night.title", day=self.day),
-            self.t("night.body"),
-            "",
-            self.t("night.alive", count=len(self.alive())),
-            self.alive_list_text(),
-            "",
-            self.t("night.roles", roles=self.alive_roles_text()),
-        ])
+        return "\n".join([self.t("night.title", day=self.day), self.t("night.body")])
 
     def night_options(self, user_id: int) -> list[ActionOption]:
         p = self.players.get(user_id)
@@ -562,7 +561,7 @@ class Game:
             body = self.t(f"prompt.{role.value}")
         else:
             return f"{head}\n{self.t('prompt.none')}"
-        return f"{head}\n\n{body}\n\n{self.t('prompt.choose_hint')}"
+        return f"{head}\n{body}"
 
     def submit_action(
         self, user_id: int, kind: ActionKind, target: int | None = None
@@ -851,7 +850,7 @@ class Game:
         if self.result is None:
             self.phase = Phase.DAY
 
-        lines = [self.t("morning.title", day=self.day), ""]
+        lines = [self.t("morning.title", day=self.day)]
         if dead_order:
             lines.append(self.t("morning.dead"))
             for uid in dead_order:
@@ -860,9 +859,8 @@ class Game:
                                     cause=self.cause(p.death_cause)))
         else:
             lines.append(self.t("morning.nobody"))
-        if public:
-            lines += ["", self.t("morning.events"), *public]
-        lines += ["", self.t("morning.alive", count=len(self.alive())), self.alive_list_text()]
+        lines += public
+        lines += ["", *self.alive_block()]
         return Report(public="\n".join(lines), private=private, deaths=dead_order)
 
     def _target_notes(self, pending: _PendingNight) -> list[tuple[int, str]]:
@@ -1029,28 +1027,16 @@ class Game:
         alive = self.alive_ids()
         votes = {v: t for v, t in self.votes.items() if v in alive and (t is None or t in alive)}
         tally = Counter(t for t in votes.values() if t is not None)
-        lines = [self.t("vote.result_title"), ""]
-        for target, count in tally.most_common():
-            lines.append(self.t("vote.result_line", name=self.players[target].label, count=count))
-        abstained = sum(1 for t in votes.values() if t is None)
-        if abstained:
-            lines.append(self.t("vote.abstained", count=abstained))
-        silent = [p for p in self.alive() if p.user_id not in votes]
-        if silent:
-            lines.append(self.t("vote.silent", names=", ".join(p.mention for p in silent)))
-        lines.append("")
         top = tally.most_common(2)
         if not top:
-            lines.append(self.t("vote.no_votes"))
-        elif len(top) > 1 and top[0][1] == top[1][1]:
-            lines.append(self.t("vote.tie"))
-        else:
-            self.candidate = top[0][0]
-            self.confirm_votes = {}
-            self.phase = Phase.CONFIRM
-            lines.append(self.t("vote.candidate", name=self._name(self.candidate)))
-            return Report(public="\n".join(lines))
-        return self._end_vote(lines, [], [])
+            return self._end_vote([self.t("vote.no_votes")], [], [])
+        if len(top) > 1 and top[0][1] == top[1][1]:
+            return self._end_vote([self.t("vote.tie")], [], [])
+        # Үміткер растау хабарында аталады — бөлек нәтиже хабары қажет емес.
+        self.candidate = top[0][0]
+        self.confirm_votes = {}
+        self.phase = Phase.CONFIRM
+        return Report(public="")
 
     # --- 👍/👎 растау ------------------------------------------------------------------
 
@@ -1092,20 +1078,8 @@ class Game:
         """Растау нәтижесі: 👍 саны 👎-ден көп болса ғана үміткер дарға асылады."""
         if self.phase is not Phase.CONFIRM or self.candidate is None:
             raise RuntimeError("Растау жүріп жатқан жоқ")
-        voters = self.confirm_voters()
         yes, no = self.confirm_counts()
-
-        def names(choice: bool) -> str:
-            chosen = [p.mention for p in self.ordered()
-                      if p.user_id in voters and self.confirm_votes.get(p.user_id) is choice]
-            return ", ".join(chosen) or "—"
-
-        lines = [
-            self.t("confirm.result_title"),
-            self.t("confirm.yes_line", count=yes, names=names(True)),
-            self.t("confirm.no_line", count=no, names=names(False)),
-            "",
-        ]
+        lines: list[str] = []
         private: list[tuple[int, str]] = []
         deaths: list[int] = []
         target = self.players[self.candidate]
@@ -1216,25 +1190,22 @@ class Game:
         self.phase = Phase.ENDED
         return self.result
 
-    def final_text(self, rewards: dict[int, int]) -> str:
+    def final_text(self, minutes: int) -> str:
+        """Ойын қорытындысы: жеңімпаздар, басқа ойыншылар және ойын ұзақтығы."""
         if self.result is None:
             raise RuntimeError("Ойын әлі аяқталған жоқ")
-        lines = [self.t("final.title", label=self.result.label), ""]
         winners = [p for p in self.ordered() if p.user_id in self.result.winners]
-        losers = [p for p in self.ordered() if p.user_id not in self.result.winners]
-        if winners:
-            lines.append(self.t("final.winners"))
-            for p in winners:
-                reward = rewards.get(p.user_id, 0)
-                bonus = self.t("final.bonus", reward=reward) if reward else ""
-                lines.append(self.t("final.winner_line", name=p.label, role=self.reveal(p), bonus=bonus))
-            lines.append("")
-        if losers:
-            lines.append(self.t("final.losers"))
-            for p in losers:
-                status = self.t("final.status_alive" if p.alive else "final.status_dead")
-                lines.append(self.t("final.loser_line", name=p.label, role=self.reveal(p), status=status))
-        lines += ["", self.t("final.days", days=self.day), self.t("final.rule")]
+        others = [p for p in self.ordered() if p.user_id not in self.result.winners]
+        lines = [self.t("final.title", label=self.result.label)]
+        n = 0
+        for header, group in (("final.winners", winners), ("final.losers", others)):
+            if not group:
+                continue
+            lines += ["", self.t(header)]
+            for p in group:
+                n += 1
+                lines.append(self.t("final.line", n=n, name=p.mention, role=self.reveal(p)))
+        lines += ["", self.t("final.duration", minutes=minutes)]
         return "\n".join(lines)
 
     def _require_running(self) -> None:
