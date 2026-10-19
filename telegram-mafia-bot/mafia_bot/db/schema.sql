@@ -102,3 +102,6 @@ ALTER TABLE chats ADD COLUMN IF NOT EXISTS lang TEXT NOT NULL DEFAULT 'kk';
 ALTER TABLE chats ADD COLUMN IF NOT EXISTS registration_seconds INT;
 ALTER TABLE chats ADD COLUMN IF NOT EXISTS start_mode TEXT NOT NULL DEFAULT 'all';
 ALTER TABLE users ADD COLUMN IF NOT EXISTS lang TEXT NOT NULL DEFAULT 'kk';
+
+-- v3: /give командасында @username бойынша іздеу.
+CREATE INDEX IF NOT EXISTS users_username_idx ON users (lower(username));

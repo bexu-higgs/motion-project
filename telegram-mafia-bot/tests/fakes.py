@@ -139,9 +139,26 @@ class AutoPlayers:
         notifier.on_send = self._on_send
 
     def _on_send(self, msg: Sent) -> None:
-        if msg.chat_id <= 0 or msg.chat_id in self.idle or not buttons(msg.keyboard):
+        if msg.chat_id < 0:
+            self._on_group(msg)
+            return
+        if msg.chat_id in self.idle or not buttons(msg.keyboard):
             return
         self.tasks.append(asyncio.create_task(self._click(msg.chat_id, msg.keyboard)))
+
+    def _on_group(self, msg: Sent) -> None:
+        """Топтағы 👍/👎 растау: әр тірі ойыншы кездейсоқ батырманы басады."""
+        confirm = [b for b in buttons(msg.keyboard) if b.data.startswith("c:")]
+        s = self.manager.sessions.get(msg.chat_id)
+        if not confirm or s is None:
+            return
+        for uid in sorted(s.game.confirm_voters() - self.idle):
+            self.tasks.append(asyncio.create_task(self._confirm(uid, self.rng.choice(confirm))))
+
+    async def _confirm(self, user_id: int, button: Button) -> None:
+        await asyncio.sleep(self.rng.random() * 0.002)
+        _, gid, day, yes = button.data.split(":")
+        await self.manager.confirm_vote(user_id, int(gid), int(day), yes == "1")
 
     async def _click(self, user_id: int, keyboard: Keyboard) -> None:
         await asyncio.sleep(self.rng.random() * 0.002)

@@ -95,7 +95,7 @@ async def refund(message: Message, command: CommandObject, bot: Bot, repo: Repo,
     charge_id = (command.args or "").strip()
     payment = await repo.get_payment(charge_id) if charge_id else None
     if payment is None or payment["status"] != "paid":
-        await message.answer("Қолданылуы: /refund <telegram_payment_charge_id> (төлем табылмады не қайтарылған)")
+        await message.answer("Қолданылуы: /refund &lt;telegram_payment_charge_id&gt; (төлем табылмады не қайтарылған)")
         return
     try:
         await bot.refund_star_payment(payment["user_id"], charge_id)
@@ -106,13 +106,14 @@ async def refund(message: Message, command: CommandObject, bot: Bot, repo: Repo,
     await message.answer(f"✅ Төлем қайтарылды, пайдаланушы {payment['user_id']}.")
 
 
-@router.message(Command("give"), F.chat.type == ChatType.PRIVATE)
-async def give(message: Message, command: CommandObject, repo: Repo, settings: Settings) -> None:
+@router.message(Command("grant"), F.chat.type == ChatType.PRIVATE)
+async def grant(message: Message, command: CommandObject, repo: Repo, settings: Settings) -> None:
+    """Кез келген пайдаланушыға ₸ не 💎 қосу/алу (теріс сан — шегеру)."""
     if not _is_bot_admin(message, settings):
         return
     parts = (command.args or "").split()
     if len(parts) != 3 or parts[1] not in ("tenge", "diamonds") or not parts[0].lstrip("-").isdigit():
-        await message.answer("Қолданылуы: /give <user_id> <tenge|diamonds> <сан>")
+        await message.answer("Қолданылуы: /grant &lt;user_id&gt; &lt;tenge|diamonds&gt; &lt;сан&gt;")
         return
     try:
         amount = int(parts[2])

@@ -25,7 +25,7 @@ from ..config import Settings, StartupError
 from ..controller import GameManager
 from ..db.repo import Repo
 from .common import full_name
-from .handlers import game, group, payments, private
+from .handlers import diamonds, game, group, payments, private
 from .notifier import TelegramNotifier
 
 log = logging.getLogger(__name__)
@@ -71,8 +71,10 @@ class EnsureUserMiddleware(BaseMiddleware):
         return await handler(event, data)
 
 
-PRIVATE_COMMANDS = ("start", "profile", "shop", "daily", "rating", "rules", "language", "help", "paysupport", "terms")
-GROUP_COMMANDS = ("game", "startgame", "extend", "leave", "stop", "settingsmafiahiggs", "rules")
+PRIVATE_COMMANDS = (
+    "start", "profile", "shop", "daily", "rating", "rules", "language", "give", "help", "paysupport", "terms",
+)
+GROUP_COMMANDS = ("game", "startgame", "extend", "leave", "give", "stop", "settingsmafiahiggs", "rules")
 
 
 async def set_commands(bot: Bot) -> None:
@@ -95,6 +97,7 @@ def build_dispatcher(
     dp.callback_query.outer_middleware(ensure_user)
     dp.include_routers(
         payments.router,     # төлем хабарламалары бірінші өңделеді
+        diamonds.router,     # /give, /getdiamonds — топта да, жеке чатта да
         private.router,
         game.router,
         group.router,

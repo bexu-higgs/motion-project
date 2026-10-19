@@ -5,7 +5,7 @@ import random
 import pytest
 
 from mafia_bot.game import balance
-from mafia_bot.game.engine import MAX_DAYS, Game, Phase, Player, assign_roles
+from mafia_bot.game.engine import AFK_NIGHTS, MAX_DAYS, Game, Phase, Player, assign_roles
 from mafia_bot.game.roles import Faction, Role
 
 
@@ -26,14 +26,19 @@ def play_random_game(n: int, seed: int) -> Game:
     for _ in range(MAX_DAYS + 2):
         g.start_night()
         assert g.phase is Phase.NIGHT
-        for uid in list(g.expected_actors()):
-            if rng.random() < 0.1:
+        actors = sorted(g.expected_actors())
+        for uid in actors:
+            if rng.random() < 0.3:
                 continue  # AFK ойыншы
             opt = rng.choice(g.night_options(uid))
             target = rng.choice(opt.targets) if opt.needs_target else None
             assert g.submit_action(uid, opt.kind, target).ok
+        idle = g.note_idle(actors)
         prompt = g.resolve_night()
         g.complete_night(rng.random() < 0.5 if prompt else None)
+        for uid in idle:
+            assert g.players[uid].idle_nights >= AFK_NIGHTS
+            g.desert(uid, afk=True)
         if g.check_winner():
             return g
         g.start_vote()
@@ -41,6 +46,13 @@ def play_random_game(n: int, seed: int) -> Game:
             choices = g.vote_candidates(p.user_id) + [None]
             assert g.submit_vote(p.user_id, rng.choice(choices)).ok
         g.resolve_vote()
+        if g.phase is Phase.CONFIRM:
+            for uid in g.confirm_voters():
+                if rng.random() < 0.8:
+                    assert g.submit_confirm(uid, rng.random() < 0.6).ok
+            assert not g.submit_confirm(g.candidate, True).ok
+            g.resolve_confirm()
+        assert g.phase is Phase.DAY or g.result is not None
         if rng.random() < 0.02 and g.alive():
             g.desert(rng.choice(g.alive()).user_id)
         g.end_cycle()

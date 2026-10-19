@@ -36,7 +36,7 @@ def test_fifty_players_matches_spec():
 
 @pytest.mark.parametrize(
     "n,mafia",
-    [(4, 0), (5, 0), (6, 1), (7, 1), (8, 2), (11, 2), (12, 3), (15, 3), (16, 4), (23, 4),
+    [(4, 0), (5, 0), (6, 1), (7, 1), (8, 1), (9, 1), (10, 2), (11, 2), (12, 3), (15, 3), (16, 4), (23, 4),
      (24, 5), (28, 6), (35, 6), (36, 7), (43, 7), (44, 8), (50, 8)],
 )
 def test_mafia_counts_follow_table(n, mafia):
@@ -61,10 +61,26 @@ def test_composition_rejects_bad_sizes(n):
 
 def test_min_players_for():
     assert balance.min_players_for(Role.DON) == 4
-    assert balance.min_players_for(Role.SERGEANT) == 8
+    assert balance.min_players_for(Role.SERGEANT) == 10
     assert balance.min_players_for(Role.MANIAC) == 44
-    assert balance.role_available(Role.HACKER, 10)
-    assert not balance.role_available(Role.HACKER, 9)
+    assert balance.role_available(Role.HACKER, 6)
+    assert not balance.role_available(Role.HACKER, 5)
+
+
+@pytest.mark.parametrize(
+    "role,first", [(Role.HACKER, 6), (Role.BEGGAR, 6), (Role.WOLF, 8), (Role.KAMIKAZE, 8)]
+)
+def test_requested_role_thresholds(role, first):
+    assert balance.min_players_for(role) == first
+    assert balance.composition(first)[role] == 1
+    assert balance.composition(first - 1)[role] == 0
+
+
+def test_role_prices():
+    for role in (Role.DON, Role.KAMIKAZE, Role.MANIAC, Role.PYRO, Role.KILLER):
+        assert economy.role_price(role) == 2
+    for role in (Role.MAFIA, Role.DOCTOR, Role.COMMISSIONER, Role.WOLF, Role.WITCH, Role.HACKER):
+        assert economy.role_price(role) == 1
 
 
 def test_small_games_are_faster():

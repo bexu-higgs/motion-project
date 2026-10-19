@@ -11,7 +11,7 @@ from aiogram.types import (
 
 from ..controller import Keyboard
 from ..db.models import START_MODES, ChatSettings
-from ..economy import DIAMOND_PACKAGES, SHOP, format_kzt
+from ..economy import DIAMOND_PACKAGES, SHOP, format_kzt, role_price
 from ..game.roles import PURCHASABLE_ROLES, Role, title
 from ..i18n import LANG_NAMES, LANGS, t
 from . import texts
@@ -60,7 +60,7 @@ def diamond_packages() -> InlineKeyboardMarkup:
 
 
 def role_pick(lang: str) -> InlineKeyboardMarkup:
-    buttons = [_button(title(r, lang), f"rp:{r.value}") for r in PURCHASABLE_ROLES]
+    buttons = [_button(f"{title(r, lang)} · {role_price(r)} 💎", f"rp:{r.value}") for r in PURCHASABLE_ROLES]
     rows = [buttons[i:i + 2] for i in range(0, len(buttons), 2)]
     rows.append([_button(t(lang, "rq.button"), "rq")])
     return InlineKeyboardMarkup(inline_keyboard=rows)

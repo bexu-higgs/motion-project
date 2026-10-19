@@ -21,11 +21,13 @@ from .db.models import FinalRow, Inventory
 from .economy import HIGGS_REWARD_MULTIPLIER, win_reward
 from .game import balance
 from .game.engine import (
+    AFK_NIGHTS,
     ActionKind,
     Game,
     GameResult,
     Phase,
     Player,
+    Report,
     RoleRequest,
     WitchPrompt,
     assign_roles,
@@ -125,6 +127,10 @@ class Session:
     witch_choice: bool | None = None
     witch_id: int | None = None
     last_words: dict[int, float] = field(default_factory=dict)  # user_id -> мерзімі
+    # 👍/👎 растау хабары (топта) және оның батырмаларын жаңарту.
+    confirm_mid: int | None = None
+    confirm_task: asyncio.Task | None = None
+    confirm_dirty: bool = False
     task: asyncio.Task | None = None
     finished: bool = False
 
@@ -155,6 +161,7 @@ class GameManager:
         higgs_chance: float = balance.HIGGS_CHANCE,
         rng_factory: Callable[[], random.Random] = random.SystemRandom,
         lobby_edit_delay: float = 1.5,
+        confirm_edit_delay: float = 3.0,
     ) -> None:
         self.notifier = notifier
         self.storage = storage
@@ -166,6 +173,8 @@ class GameManager:
         self.higgs_chance = higgs_chance
         self.rng_factory = rng_factory
         self.lobby_edit_delay = lobby_edit_delay
+        # 👍/👎 санағын жаңарту жиілігі: топта минутына ≈20 хабар/өңдеу шегі бар.
+        self.confirm_edit_delay = confirm_edit_delay
         self.lobbies: dict[int, Lobby] = {}          # chat_id -> Lobby
         self.lobby_by_game: dict[int, Lobby] = {}    # game_id -> Lobby
         self.sessions: dict[int, Session] = {}       # chat_id -> Session
@@ -375,17 +384,24 @@ class GameManager:
             return lobby.t("lobby.left")
         s = self.sessions.get(chat_id)
         if s is not None and not s.finished:
-            report = s.game.desert(user_id)
-            if report is None:
+            if not await self._remove_player(s, user_id, afk=False):
                 return s.t("lobby.not_alive")
-            await self._say(chat_id, report.public)
-            await self._deliver(report.private)
-            await self._after_deaths(s, report.deaths, last_words=False)
-            if s.game.check_winner() is not None:
-                s.witch_event.set()  # Сиқыршының шешімін күтпеу
-            s.wake.set()
             return s.t("lobby.deserted")
         return i18n.t(None, "lobby.not_in_game")
+
+    async def _remove_player(self, s: Session, user_id: int, afk: bool) -> bool:
+        """Ойыншыны ойыннан шығарып (рөлін ашып), ойын циклін оятады."""
+        report = s.game.desert(user_id, afk=afk)
+        if report is None:
+            return False
+        await self._say(s.chat_id, report.public)
+        if afk:
+            await self.notifier.send(user_id, s.t("afk.dm", nights=AFK_NIGHTS))
+        await self._deliver(report.private)
+        if s.game.check_winner() is not None:
+            s.witch_event.set()  # Сиқыршының шешімін күтпеу
+        s.wake.set()
+        return True
 
     def lobby_lang(self, chat_id: int) -> str:
         lobby = self.lobbies.get(chat_id)
@@ -560,18 +576,25 @@ class GameManager:
         g = s.game
         await self._say(s.chat_id, g.start_night(), self._bot_button(g.lang))
         s.prompts = {}
-        for uid in sorted(g.expected_actors(), key=lambda u: g.players[u].order):
+        actors = sorted(g.expected_actors(), key=lambda u: g.players[u].order)
+        for uid in actors:
             await self._send_night_prompt(s, uid)
         await self._wait(s, s.timings.night, g.night_complete)
         await self._close_prompts(s, s.t("game.night_over"))
         if g.result is not None:
             return
+        idle = g.note_idle(actors)
         witch = g.resolve_night()
         choice = await self._ask_witch(s, witch) if witch is not None else None
         report = g.complete_night(choice)
         await self._say(s.chat_id, report.public)
         await self._deliver(report.private)
         await self._after_deaths(s, report.deaths, last_words=True)
+        # Қатарынан AFK_NIGHTS түн әрекетсіз қалғандар ойыннан шығарылады.
+        for uid in idle:
+            if g.result is not None:
+                break
+            await self._remove_player(s, uid, afk=True)
 
     async def _day(self, s: Session) -> None:
         g = s.game
@@ -589,9 +612,68 @@ class GameManager:
             return
         report = g.resolve_vote()
         await self._say(s.chat_id, report.public)
+        if g.phase is Phase.CONFIRM:
+            confirmed = await self._confirm(s)
+            if confirmed is None:  # растау кезінде ойын аяқталды
+                return
+            report = confirmed
+            await self._say(s.chat_id, report.public)
         await self._deliver(report.private)
         await self._after_deaths(s, report.deaths, last_words=True)
         g.end_cycle()
+
+    # --- 👍/👎 растау ---------------------------------------------------------------------------
+
+    def _confirm_keyboard(self, s: Session) -> Keyboard:
+        yes, no = s.game.confirm_counts()
+        gid, day = s.game_id, s.game.day
+        return [[Button(f"👍 {yes}", data=f"c:{gid}:{day}:1"), Button(f"👎 {no}", data=f"c:{gid}:{day}:0")]]
+
+    async def _confirm(self, s: Session) -> Report | None:
+        """Ең көп дауыс жинаған ойыншыны шынымен асу керек пе — топта 👍/👎 батырмалары."""
+        g = s.game
+        s.confirm_mid = await self._say(
+            s.chat_id, g.confirm_text(int(s.timings.confirm)), self._confirm_keyboard(s)
+        )
+        if s.confirm_mid is not None:
+            await self._wait(s, s.timings.confirm, g.confirm_complete)
+        await self._close_confirm(s, None if g.result is not None else g.confirm_closed_text())
+        if g.result is not None:
+            return None
+        return g.resolve_confirm()
+
+    async def _close_confirm(self, s: Session, text: str | None) -> None:
+        """Растау хабарының батырмаларын алып тастау (``text`` берілсе, мәтінін де ауыстыру)."""
+        mid, s.confirm_mid = s.confirm_mid, None
+        task, s.confirm_task = s.confirm_task, None
+        if task is not None and not task.done():
+            task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+        if mid is not None:
+            await self.notifier.edit(s.chat_id, mid, text or s.t("confirm.stopped"))
+
+    def _schedule_confirm_update(self, s: Session) -> None:
+        """Батырмалардағы 👍/👎 санын жаңарту. Қатар басылғандар бір өңдеуге жиналады."""
+        if s.confirm_mid is None:
+            return
+        s.confirm_dirty = True
+        if s.confirm_task and not s.confirm_task.done():
+            return
+
+        async def update() -> None:
+            while True:
+                await asyncio.sleep(self.confirm_edit_delay)
+                mid = s.confirm_mid
+                if mid is None or s.game.phase is not Phase.CONFIRM:
+                    return
+                s.confirm_dirty = False
+                await self.notifier.edit(
+                    s.chat_id, mid, s.game.confirm_text(int(s.timings.confirm)), self._confirm_keyboard(s)
+                )
+                if not s.confirm_dirty:
+                    return
+
+        s.confirm_task = self._spawn(update())
 
     async def _maybe_finish(self, s: Session) -> bool:
         result = s.game.check_winner()
@@ -730,6 +812,17 @@ class GameManager:
             s.wake.set()
         return result.ok, result.message
 
+    async def confirm_vote(self, user_id: int, game_id: int, day: int, yes: bool) -> tuple[bool, str]:
+        """Топтағы 👍/👎 батырмасы басылды."""
+        s = self._session_by_game(game_id)
+        if s is None or s.game.day != day or s.game.phase is not Phase.CONFIRM:
+            return False, i18n.t(s.game.lang if s else None, "confirm.not_now")
+        result = s.game.submit_confirm(user_id, yes)
+        if result.ok:
+            self._schedule_confirm_update(s)
+            s.wake.set()
+        return result.ok, result.message
+
     async def witch_decision(self, user_id: int, game_id: int, day: int, punish: bool) -> tuple[bool, str]:
         s = self._session_by_game(game_id)
         if s is None or s.game.day != day or s.witch_id != user_id or s.witch_event.is_set():
@@ -839,6 +932,7 @@ class GameManager:
         if s.task and s.task is not asyncio.current_task():
             s.task.cancel()
         await self._close_prompts(s, s.t("game.stopped"))
+        await self._close_confirm(s, None)
         await self.storage.abort_game(s.game_id)
         await self._release(s)
         await self._say(chat_id, text or s.t("game.stopped"))

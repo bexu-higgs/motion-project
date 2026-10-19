@@ -8,14 +8,26 @@ from datetime import timedelta
 from ..economy import (
     DAILY_REWARDS,
     DIAMOND_PACKAGES,
+    PREMIUM_ROLE_PRICE,
+    PREMIUM_ROLES,
     REWARD_POINTS,
     ROLE_PICK_PRICE,
     SHOP,
     Item,
     format_kzt,
+    role_price,
 )
 from ..game import balance
-from ..game.roles import PURCHASABLE_ROLES, ROLE_INFO, Faction, Role, description, faction_title, title
+from ..game.roles import (
+    PURCHASABLE_ROLES,
+    ROLE_INFO,
+    Faction,
+    Role,
+    description,
+    faction_title,
+    name,
+    title,
+)
 from ..i18n import t
 
 # --- Басты мәзір -------------------------------------------------------------------------------
@@ -64,7 +76,8 @@ def rules_page(page: str, lang: str) -> str:
         for item in SHOP.values():
             lines.append(t(lang, "rules.item_line", emoji=item.emoji, name=item.name(lang),
                            price=item.price_label, desc=item.description(lang)))
-        lines.append(t(lang, "rules.role_pick", price=ROLE_PICK_PRICE))
+        lines.append(t(lang, "rules.role_pick", price=ROLE_PICK_PRICE, premium=PREMIUM_ROLE_PRICE,
+                       roles=premium_roles(lang)))
         lines.append(t(lang, "rules.fairness"))
         return "\n".join(lines)
     if page == "balance":
@@ -170,10 +183,17 @@ def diamonds_text(lang: str) -> str:
     return "\n".join(lines)
 
 
+def premium_roles(lang: str) -> str:
+    """Қымбатырақ (2 💎) рөлдердің атаулары."""
+    return ", ".join(name(r, lang) for r in PURCHASABLE_ROLES if r in PREMIUM_ROLES)
+
+
 def role_pick_text(queue, lang: str) -> str:
-    lines = [t(lang, "rp.title"), t(lang, "rp.intro", price=ROLE_PICK_PRICE), ""]
+    intro = t(lang, "rp.intro", price=ROLE_PICK_PRICE, premium=PREMIUM_ROLE_PRICE, roles=premium_roles(lang))
+    lines = [t(lang, "rp.title"), intro, ""]
     for role in PURCHASABLE_ROLES:
-        lines.append(t(lang, "rp.line", role=title(role, lang), min=balance.min_players_for(role)))
+        lines.append(t(lang, "rp.line", role=title(role, lang), price=role_price(role),
+                       min=balance.min_players_for(role)))
     lines += ["", t(lang, "rp.higgs_note", role=title(Role.HIGGS, lang))]
     if queue:
         lines += ["", t(lang, "rp.queue", roles=", ".join(title(Role(q["role"]), lang) for q in queue))]

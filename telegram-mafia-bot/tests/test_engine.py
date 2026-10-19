@@ -4,8 +4,8 @@ from collections import Counter
 import pytest
 
 from mafia_bot.game import balance
+from mafia_bot.game.engine import AFK_NIGHTS, Game, Phase, Player, RoleRequest, assign_roles
 from mafia_bot.game.engine import ActionKind as A
-from mafia_bot.game.engine import Game, Phase, Player, RoleRequest, assign_roles
 from mafia_bot.game.roles import Faction, Role, title
 
 from conftest import make_game
@@ -23,6 +23,16 @@ def night(game, actions, witch_punish=None):
 
 def private_for(report, uid):
     return [text for u, text in report.private if u == uid]
+
+
+def finish_vote(g, confirm=True):
+    """Дауыстарды санап, үміткер болса 👍/👎 растауынан өткізу (әдепкіде бәрі 👍)."""
+    first = g.resolve_vote()
+    if g.phase is not Phase.CONFIRM:
+        return first
+    for uid in g.confirm_voters():
+        assert g.submit_confirm(uid, confirm).ok
+    return g.resolve_confirm()
 
 
 # --- Рөл тарату ------------------------------------------------------------------------
@@ -80,7 +90,7 @@ def test_mafia_kill_and_doctor_heal():
     assert g.players[4].alive and report.deaths == []
     assert "Дәрігер біреудің өмірін сақтап қалды" in report.public
     g.start_vote()
-    g.resolve_vote()
+    finish_vote(g)
     g.start_night()
     report, _ = night(g, {1: (A.MAFIA_KILL, 4), 2: (A.HEAL, 3), 3: (A.CHECK, 2)})
     assert report.deaths == [4] and not g.players[4].alive
@@ -130,7 +140,7 @@ def test_commissioner_check_and_no_shot_first_night():
     assert any(title(Role.DON) in t for t in private_for(report, 2))
     assert any(title(Role.DON) in t for t in private_for(report, 3))  # сержант та біледі
     g.start_vote()
-    g.resolve_vote()
+    finish_vote(g)
     g.start_night()
     assert A.SHOOT in {o.kind for o in g.night_options(2)}
     report, _ = night(g, {2: (A.SHOOT, 1)})
@@ -149,7 +159,7 @@ def test_defender_cover_hides_mafia_and_saves_from_lynch():
     g.start_vote()
     for voter in (2, 3, 4, 5, 6, 7):
         assert g.submit_vote(voter, 1).ok
-    res = g.resolve_vote()
+    res = finish_vote(g)
     assert g.players[1].alive and "аман қалды" in res.public
 
 
@@ -168,7 +178,7 @@ def test_fake_document_only_first_check():
     report, _ = night(g, {2: (A.CHECK, 1)})
     assert any(title(Role.CIVILIAN) in t for t in private_for(report, 2))
     g.start_vote()
-    g.resolve_vote()
+    finish_vote(g)
     g.start_night()
     report, _ = night(g, {2: (A.CHECK, 1)})
     assert any(title(Role.DON) in t for t in private_for(report, 2))
@@ -206,7 +216,7 @@ def test_piercing_bullet_breaks_shield_and_is_spent_once():
     report, _ = night(g, {1: (A.MAFIA_KILL, 5)})
     assert report.deaths == [5] and not g.players[1].bullet_used  # қалқан жоқ — оқ сақталады
     g.start_vote()
-    g.resolve_vote()
+    finish_vote(g)
     g.start_night()
     report, _ = night(g, {1: (A.MAFIA_KILL, 2)})
     assert report.deaths == [2] and g.players[1].bullet_used
@@ -223,13 +233,13 @@ def test_doctor_restrictions():
     g = make_game([Role.DON, Role.DOCTOR, Role.COMMISSIONER, Role.CIVILIAN])
     night(g, {2: (A.HEAL, 2)})
     g.start_vote()
-    g.resolve_vote()
+    finish_vote(g)
     g.start_night()
     targets = g.night_options(2)[0].targets
     assert 2 not in targets  # өзін тек бір рет
     night(g, {2: (A.HEAL, 4)})
     g.start_vote()
-    g.resolve_vote()
+    finish_vote(g)
     g.start_night()
     targets = g.night_options(2)[0].targets
     assert 4 not in targets  # қатарынан екі түн емес
@@ -253,7 +263,7 @@ def pyro_bombs(g, pyro, targets):
     for _i, t in enumerate(targets):
         night(g, {pyro: (A.BOMB, t)})
         g.start_vote()
-        g.resolve_vote()
+        finish_vote(g)
         g.end_cycle()
         g.start_night()
 
@@ -304,7 +314,7 @@ def test_witch_forgives_and_magic_is_once():
     report, prompt = night(g, {1: (A.MAFIA_KILL, 2)}, witch_punish=False)
     assert prompt is not None and report.deaths == []
     g.start_vote()
-    g.resolve_vote()
+    finish_vote(g)
     g.start_night()
     report, prompt = night(g, {1: (A.MAFIA_KILL, 2)})
     assert prompt is None and report.deaths == [2]
@@ -314,7 +324,7 @@ def test_witch_decides_on_commissioner_shot():
     g = make_game([Role.DON, Role.WITCH, Role.DOCTOR, Role.COMMISSIONER, Role.CIVILIAN])
     night(g, {})
     g.start_vote()
-    g.resolve_vote()
+    finish_vote(g)
     g.start_night()
     report, prompt = night(g, {4: (A.SHOOT, 2)}, witch_punish=True)
     assert prompt.attackers == [4] and report.deaths == [4]
@@ -326,7 +336,7 @@ def test_wolf_conversions():
     g = make_game(roles)
     night(g, {})
     g.start_vote()
-    g.resolve_vote()
+    finish_vote(g)
     g.start_night()
     report, _ = night(g, {1: (A.MAFIA_KILL, 2), 4: (A.SHOOT, 3), 6: (A.MANIAC_KILL, 7)})
     assert g.players[2].alive and g.players[2].role is Role.MAFIA
@@ -393,7 +403,7 @@ def test_plurality_lynch_reveals_role():
     for voter, target in {2: 1, 3: 1, 4: 1, 1: 4, 5: None}.items():
         assert g.submit_vote(voter, target).ok
     assert g.vote_complete()
-    res = g.resolve_vote()
+    res = finish_vote(g)
     assert res.deaths == [1] and title(Role.DON) in res.public
     assert g.check_winner().winner is Faction.TOWN
 
@@ -403,7 +413,7 @@ def test_tie_means_no_lynch():
     to_vote(g)
     g.submit_vote(1, 2)
     g.submit_vote(2, 1)
-    res = g.resolve_vote()
+    res = finish_vote(g)
     assert res.deaths == [] and "тең" in res.public
 
 
@@ -422,14 +432,14 @@ def test_vote_shield_saves_once():
     to_vote(g)
     for voter in (1, 2, 3, 5):
         g.submit_vote(voter, 4)
-    res = g.resolve_vote()
+    res = finish_vote(g)
     assert g.players[4].alive and g.players[4].vote_shield_used and "аман қалды" in res.public
     g.end_cycle()
     g.start_night()
     to_vote(g)
     for voter in (1, 2, 3, 5):
         g.submit_vote(voter, 4)
-    g.resolve_vote()
+    finish_vote(g)
     assert not g.players[4].alive
 
 
@@ -439,9 +449,110 @@ def test_suicide_wins_when_lynched_and_keeps_vote_shield():
     to_vote(g)
     for voter in (1, 2, 3, 5):
         g.submit_vote(voter, 4)
-    g.resolve_vote()
+    finish_vote(g)
     assert not g.players[4].alive and g.players[4].personal_win
     assert not g.players[4].vote_shield_used
+
+
+# --- 👍/👎 растау -------------------------------------------------------------------------
+
+
+def to_confirm(g, target, voters):
+    to_vote(g)
+    for voter in voters:
+        assert g.submit_vote(voter, target).ok
+    report = g.resolve_vote()
+    assert g.phase is Phase.CONFIRM and g.candidate == target
+    assert "👍/👎" in report.public and report.deaths == []
+    return report
+
+
+def test_lynch_needs_more_likes_than_dislikes():
+    g = make_game([Role.DON, Role.DOCTOR, Role.COMMISSIONER, Role.CIVILIAN, Role.CIVILIAN])
+    to_confirm(g, 1, (2, 3, 4, 5))
+    assert g.confirm_voters() == {2, 3, 4, 5}
+    assert not g.submit_confirm(1, False).ok          # үміткер өзіне дауыс бермейді
+    assert not g.submit_confirm(99, True).ok          # ойыншы емес
+    for uid, yes in ((2, True), (3, True), (4, False)):
+        assert g.submit_confirm(uid, yes).ok
+    assert not g.confirm_complete()
+    assert g.submit_confirm(5, False).ok
+    assert g.confirm_complete() and g.confirm_counts() == (2, 2)
+    res = g.resolve_confirm()
+    assert g.players[1].alive and res.deaths == [] and "аман қалды" in res.public
+    assert g.phase is Phase.DAY and g.candidate is None
+
+
+def test_confirmed_lynch_and_change_of_mind():
+    g = make_game([Role.DON, Role.DOCTOR, Role.COMMISSIONER, Role.CIVILIAN, Role.CIVILIAN])
+    to_confirm(g, 1, (2, 3, 4, 5))
+    for uid in (2, 3, 4):
+        g.submit_confirm(uid, True)
+    g.submit_confirm(5, True)
+    g.submit_confirm(5, False)  # пікірін өзгертті
+    assert g.confirm_counts() == (3, 1)
+    res = g.resolve_confirm()
+    assert res.deaths == [1] and title(Role.DON) in res.public
+    assert "P5" in res.public.split("👎")[-1]  # кім 👎 басқаны көрінеді
+    assert g.check_winner().winner is Faction.TOWN
+
+
+def test_nobody_presses_means_no_lynch():
+    g = make_game([Role.DON, Role.DOCTOR, Role.COMMISSIONER, Role.CIVILIAN])
+    to_confirm(g, 4, (1, 2, 3))
+    res = g.resolve_confirm()
+    assert g.players[4].alive and "аман қалды" in res.public
+
+
+def test_candidate_leaving_ends_confirmation():
+    g = make_game([Role.DON, Role.DOCTOR, Role.COMMISSIONER, Role.CIVILIAN, Role.CIVILIAN])
+    to_confirm(g, 4, (1, 2, 3, 5))
+    g.submit_confirm(2, True)
+    g.desert(3)                                # дауыс берген ойыншы шықты — дауысы есептелмейді
+    assert g.confirm_counts() == (1, 0)
+    g.desert(4)
+    assert g.confirm_complete()
+    res = g.resolve_confirm()
+    assert res.deaths == [] and "шығып кетті" in res.public
+
+
+# --- AFK ------------------------------------------------------------------------------------
+
+
+def test_afk_after_three_idle_nights_and_any_button_resets():
+    g = make_game([Role.DON, Role.DOCTOR, Role.COMMISSIONER, Role.CIVILIAN, Role.CIVILIAN])
+
+    def idle_night(actions):
+        actors = sorted(g.expected_actors())
+        for uid, (kind, target) in actions.items():
+            assert g.submit_action(uid, kind, target).ok
+        idle = g.note_idle(actors)
+        g.resolve_night()
+        g.complete_night()
+        g.start_vote()
+        finish_vote(g)
+        g.end_cycle()
+        g.start_night()
+        return idle
+
+    assert idle_night({1: (A.SKIP, None)}) == []
+    assert g.players[2].idle_nights == 1 and g.players[3].idle_nights == 1
+    assert idle_night({1: (A.SKIP, None), 3: (A.SKIP, None)}) == []  # «Өткізу» де әрекет
+    assert g.players[3].idle_nights == 0 and g.players[1].idle_nights == 0
+    assert idle_night({1: (A.SKIP, None)}) == [2]
+    assert g.players[2].idle_nights == AFK_NIGHTS
+    report = g.desert(2, afk=True)
+    p = g.players[2]
+    assert not p.alive and p.deserted and p.death_cause == "afk"
+    assert "3 түн" in report.public and title(Role.DOCTOR) in report.public
+    assert g.night_options(4) == [] and 4 not in g.expected_actors()  # тұрғындар AFK болмайды
+
+
+def test_leave_reveals_role_publicly():
+    g = make_game([Role.DON, Role.DOCTOR, Role.COMMISSIONER, Role.CIVILIAN, Role.CIVILIAN])
+    report = g.desert(3)
+    assert "өз еркімен ойыннан шықты" in report.public and title(Role.COMMISSIONER) in report.public
+    assert g.players[3].death_cause == "desert"
 
 
 # --- Жеңіс шарттары --------------------------------------------------------------------------
@@ -455,7 +566,7 @@ def test_mafia_wins_on_parity():
     g.submit_vote(1, 4)
     g.submit_vote(2, 4)
     g.submit_vote(4, 1)
-    g.resolve_vote()
+    finish_vote(g)
     res = g.check_winner()
     assert res.winner is Faction.MAFIA and res.winners == {1}
     assert g.phase is Phase.ENDED
@@ -485,7 +596,7 @@ def test_dead_mafia_members_lose_even_if_mafia_wins():
     to_vote(g)
     for voter in (1, 3, 4, 5, 6):
         g.submit_vote(voter, 2)
-    g.resolve_vote()  # мафия мүшесі дарға асылды
+    finish_vote(g)  # мафия мүшесі дарға асылды
     g.desert(5)
     g.desert(6)
     assert g.check_winner() is None  # Дон 1 vs 2 бейбіт — ойын жалғасады
@@ -520,7 +631,7 @@ def test_draw_after_quiet_cycles():
     g = make_game([Role.DON, Role.DOCTOR, Role.COMMISSIONER, Role.CIVILIAN, Role.CIVILIAN])
     for _ in range(3):
         to_vote(g)
-        g.resolve_vote()
+        finish_vote(g)
         g.end_cycle()
         if g.check_winner():
             break
@@ -534,7 +645,7 @@ def test_personal_win_is_added_to_faction_win():
     to_vote(g)
     for voter in (1, 2, 3, 5):
         g.submit_vote(voter, 4)
-    g.resolve_vote()
+    finish_vote(g)
     g.desert(1)
     res = g.check_winner()
     assert res.winner is Faction.TOWN and 4 in res.winners
@@ -558,7 +669,7 @@ def higgs_game():
 
 def next_night(g):
     g.start_vote()
-    g.resolve_vote()
+    finish_vote(g)
     g.end_cycle()
     g.start_night()
 
@@ -590,7 +701,7 @@ def test_higgs_survives_only_first_lynch():
         to_vote(g)
         for voter in (1, 3, 4, 5, 6, 7, 8):
             g.submit_vote(voter, 2)
-        res = g.resolve_vote()
+        res = finish_vote(g)
         g.end_cycle()
         if g.players[2].alive:
             assert "аман қалды" in res.public and not g.players[2].higgs_vote_save
@@ -621,10 +732,12 @@ def test_dead_higgs_loses():
 
 
 def test_higgs_appears_rarely_and_cannot_be_bought():
-    ids = list(range(1, 11))
+    ids = list(range(1, 12))
     always = assign_roles(ids, [], random.Random(1), higgs_chance=1)
     assert Counter(always.roles.values())[Role.HIGGS] == 1
-    assert sum(always.roles[u] is Role.CIVILIAN for u in ids) == balance.composition(10)[Role.CIVILIAN] - 1
+    assert sum(always.roles[u] is Role.CIVILIAN for u in ids) == balance.composition(11)[Role.CIVILIAN] - 1
+    no_civilians = assign_roles(list(range(1, 11)), [], random.Random(1), higgs_chance=1)
+    assert Role.HIGGS not in no_civilians.roles.values()  # тұрғын жоқ болса, Higgs та шықпайды
     never = assign_roles(ids, [], random.Random(1), higgs_chance=0)
     assert Role.HIGGS not in never.roles.values()
     small = assign_roles(list(range(1, 8)), [], random.Random(1), higgs_chance=1)

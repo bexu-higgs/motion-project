@@ -66,7 +66,8 @@ MESSAGES: dict[str, str] = {
     "cause.witch": "Cadının lanetine uğradı",
     "cause.kamikaze": "Kamikaze yanında götürdü",
     "cause.lynch": "asıldı",
-    "cause.desert": "oyundan kaçtı",
+    "cause.desert": "kendi isteğiyle oyundan çıktı",
+    "cause.afk": "hareketsizlik nedeniyle çıkarıldı",
 
     # --- Rol mesajı ----------------------------------------------------------------------------
     "intro.role": "🎭 Rolünüz: <b>{role}</b>",
@@ -203,7 +204,23 @@ MESSAGES: dict[str, str] = {
     "vote.higgs_saved": "⚛️ <b>Higgs alanı sizi idamdan kurtardı!</b> Bu koruma artık yok.",
     "vote.vote_shield_used": "⚖️ <b>Oylama korumanız sizi idamdan kurtardı!</b>",
     "vote.you_lynched": "☠️ <b>Şehir sizi astı.</b>",
-    "desert.public": "🏃 {name} oyundan kaçtı. Rolü <b>{role}</b> idi.",
+    "vote.candidate": "👉 En çok oyu {name} aldı. <b>Şimdi gerçekten asılıp asılmayacağına 👍/👎 ile karar veriyoruz.</b>",
+    "confirm.ask": "⚖️ <b>{day}. gün · Kararı onayla</b>\n\nKasaba {name} adlı oyuncuyu asmak istiyor. <b>Gerçekten asalım mı?</b>\n👍 — asılsın · 👎 — bağışlansın\n\n<i>Hayattaki oyuncular {seconds} saniye içinde düğmeye basar (fikir değiştirilebilir). Yalnızca 👍 sayısı 👎 sayısından fazlaysa asılır; eşitlikte ya da 👎 fazlaysa hayatta kalır.</i>",
+    "confirm.closed": "⚖️ <b>Onay sona erdi</b> · {name}: 👍 <b>{yes}</b> · 👎 <b>{no}</b>",
+    "confirm.stopped": "⚖️ <i>Onay durduruldu.</i>",
+    "confirm.not_now": "Şu anda onay oylaması yok.",
+    "confirm.not_alive": "Yalnızca bu oyunda hayatta olan oyuncular oy verebilir.",
+    "confirm.self": "Kendi kaderin için oy veremezsin.",
+    "confirm.ok_yes": "👍 Seçimin: asılsın.",
+    "confirm.ok_no": "👎 Seçimin: bağışlansın.",
+    "confirm.result_title": "⚖️ <b>Onay sonucu</b>",
+    "confirm.yes_line": "👍 Asılsın (<b>{count}</b>): {names}",
+    "confirm.no_line": "👎 Bağışlansın (<b>{count}</b>): {names}",
+    "confirm.spared": "🕊 {name} <b>hayatta kaldı</b> — 👍 sayısı 👎 sayısından fazla olmadı.",
+    "confirm.gone": "🚪 {name} oyundan çıktı — bugün kimse asılmayacak.",
+    "desert.public": "🚪 {name} <b>kendi isteğiyle oyundan çıktı</b>. Rolü <b>{role}</b> idi.",
+    "afk.public": "💤 {name} art arda <b>{nights} gece</b> hiçbir eylem yapmadığı için oyundan çıkarıldı. Rolü <b>{role}</b> idi.",
+    "afk.dm": "💤 Art arda <b>{nights} gece</b> hiçbir eylem yapmadınız, bu yüzden <b>oyundan çıkarıldınız</b>. Bu oyun yenilgi sayılır.",
 
     # --- Oyun sonu -----------------------------------------------------------------------------
     "result.nobody_alive": "🤝 Kimse hayatta kalmadı — berabere",
@@ -308,6 +325,7 @@ MESSAGES: dict[str, str] = {
         "/startgame — kaydı bitirip oyunu hemen başlat\n"
         "/extend — kaydı 30 saniye uzat\n"
         "/leave — kayıttan ya da oyundan çık\n"
+        "/give 5 — bir oyuncuya elmas hediye et (mesajına yanıt olarak)\n"
         "/stop — oyunu durdur <i>(yöneticiler)</i>\n"
         "/settingsmafiahiggs — kayıt süresi, kimin başlatabileceği, dil <i>(yöneticiler)</i>\n\n"
         "<b>Özel sohbette:</b>\n"
@@ -318,8 +336,8 @@ MESSAGES: dict[str, str] = {
         "1. Grupta /game yazılır, oyuncular «🎮 Oyuna katıl» düğmesine basar.\n"
         "2. En az 4 oyuncu toplanınca oyun başlar (en fazla 50).\n"
         "3. Rolünüz bu özel sohbete gelir — <b>kimseye göstermeyin!</b>\n"
-        "4. Gece rolünüzün eylemini burada seçersiniz.\n"
-        "5. Gündüz grupta tartışır, oyunuzu burada verirsiniz.\n\n"
+        "4. Gece rolünüzün eylemini burada seçersiniz. <i>Art arda 3 gece hiçbir şeye basmazsanız oyundan çıkarılırsınız.</i>\n"
+        "5. Gündüz grupta tartışır, oyunuzu burada verirsiniz; ardından grup kararı 👍/👎 ile onaylar.\n\n"
         "<b>Oyun sırasında grup kuralları:</b>\n"
         "• oyunda olmayanların ve ölenlerin mesajları silinir, kendileri <b>2 dakika susturulur</b>;\n"
         "• gece tüm oyuncuların mesajları silinir;\n"
@@ -376,9 +394,9 @@ MESSAGES: dict[str, str] = {
         "• Roller rastgele dağıtılır ve yalnızca özel sohbette söylenir.\n"
         "• Oyun <b>geceyle</b> başlar: özel roller özel sohbette hareket eder, her eylem grupta ayrı bir mesajla duyurulur (hedef söylenmez).\n"
         "• Sabah kimin öldüğü ve rolü açıklanır.\n"
-        "• Gündüz tartışma, ardından özel sohbette oylama yapılır. Her oy grupta duyurulur. En çok oyu alan asılır; eşitlikte kimse asılmaz.\n"
+        "• Gündüz tartışma, ardından özel sohbette oylama yapılır. Her oy grupta duyurulur. En çok oyu alan oyuncu için grupta 👍/👎 onayı yapılır: yalnızca 👍 sayısı 👎 sayısından fazlaysa asılır. Eşitlikte kimse asılmaz.\n"
         "• Oyun sırasında oyunda olmayanların ve ölenlerin mesajları silinir, kendileri 2 dakika susturulur; gece tüm oyuncuların mesajları silinir. Yöneticiler mesajın başına <code>!</code> koyarak yazabilir.\n"
-        "• Oyundan çıkan (/leave) oyuncu kaybeder.\n\n"
+        "• Oyundan çıkan (/leave) oyuncunun rolü açıklanır ve kaybeder. Art arda 3 gece hiçbir eylem yapmayan oyuncu (AFK) da oyundan çıkarılır.\n\n"
         "<b>Kazanma koşulları</b>\n"
         "🏘 Vatandaşlar — tüm Donlar, mafya üyeleri, Tetikçi ve Seri Katil yok edilince.\n"
         "🤵 Mafya — Don, mafya ve Tetikçi sayısı geri kalanlardan (Koruyucular hariç) az değilse ve Seri Katil hayatta değilse.\n"
@@ -408,7 +426,7 @@ MESSAGES: dict[str, str] = {
     ),
     "rules.items_title": "🎒 <b>Eşyalar ve avantajlar</b>",
     "rules.item_line": "{emoji} <b>{name}</b> — {price}\n<i>{desc}</i>\n",
-    "rules.role_pick": "🎭 <b>Rol seçimi</b> — {price} 💎\n<i>Bir sonraki oyun için rol seçersiniz. Rol oyuncu sayısına uygunsa verilir; değilse seçiminiz saklanır ya da elmasınızı geri alabilirsiniz.</i>\n",
+    "rules.role_pick": "🎭 <b>Rol seçimi</b> — {price} 💎, güçlü roller ({roles}) — {premium} 💎\n<i>Bir sonraki oyun için rol seçersiniz. Rol oyuncu sayısına uygunsa verilir; değilse seçiminiz saklanır ya da elmaslarınızı geri alabilirsiniz. ⚛️ Higgs-Man satılmaz.</i>\n",
     "rules.fairness": "⚖️ <b>Adalet:</b> bir oyunda en fazla bir koruma, bir oylama koruması ve bir kurşun kullanılır. Eşyalar yalnızca gerçekten gerektiğinde harcanır.",
     "rules.balance_title": "⚖️ <b>Oyuncu sayısına göre roller</b>\n<i>(kalan yerler — 👨 vatandaşlar)</i>",
     "rules.higgs_rare": "⚛️ <b>Higgs-Man</b> — {min}+ oyunculu oyunlarda her oyunda ≈%{chance} olasılıkla bir vatandaşın yerine çıkar.",
@@ -461,12 +479,12 @@ MESSAGES: dict[str, str] = {
     "dia.intro": "Paket büyüdükçe elmas başına fiyat düşer.\nÖdeme <b>Telegram Stars (⭐)</b> ile güvenle yapılır.",
     "dia.line": "• <b>{diamonds} 💎</b> — {price} ₸ <i>({per} ₸/💎)</i> · {stars} ⭐",
     "rp.title": "🎭 <b>Bir sonraki oyun için rol seç</b>",
-    "rp.intro": "Fiyat: <b>{price} 💎</b>. Rol, oyuncu sayısı yeterli olan oyunda verilir. Bir oyunda bir seçim kullanılır, diğerleri sırada bekler.",
-    "rp.line": "{role} — <i>{min}+ oyuncu</i>",
+    "rp.intro": "Fiyat: <b>{price} 💎</b>; güçlü roller ({roles}) — <b>{premium} 💎</b>. Rol, oyuncu sayısı yeterli olan oyunda verilir. Bir oyunda bir seçim kullanılır, diğerleri sırada bekler.",
+    "rp.line": "{role} — <b>{price} 💎</b> · <i>{min}+ oyuncu</i>",
     "rp.higgs_note": "{role} — <i>satılmaz, oyunda nadiren ve rastgele çıkar.</i>",
     "rp.queue": "📋 <b>Sıranız:</b> {roles}",
     "rp.not_buyable": "Bu rol satın alınamaz.",
-    "rp.no_funds": "Yeterli elmas yok (sizde {balance} 💎). «💎 Elmas satın al» bölümünü açın.",
+    "rp.no_funds": "Yeterli elmas yok: bu rol {price} 💎, sizde {balance} 💎. «💎 Elmas satın al» bölümünü açın.",
     "rp.limit": "Sırada en fazla {limit} rol olabilir.",
     "rp.failed": "Satın alma başarısız oldu.",
     "rp.ok_alert": "✅ Rol sıraya eklendi!",
@@ -532,6 +550,15 @@ MESSAGES: dict[str, str] = {
     "pay.ok": "✅ <b>Ödeme onaylandı! +{n} 💎</b>\nElmas bakiyeniz: <b>{balance} 💎</b>",
 
     # --- Komut açıklamaları --------------------------------------------------------------------
+    "give.usage": "💎 <b>Elmas hediye et</b>\nBir oyuncunun mesajına <code>/give 5</code> ile yanıt verin ya da <code>/give @username 5</code> yazın.",
+    "give.bad_amount": "❌ Geçerli bir elmas sayısı yazın: 1 ile {max} arası.",
+    "give.unknown": "❌ {name} bulunamadı. Önce botta /start komutuna basması gerekir ya da mesajına yanıt olarak yazın.",
+    "give.self": "❌ Kendinize elmas veremezsiniz.",
+    "give.bot": "❌ Bir bota elmas verilemez.",
+    "give.no_funds": "❌ Yeterli elmas yok: sizde <b>{balance} 💎</b> var.",
+    "give.ok": "💎 {giver}, {receiver} adlı oyuncuya <b>{n} elmas</b> hediye etti!",
+    "give.left": "Kalan bakiyeniz: <b>{balance} 💎</b>",
+    "give.dm": "🎁 {giver} size <b>{n} 💎</b> hediye etti! Bakiyeniz: <b>{balance} 💎</b>",
     "cmd.start": "Ana menü",
     "cmd.profile": "Profilim",
     "cmd.shop": "Mağaza",
@@ -546,6 +573,7 @@ MESSAGES: dict[str, str] = {
     "cmd.startgame": "Oyunu hemen başlat",
     "cmd.extend": "Kaydı 30 saniye uzat",
     "cmd.leave": "Oyundan çık",
+    "cmd.give": "Bir oyuncuya elmas hediye et",
     "cmd.stop": "Oyunu durdur (yönetici)",
     "cmd.settingsmafiahiggs": "Bot ayarları (yönetici)",
 }

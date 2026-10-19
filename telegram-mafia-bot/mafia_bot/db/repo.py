@@ -14,16 +14,16 @@ import asyncpg
 
 from ..economy import (
     PACKAGES_BY_ID,
-    ROLE_PICK_PRICE,
     ROLE_QUEUE_LIMIT,
     SHOP,
     DailyResult,
     Item,
     compute_daily,
+    role_price,
 )
 from ..game.engine import RoleRequest
 from ..game.roles import Role
-from .models import ChatSettings, FinalRow, Inventory, PurchaseResult
+from .models import ChatSettings, FinalRow, Inventory, PurchaseResult, TransferResult
 
 SCHEMA_PATH = Path(__file__).with_name("schema.sql")
 
@@ -63,6 +63,14 @@ class Repo:
             """,
             user_id, username, full_name,
         )
+
+    async def find_by_username(self, username: str) -> asyncpg.Record | None:
+        """@username бойынша ботқа белгілі пайдаланушы (бірмәнді болса ғана)."""
+        rows = await self.pool.fetch(
+            "SELECT user_id, username, full_name FROM users WHERE lower(username) = lower($1) LIMIT 2",
+            username.lstrip("@"),
+        )
+        return rows[0] if len(rows) == 1 else None
 
     async def set_user_lang(self, user_id: int, lang: str) -> None:
         await self.pool.execute("UPDATE users SET lang = $2 WHERE user_id = $1", user_id, lang)
@@ -159,8 +167,9 @@ class Repo:
     # --- Рөл сатып алу ---------------------------------------------------------------
 
     async def queue_role(self, user_id: int, role: Role) -> PurchaseResult:
-        if role is Role.CIVILIAN:
+        if role in (Role.CIVILIAN, Role.HIGGS):
             return PurchaseResult(False, "unknown")
+        price = role_price(role)
         async with self.pool.acquire() as conn, conn.transaction():
             user = await conn.fetchrow(
                 "SELECT diamonds FROM users WHERE user_id = $1 FOR UPDATE", user_id
@@ -173,21 +182,21 @@ class Repo:
             )
             if queued >= ROLE_QUEUE_LIMIT:
                 return PurchaseResult(False, "limit", balance=user["diamonds"], count=queued)
-            if user["diamonds"] < ROLE_PICK_PRICE:
+            if user["diamonds"] < price:
                 return PurchaseResult(False, "funds", balance=user["diamonds"], count=queued)
             balance = await conn.fetchval(
                 "UPDATE users SET diamonds = diamonds - $2 WHERE user_id = $1 RETURNING diamonds",
-                user_id, ROLE_PICK_PRICE,
+                user_id, price,
             )
             purchase_id = await conn.fetchval(
                 "INSERT INTO role_purchases (user_id, role, price) VALUES ($1, $2, $3) "
                 "RETURNING purchase_id",
-                user_id, role.value, ROLE_PICK_PRICE,
+                user_id, role.value, price,
             )
             await conn.execute(
                 "INSERT INTO ledger (user_id, currency, delta, reason, ref) "
                 "VALUES ($1, 'diamonds', $2, 'role_pick', $3)",
-                user_id, -ROLE_PICK_PRICE, str(purchase_id),
+                user_id, -price, str(purchase_id),
             )
             return PurchaseResult(True, balance=balance, count=queued + 1)
 
@@ -469,6 +478,43 @@ class Repo:
                 payment["user_id"], -taken, telegram_charge_id,
             )
             return payment
+
+    async def transfer_diamonds(
+        self, sender: int, receiver: int, amount: int, receiver_username: str | None, receiver_name: str
+    ) -> TransferResult:
+        """Бір ойыншыдан екіншісіне алмаз беру — бір транзакцияда, баланс теріс болмайды."""
+        if amount <= 0 or sender == receiver:
+            raise ValueError("amount must be positive and users must differ")
+        async with self.pool.acquire() as conn, conn.transaction():
+            # Алушы ботқа әлі жазбаған болуы мүмкін — оны тіркейміз.
+            await conn.execute(
+                "INSERT INTO users (user_id, username, full_name) VALUES ($1, $2, $3) "
+                "ON CONFLICT (user_id) DO NOTHING",
+                receiver, receiver_username, receiver_name,
+            )
+            # Екі жол бірдей ретпен құлыпталады: қарсы бағыттағы сыйлықтар бір-бірін бөгемейді.
+            await conn.execute(
+                "SELECT 1 FROM users WHERE user_id = ANY($1::bigint[]) ORDER BY user_id FOR UPDATE",
+                [sender, receiver],
+            )
+            balance = await conn.fetchval(
+                "UPDATE users SET diamonds = diamonds - $2 WHERE user_id = $1 AND diamonds >= $2 "
+                "RETURNING diamonds",
+                sender, amount,
+            )
+            if balance is None:
+                current = await conn.fetchval("SELECT diamonds FROM users WHERE user_id = $1", sender)
+                return TransferResult(False, balance=current or 0)
+            row = await conn.fetchrow(
+                "UPDATE users SET diamonds = diamonds + $2 WHERE user_id = $1 RETURNING diamonds, lang",
+                receiver, amount,
+            )
+            await conn.executemany(
+                "INSERT INTO ledger (user_id, currency, delta, reason) VALUES ($1, 'diamonds', $2, $3)",
+                [(sender, -amount, f"gift_to:{receiver}"), (receiver, amount, f"gift_from:{sender}")],
+            )
+            return TransferResult(True, balance=balance, receiver_balance=row["diamonds"],
+                                  receiver_lang=row["lang"])
 
     async def grant(self, user_id: int, currency: str, amount: int, reason: str) -> int | None:
         if currency not in ("tenge", "diamonds"):

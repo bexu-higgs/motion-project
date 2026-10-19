@@ -10,6 +10,7 @@ from __future__ import annotations
 import html
 import random
 from collections import Counter, defaultdict
+from collections.abc import Iterable
 from dataclasses import dataclass, field
 from enum import StrEnum
 
@@ -30,6 +31,7 @@ from .roles import (
 MAX_DAYS = 40          # шексіз ойынның алдын алу
 QUIET_CYCLES_DRAW = 3  # қатарынан өлімсіз өткен күн+түн саны -> тең ойын
 HIGGS_ARMOR = 3        # Higgs-Man-ның түнгі шабуылдан қорғанысы (4-оқ өлтіреді)
+AFK_NIGHTS = 3         # қатарынан әрекетсіз өткен түн саны -> ойыннан шығарылады
 
 
 class Phase(StrEnum):
@@ -37,6 +39,7 @@ class Phase(StrEnum):
     NIGHT = "night"
     DAY = "day"
     VOTE = "vote"
+    CONFIRM = "confirm"   # 👍/👎 — ең көп дауыс жинаған ойыншыны шынымен асу керек пе
     ENDED = "ended"
 
 
@@ -66,9 +69,10 @@ SRC_WITCH = "witch"
 SRC_KAMIKAZE = "kamikaze"
 SRC_LYNCH = "lynch"
 SRC_DESERT = "desert"
+SRC_AFK = "afk"
 CAUSES = (
     SRC_MAFIA, SRC_KILLER, SRC_MANIAC, SRC_COMMISSIONER, SRC_BOMB, SRC_PYRO_SELF,
-    SRC_WITCH, SRC_KAMIKAZE, SRC_LYNCH, SRC_DESERT,
+    SRC_WITCH, SRC_KAMIKAZE, SRC_LYNCH, SRC_DESERT, SRC_AFK,
 )
 
 # Түнгі әрекет басылғанда топқа шығатын хабар (``announce.<кілт>``).
@@ -119,6 +123,7 @@ class Player:
     personal_win: bool = False
     higgs_armor: int = 0               # Higgs-Man: қалған оқтан қорғаныс саны
     higgs_vote_save: bool = False      # Higgs-Man: дардан бір реттік қорғаныс
+    idle_nights: int = 0               # қатарынан әрекетсіз өткен түндер (AFK)
 
     @property
     def faction(self) -> Faction:
@@ -287,6 +292,8 @@ class Game:
         self.day = 0
         self.actions: dict[int, NightAction] = {}
         self.votes: dict[int, int | None] = {}
+        self.candidate: int | None = None          # растауға шыққан ойыншы
+        self.confirm_votes: dict[int, bool] = {}   # user_id -> 👍 (True) / 👎 (False)
         self.bombed: set[int] = set()
         self.defender_cover: int | None = None
         self.quiet_cycles = 0
@@ -494,6 +501,26 @@ class Game:
 
     def night_complete(self) -> bool:
         return self.expected_actors() <= set(self.actions)
+
+    def note_idle(self, prompted: Iterable[int]) -> list[int]:
+        """Түн соңында шақырылады. ``prompted`` — түнде әрекет етуге шақырылған ойыншылар.
+
+        Ештеңе баспаған ойыншының әрекетсіз түндері санағы өседі (кез келген батырма,
+        соның ішінде «Өткізу», санақты нөлдейді). ``AFK_NIGHTS`` түн қатарынан әрекетсіз
+        қалғандар қайтарылады — оларды ойыннан шығару керек.
+        """
+        idle: list[int] = []
+        for uid in prompted:
+            p = self.players.get(uid)
+            if p is None or not p.alive:
+                continue
+            if uid in self.actions:
+                p.idle_nights = 0
+                continue
+            p.idle_nights += 1
+            if p.idle_nights >= AFK_NIGHTS:
+                idle.append(uid)
+        return sorted(idle, key=lambda u: self.players[u].order)
 
     def night_prompt(self, user_id: int) -> str:
         p = self.players[user_id]
@@ -952,6 +979,12 @@ class Game:
         return self.alive_ids() <= set(self.votes)
 
     def resolve_vote(self) -> Report:
+        """Дауыстарды санау.
+
+        Бір ойыншы ең көп дауыс жинаса, 👍/👎 растау кезеңі басталады (``Phase.CONFIRM``,
+        ``self.candidate``) — нәтижесін ``resolve_confirm`` шығарады. Дауыс болмаса
+        не тең түссе, ешкім асылмайды және күн аяқталады.
+        """
         if self.phase is not Phase.VOTE:
             raise RuntimeError("Дауыс беру жүріп жатқан жоқ")
         alive = self.alive_ids()
@@ -967,53 +1000,129 @@ class Game:
         if silent:
             lines.append(self.t("vote.silent", names=", ".join(p.mention for p in silent)))
         lines.append("")
-        private: list[tuple[int, str]] = []
-        deaths: list[int] = []
         top = tally.most_common(2)
         if not top:
             lines.append(self.t("vote.no_votes"))
         elif len(top) > 1 and top[0][1] == top[1][1]:
             lines.append(self.t("vote.tie"))
         else:
-            target = self.players[top[0][0]]
-            if self.defender_cover == target.user_id and target.role in DEFENDER_COVER_ROLES:
-                lines.append(self.t("vote.saved", name=target.mention))
-            elif target.role is Role.SUICIDE:
-                self._kill(target.user_id, SRC_LYNCH)
-                target.personal_win = True
-                deaths.append(target.user_id)
-                lines.append(self.t("vote.suicide_won", name=target.mention, role=self.reveal(target)))
-            elif target.role is Role.HIGGS and target.higgs_vote_save:
-                target.higgs_vote_save = False
-                private.append((target.user_id, self.t("vote.higgs_saved")))
-                lines.append(self.t("vote.saved", name=target.mention))
-            elif target.has_vote_shield:
-                target.vote_shield_used = True
-                private.append((target.user_id, self.t("vote.vote_shield_used")))
-                lines.append(self.t("vote.saved", name=target.mention))
-            else:
-                self._kill(target.user_id, SRC_LYNCH)
-                deaths.append(target.user_id)
-                lines.append(self.t("vote.lynched", name=target.mention, role=self.reveal(target)))
-                private.append((target.user_id, self.t("vote.you_lynched")))
+            self.candidate = top[0][0]
+            self.confirm_votes = {}
+            self.phase = Phase.CONFIRM
+            lines.append(self.t("vote.candidate", name=self._name(self.candidate)))
+            return Report(public="\n".join(lines))
+        return self._end_vote(lines, [], [])
+
+    # --- 👍/👎 растау ------------------------------------------------------------------
+
+    def confirm_voters(self) -> set[int]:
+        """Растауға дауыс бере алатындар: үміткерден басқа тірі ойыншылар."""
+        return self.alive_ids() - {self.candidate}
+
+    def confirm_counts(self) -> tuple[int, int]:
+        voters = self.confirm_voters()
+        yes = sum(1 for uid, v in self.confirm_votes.items() if v and uid in voters)
+        no = sum(1 for uid, v in self.confirm_votes.items() if not v and uid in voters)
+        return yes, no
+
+    def confirm_text(self, seconds: int) -> str:
+        return self.t("confirm.ask", day=self.day, name=self._name(self.candidate), seconds=seconds)
+
+    def confirm_closed_text(self) -> str:
+        yes, no = self.confirm_counts()
+        return self.t("confirm.closed", name=self._name(self.candidate), yes=yes, no=no)
+
+    def submit_confirm(self, user_id: int, yes: bool) -> SubmitResult:
+        """👍/👎 дауысы. Уақыт біткенше пікірді өзгертуге болады."""
+        if self.phase is not Phase.CONFIRM or self.candidate is None:
+            return SubmitResult(False, self.t("confirm.not_now"))
+        p = self.players.get(user_id)
+        if p is None or not p.alive:
+            return SubmitResult(False, self.t("confirm.not_alive"))
+        if user_id == self.candidate:
+            return SubmitResult(False, self.t("confirm.self"))
+        self.confirm_votes[user_id] = yes
+        return SubmitResult(True, self.t("confirm.ok_yes" if yes else "confirm.ok_no"))
+
+    def confirm_complete(self) -> bool:
+        if self.candidate is None or not self.players[self.candidate].alive:
+            return True
+        return self.confirm_voters() <= set(self.confirm_votes)
+
+    def resolve_confirm(self) -> Report:
+        """Растау нәтижесі: 👍 саны 👎-ден көп болса ғана үміткер дарға асылады."""
+        if self.phase is not Phase.CONFIRM or self.candidate is None:
+            raise RuntimeError("Растау жүріп жатқан жоқ")
+        voters = self.confirm_voters()
+        yes, no = self.confirm_counts()
+
+        def names(choice: bool) -> str:
+            chosen = [p.mention for p in self.ordered()
+                      if p.user_id in voters and self.confirm_votes.get(p.user_id) is choice]
+            return ", ".join(chosen) or "—"
+
+        lines = [
+            self.t("confirm.result_title"),
+            self.t("confirm.yes_line", count=yes, names=names(True)),
+            self.t("confirm.no_line", count=no, names=names(False)),
+            "",
+        ]
+        private: list[tuple[int, str]] = []
+        deaths: list[int] = []
+        target = self.players[self.candidate]
+        if not target.alive:
+            lines.append(self.t("confirm.gone", name=target.mention))
+        elif yes <= no:
+            lines.append(self.t("confirm.spared", name=target.mention))
+        elif self.defender_cover == target.user_id and target.role in DEFENDER_COVER_ROLES:
+            lines.append(self.t("vote.saved", name=target.mention))
+        elif target.role is Role.SUICIDE:
+            self._kill(target.user_id, SRC_LYNCH)
+            target.personal_win = True
+            deaths.append(target.user_id)
+            lines.append(self.t("vote.suicide_won", name=target.mention, role=self.reveal(target)))
+        elif target.role is Role.HIGGS and target.higgs_vote_save:
+            target.higgs_vote_save = False
+            private.append((target.user_id, self.t("vote.higgs_saved")))
+            lines.append(self.t("vote.saved", name=target.mention))
+        elif target.has_vote_shield:
+            target.vote_shield_used = True
+            private.append((target.user_id, self.t("vote.vote_shield_used")))
+            lines.append(self.t("vote.saved", name=target.mention))
+        else:
+            self._kill(target.user_id, SRC_LYNCH)
+            deaths.append(target.user_id)
+            lines.append(self.t("vote.lynched", name=target.mention, role=self.reveal(target)))
+            private.append((target.user_id, self.t("vote.you_lynched")))
+        return self._end_vote(lines, private, deaths)
+
+    def _end_vote(self, lines: list[str], private: list[tuple[int, str]], deaths: list[int]) -> Report:
         private.extend(self._promotions())
         if self.result is None:
             self.phase = Phase.DAY
         self.defender_cover = None
+        self.candidate = None
+        self.confirm_votes = {}
         return Report(public="\n".join(lines), private=private, deaths=deaths)
 
     # --- Ойыннан шығу ------------------------------------------------------------------
 
-    def desert(self, user_id: int) -> Report | None:
+    def desert(self, user_id: int, afk: bool = False) -> Report | None:
+        """Ойыншыны ойыннан шығару: өз еркімен (/leave) немесе AFK болғаны үшін.
+
+        Рөлі ортақ чатта ашылады. Шыққан ойыншы ойын соңында жеңе алмайды.
+        """
         p = self.players.get(user_id)
         if p is None or not p.alive or self.phase in (Phase.LOBBY, Phase.ENDED):
             return None
         p.deserted = True
         self.actions.pop(user_id, None)
         self.votes.pop(user_id, None)
-        self._kill(user_id, SRC_DESERT)
+        self.confirm_votes.pop(user_id, None)
+        self._kill(user_id, SRC_AFK if afk else SRC_DESERT)
+        key = "afk.public" if afk else "desert.public"
         return Report(
-            public=self.t("desert.public", name=p.mention, role=self.reveal(p)),
+            public=self.t(key, name=p.mention, role=self.reveal(p), nights=AFK_NIGHTS),
             private=self._promotions(),
             deaths=[user_id],
         )

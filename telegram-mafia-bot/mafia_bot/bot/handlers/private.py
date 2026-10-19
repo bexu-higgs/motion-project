@@ -14,7 +14,7 @@ from aiogram.types import CallbackQuery, InlineKeyboardButton, InlineKeyboardMar
 from ...config import Settings
 from ...controller import GameManager
 from ...db.repo import Repo
-from ...economy import ROLE_QUEUE_LIMIT, SHOP, Item
+from ...economy import ROLE_QUEUE_LIMIT, SHOP, Item, role_price
 from ...game.roles import PURCHASABLE_ROLES, Role, title
 from ...i18n import LANGS, t, variants
 from .. import keyboards, texts
@@ -255,7 +255,7 @@ async def role_buy(callback: CallbackQuery, repo: Repo, lang: str) -> None:
     result = await repo.queue_role(callback.from_user.id, role)
     if not result.ok:
         reason = {
-            "funds": t(lang, "rp.no_funds", balance=result.balance),
+            "funds": t(lang, "rp.no_funds", price=role_price(role), balance=result.balance),
             "limit": t(lang, "rp.limit", limit=ROLE_QUEUE_LIMIT),
         }.get(result.reason, t(lang, "rp.failed"))
         await callback.answer(reason, show_alert=True)

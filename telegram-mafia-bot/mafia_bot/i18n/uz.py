@@ -66,7 +66,8 @@ MESSAGES: dict[str, str] = {
     "cause.witch": "Jodugarning la’natiga uchradi",
     "cause.kamikaze": "Kamikadze o‘zi bilan olib ketdi",
     "cause.lynch": "osildi",
-    "cause.desert": "o‘yindan qochib ketdi",
+    "cause.desert": "o‘z xohishi bilan o‘yindan chiqdi",
+    "cause.afk": "faol bo‘lmagani uchun chiqarildi",
 
     # --- Rol haqida xabar ----------------------------------------------------------------------
     "intro.role": "🎭 Sizning rolingiz: <b>{role}</b>",
@@ -203,7 +204,23 @@ MESSAGES: dict[str, str] = {
     "vote.higgs_saved": "⚛️ <b>Higgs maydoni sizni dordan qutqardi!</b> Bu himoya endi yo‘q.",
     "vote.vote_shield_used": "⚖️ <b>Ovoz berishdan himoyangiz sizni dordan qutqardi!</b>",
     "vote.you_lynched": "☠️ <b>Shahar sizni osdi.</b>",
-    "desert.public": "🏃 {name} o‘yindan qochib ketdi. U <b>{role}</b> edi.",
+    "vote.candidate": "👉 Eng ko‘p ovozni {name} oldi. <b>Endi uni haqiqatan osish kerakmi — 👍/👎 bilan hal qilamiz.</b>",
+    "confirm.ask": "⚖️ <b>{day}-kun · Qarorni tasdiqlash</b>\n\nAholi {name} o‘yinchisini osishni taklif qildi. <b>Haqiqatan osamizmi?</b>\n👍 — osish kerak · 👎 — tirik qolsin\n\n<i>Tirik o‘yinchilar {seconds} soniya ichida tugmani bosadi (fikrni o‘zgartirish mumkin). 👍 ko‘p bo‘lsagina osiladi; teng bo‘lsa yoki 👎 ko‘p bo‘lsa — tirik qoladi.</i>",
+    "confirm.closed": "⚖️ <b>Tasdiqlash yakunlandi</b> · {name}: 👍 <b>{yes}</b> · 👎 <b>{no}</b>",
+    "confirm.stopped": "⚖️ <i>Tasdiqlash to‘xtatildi.</i>",
+    "confirm.not_now": "Hozir tasdiqlash o‘tmayapti.",
+    "confirm.not_alive": "Faqat shu o‘yindagi tirik o‘yinchilar ovoz bera oladi.",
+    "confirm.self": "O‘z taqdiringiz bo‘yicha ovoz bera olmaysiz.",
+    "confirm.ok_yes": "👍 Tanlovingiz: osish kerak.",
+    "confirm.ok_no": "👎 Tanlovingiz: tirik qolsin.",
+    "confirm.result_title": "⚖️ <b>Tasdiqlash natijasi</b>",
+    "confirm.yes_line": "👍 Osish kerak (<b>{count}</b>): {names}",
+    "confirm.no_line": "👎 Tirik qolsin (<b>{count}</b>): {names}",
+    "confirm.spared": "🕊 {name} <b>tirik qoldi</b> — 👍 ovozlari 👎 ovozlaridan ko‘p bo‘lmadi.",
+    "confirm.gone": "🚪 {name} o‘yindan chiqib ketdi — bugun hech kim osilmaydi.",
+    "desert.public": "🚪 {name} <b>o‘z xohishi bilan o‘yindan chiqdi</b>. U <b>{role}</b> edi.",
+    "afk.public": "💤 {name} ketma-ket <b>{nights} kecha</b> hech qanday harakat qilmagani uchun o‘yindan chiqarildi. U <b>{role}</b> edi.",
+    "afk.dm": "💤 Siz ketma-ket <b>{nights} kecha</b> hech qanday harakat qilmadingiz, shuning uchun <b>o‘yindan chiqarildingiz</b>. Bu o‘yin mag‘lubiyat hisoblanadi.",
 
     # --- O‘yin yakuni --------------------------------------------------------------------------
     "result.nobody_alive": "🤝 Hech kim tirik qolmadi — durang",
@@ -308,6 +325,7 @@ MESSAGES: dict[str, str] = {
         "/startgame — ro‘yxatni tugatib, o‘yinni darhol boshlash\n"
         "/extend — ro‘yxatni 30 soniyaga uzaytirish\n"
         "/leave — ro‘yxatdan yoki o‘yindan chiqish\n"
+        "/give 5 — o‘yinchiga olmos sovg‘a qilish (uning xabariga javob sifatida)\n"
         "/stop — o‘yinni to‘xtatish <i>(administratorlar)</i>\n"
         "/settingsmafiahiggs — ro‘yxat vaqti, kim boshlay olishi, til <i>(administratorlar)</i>\n\n"
         "<b>Shaxsiy chatda:</b>\n"
@@ -318,8 +336,8 @@ MESSAGES: dict[str, str] = {
         "1. Guruhda /game yoziladi, o‘yinchilar «🎮 O‘yinga qo‘shilish» tugmasini bosadi.\n"
         "2. Kamida 4 o‘yinchi yig‘ilsa, o‘yin boshlanadi (ko‘pi bilan 50).\n"
         "3. Rolingiz shu shaxsiy chatga keladi — <b>uni hech kimga ko‘rsatmang!</b>\n"
-        "4. Kechasi rolingizga mos harakatni shu yerda tanlaysiz.\n"
-        "5. Kunduzi guruhda muhokama qilasiz, ovozni shu yerda berasiz.\n\n"
+        "4. Kechasi rolingizga mos harakatni shu yerda tanlaysiz. <i>Ketma-ket 3 kecha hech narsa bosmasangiz, o‘yindan chiqarilasiz.</i>\n"
+        "5. Kunduzi guruhda muhokama qilasiz, ovozni shu yerda berasiz, so‘ng guruhda qarorni 👍/👎 bilan tasdiqlaysiz.\n\n"
         "<b>O‘yin vaqtida guruh tartibi:</b>\n"
         "• o‘yinda qatnashmayotganlar va halok bo‘lganlarning xabari o‘chirilib, ular <b>2 daqiqaga</b> ovozsiz qilinadi;\n"
         "• kechasi barcha o‘yinchilarning xabari o‘chiriladi;\n"
@@ -376,9 +394,9 @@ MESSAGES: dict[str, str] = {
         "• Rollar tasodifiy taqsimlanadi va faqat shaxsiy chatda aytiladi.\n"
         "• O‘yin <b>kechadan</b> boshlanadi: maxsus rollar shaxsiy chatda harakat qiladi, har bir harakat guruhda alohida xabar bo‘lib chiqadi (kimga ekani aytilmaydi).\n"
         "• Ertalab kim halok bo‘lgani va uning roli e’lon qilinadi.\n"
-        "• Kunduzi muhokama, so‘ng shaxsiy chatda ovoz berish. Har bir ovoz guruhda e’lon qilinadi. Eng ko‘p ovoz olgan osiladi; ovozlar teng bo‘lsa — hech kim osilmaydi.\n"
+        "• Kunduzi muhokama, so‘ng shaxsiy chatda ovoz berish. Har bir ovoz guruhda e’lon qilinadi. Eng ko‘p ovoz olgan o‘yinchi bo‘yicha guruhda 👍/👎 tasdiqlash o‘tadi: 👍 ko‘p bo‘lsagina osiladi. Ovozlar teng bo‘lsa — hech kim osilmaydi.\n"
         "• O‘yin vaqtida begonalar va halok bo‘lganlarning xabari o‘chirilib, ular 2 daqiqaga ovozsiz qilinadi; kechasi barcha o‘yinchilarning xabari o‘chiriladi. Administratorlar <code>!</code> belgisi bilan yozishi mumkin.\n"
-        "• O‘yindan chiqqan (/leave) o‘yinchi mag‘lub bo‘ladi.\n\n"
+        "• O‘yindan chiqqan (/leave) o‘yinchining roli ochiladi va u mag‘lub bo‘ladi. Ketma-ket 3 kecha hech qanday harakat qilmagan o‘yinchi (AFK) ham o‘yindan chiqariladi.\n\n"
         "<b>G‘alaba shartlari</b>\n"
         "🏘 Tinch aholi — barcha Don, mafiya, Killer va Manyak yo‘q qilinsa.\n"
         "🤵 Mafiya — Don, mafiya va Killer soni qolganlardan (Himoyachilarsiz) kam bo‘lmasa va Manyak tirik bo‘lmasa.\n"
@@ -408,7 +426,7 @@ MESSAGES: dict[str, str] = {
     ),
     "rules.items_title": "🎒 <b>Buyumlar va imtiyozlar</b>",
     "rules.item_line": "{emoji} <b>{name}</b> — {price}\n<i>{desc}</i>\n",
-    "rules.role_pick": "🎭 <b>Rol tanlash</b> — {price} 💎\n<i>Keyingi o‘yin uchun rol tanlaysiz. Rol o‘yinchilar soniga mos bo‘lsa beriladi, aks holda tanlov saqlanadi yoki olmosni qaytarib olishingiz mumkin.</i>\n",
+    "rules.role_pick": "🎭 <b>Rol tanlash</b> — {price} 💎, kuchli rollar ({roles}) — {premium} 💎\n<i>Keyingi o‘yin uchun rol tanlaysiz. Rol o‘yinchilar soniga mos bo‘lsa beriladi, aks holda tanlov saqlanadi yoki olmosni qaytarib olishingiz mumkin. ⚛️ Higgs-Man sotilmaydi.</i>\n",
     "rules.fairness": "⚖️ <b>Adolat:</b> bir o‘yinda ko‘pi bilan bitta himoya, bitta ovoz berishdan himoya va bitta o‘q ishlatiladi. Buyumlar faqat haqiqatan kerak bo‘lganda sarflanadi.",
     "rules.balance_title": "⚖️ <b>O‘yinchilar soniga qarab rollar</b>\n<i>(qolgan o‘rinlar — 👨 tinch aholi)</i>",
     "rules.higgs_rare": "⚛️ <b>Higgs-Man</b> — {min}+ o‘yinchida har bir o‘yinda ≈{chance}% ehtimol bilan bitta tinch aholi o‘rniga chiqadi.",
@@ -461,12 +479,12 @@ MESSAGES: dict[str, str] = {
     "dia.intro": "Paket qancha katta bo‘lsa, bitta olmos shuncha arzon.\nTo‘lov <b>Telegram Stars (⭐)</b> orqali xavfsiz amalga oshadi.",
     "dia.line": "• <b>{diamonds} 💎</b> — {price} ₸ <i>({per} ₸/💎)</i> · {stars} ⭐",
     "rp.title": "🎭 <b>Keyingi o‘yin uchun rol tanlash</b>",
-    "rp.intro": "Narxi: <b>{price} 💎</b>. Rol o‘yinchilar soni yetarli bo‘lgan o‘yinda beriladi. Bir o‘yinda bitta tanlov ishlatiladi, qolganlari navbatda turadi.",
-    "rp.line": "{role} — <i>{min}+ o‘yinchi</i>",
+    "rp.intro": "Narxi: <b>{price} 💎</b>; kuchli rollar ({roles}) — <b>{premium} 💎</b>. Rol o‘yinchilar soni yetarli bo‘lgan o‘yinda beriladi. Bir o‘yinda bitta tanlov ishlatiladi, qolganlari navbatda turadi.",
+    "rp.line": "{role} — <b>{price} 💎</b> · <i>{min}+ o‘yinchi</i>",
     "rp.higgs_note": "{role} — <i>sotilmaydi, o‘yinda kamdan-kam va tasodifiy chiqadi.</i>",
     "rp.queue": "📋 <b>Navbatingiz:</b> {roles}",
     "rp.not_buyable": "Bu rolni sotib olib bo‘lmaydi.",
-    "rp.no_funds": "Olmos yetarli emas (sizda {balance} 💎). «💎 Olmos sotib olish» bo‘limini oching.",
+    "rp.no_funds": "Olmos yetarli emas: bu rol {price} 💎, sizda {balance} 💎. «💎 Olmos sotib olish» bo‘limini oching.",
     "rp.limit": "Navbatda ko‘pi bilan {limit} ta rol turishi mumkin.",
     "rp.failed": "Sotib olib bo‘lmadi.",
     "rp.ok_alert": "✅ Rol navbatga qo‘yildi!",
@@ -532,6 +550,15 @@ MESSAGES: dict[str, str] = {
     "pay.ok": "✅ <b>To‘lov tasdiqlandi! +{n} 💎</b>\nOlmos balansingiz: <b>{balance} 💎</b>",
 
     # --- Buyruqlar tavsifi ---------------------------------------------------------------------
+    "give.usage": "💎 <b>Olmos sovg‘a qilish</b>\nO‘yinchining xabariga javob sifatida <code>/give 5</code> yozing yoki <code>/give @username 5</code>.",
+    "give.bad_amount": "❌ Olmos sonini to‘g‘ri yozing: 1 dan {max} gacha.",
+    "give.unknown": "❌ {name} topilmadi. U avval botda /start bosishi kerak, yoki uning xabariga javob sifatida yozing.",
+    "give.self": "❌ O‘zingizga olmos bera olmaysiz.",
+    "give.bot": "❌ Botga olmos berib bo‘lmaydi.",
+    "give.no_funds": "❌ Olmos yetarli emas: sizda <b>{balance} 💎</b> bor.",
+    "give.ok": "💎 {giver} {receiver} o‘yinchisiga <b>{n} olmos</b> sovg‘a qildi!",
+    "give.left": "Qolgan balansingiz: <b>{balance} 💎</b>",
+    "give.dm": "🎁 {giver} sizga <b>{n} 💎</b> sovg‘a qildi! Balansingiz: <b>{balance} 💎</b>",
     "cmd.start": "Asosiy menyu",
     "cmd.profile": "Mening profilim",
     "cmd.shop": "Do‘kon",
@@ -546,6 +573,7 @@ MESSAGES: dict[str, str] = {
     "cmd.startgame": "O‘yinni darhol boshlash",
     "cmd.extend": "Ro‘yxatni 30 soniyaga uzaytirish",
     "cmd.leave": "O‘yindan chiqish",
+    "cmd.give": "O‘yinchiga olmos sovg‘a qilish",
     "cmd.stop": "O‘yinni to‘xtatish (administrator)",
     "cmd.settingsmafiahiggs": "Bot sozlamalari (administrator)",
 }

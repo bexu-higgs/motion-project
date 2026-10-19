@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import StrEnum
 
+from .game.roles import Role
 from .i18n import t
 
 # --- Жеңіс сыйақысы (₸) -------------------------------------------------------
@@ -69,8 +70,21 @@ SHOP: dict[Item, ShopItem] = {
     Item.PIERCING_BULLET: ShopItem(Item.PIERCING_BULLET, "💥", 1, "diamonds"),
 }
 
-ROLE_PICK_PRICE = 1          # 💎 — келесі ойынға рөл таңдау
+ROLE_PICK_PRICE = 1          # 💎 — келесі ойынға рөл таңдау (қарапайым рөлдер)
+PREMIUM_ROLE_PRICE = 2       # 💎 — күшті рөлдер
+PREMIUM_ROLES = frozenset({Role.DON, Role.KAMIKAZE, Role.MANIAC, Role.PYRO, Role.KILLER})
 ROLE_QUEUE_LIMIT = 5         # бір ойыншының кезектегі рөлдерінің ең көп саны
+
+
+def role_price(role: Role) -> int:
+    """Рөлді келесі ойынға сатып алу бағасы (💎)."""
+    return PREMIUM_ROLE_PRICE if role in PREMIUM_ROLES else ROLE_PICK_PRICE
+
+
+# --- 💎 Алмаз беру ----------------------------------------------------------------
+
+MAX_DIAMOND_GRANT = 999_999  # бот авторы өзіне бір командамен ала алатын ең көп алмаз
+MAX_DIAMOND_GIFT = 999_999   # ойыншы басқа ойыншыға бір реттік ең көп сыйлық
 
 
 # --- 💎 Алмаз пакеттері ---------------------------------------------------------

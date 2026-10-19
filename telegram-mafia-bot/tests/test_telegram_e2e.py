@@ -116,16 +116,16 @@ class Harness:
         self.repo = repo
         self.notifier = TelegramNotifier(self.bot, "mafia_test_bot")
         self.manager = GameManager(
-            self.notifier, repo, registration_seconds=60, time_scale=0.004, lobby_edit_delay=0,
+            self.notifier, repo, registration_seconds=60, time_scale=0.004, lobby_edit_delay=0, confirm_edit_delay=0,
             rng_factory=lambda: random.Random(5),
         )
         self.dp = dispatcher(repo=repo, manager=self.manager, notifier=self.notifier, settings=settings)
         self.update_ids = itertools.count(1)
         self.msg_ids = itertools.count(1)
 
-    async def text(self, from_id: int, chat_id: int, text: str):
+    async def text(self, from_id: int, chat_id: int, text: str, reply_to: t.Message | None = None):
         msg = t.Message(message_id=next(self.msg_ids), date=now(), chat=chat(chat_id),
-                        from_user=user(from_id), text=text)
+                        from_user=user(from_id), text=text, reply_to_message=reply_to)
         await self.dp.feed_update(self.bot, t.Update(update_id=next(self.update_ids), message=msg))
         return msg
 
@@ -176,7 +176,15 @@ async def autoplay(h: Harness, rng: random.Random, stop: asyncio.Event):
         for call in calls:
             if not isinstance(call, (m.SendMessage, m.EditMessageText)) or not isinstance(call.chat_id, int):
                 continue
-            if call.chat_id <= 0:
+            if call.chat_id < 0:
+                # Топтағы 👍/👎 растау: әр тірі ойыншы кездейсоқ басады.
+                confirm = [b for b in keyboard_buttons(call) if (b.callback_data or "").startswith("c:")]
+                s = h.manager.sessions.get(call.chat_id)
+                if confirm and s is not None and isinstance(call, m.SendMessage):
+                    for uid in sorted(s.game.confirm_voters()):
+                        await h.click(uid, 0, rng.choice(confirm).callback_data, chat_id=call.chat_id)
+                continue
+            if call.chat_id == 0:
                 continue
             game_buttons = [b for b in keyboard_buttons(call)
                             if b.callback_data and b.callback_data[:2] in ("n:", "m:", "v:", "w:")]
@@ -254,6 +262,11 @@ async def test_full_game_through_telegram_handlers(harness):
     assert all("Сіздің рөліңіз" not in c.text for c in tg.sent(GROUP))
     assert all(any("Сіздің рөліңіз" in c.text for c in tg.sent(uid)) for uid in range(1, 8))
     assert any("Ойын аяқталды" in c.text for c in tg.sent(GROUP))
+    # 👍/👎 растау батырмалары топта басылды.
+    group_text = "\n".join(c.text for c in tg.sent(GROUP))
+    if "Шешімді растау" in group_text:
+        assert "Растау нәтижесі" in group_text
+        assert any(isinstance(c, m.AnswerCallbackQuery) and "таңдауыңыз" in (c.text or "") for c in tg.calls)
     # Өлгендердің шектеуі алынды.
     restricted = [c.user_id for c in tg.calls if isinstance(c, m.RestrictChatMember)
                   and c.permissions.can_send_messages is False]
@@ -342,10 +355,71 @@ async def test_group_requires_admin_rights(harness):
 async def test_admin_commands(harness):
     h = harness
     await h.text(2, 2, "/start")
-    await h.text(1, 1, "/give 2 diamonds 5")
+    await h.text(1, 1, "/grant 2 diamonds 5")
     assert "Жаңа баланс: 5" in h.tg.sent(1)[-1].text
-    await h.text(3, 3, "/give 2 diamonds 5")  # әкімші емес — жауап жоқ
+    await h.text(3, 3, "/grant 2 diamonds 5")  # әкімші емес — жауап жоқ
     assert (await h.repo.get_user(2))["diamonds"] == 5
+
+
+async def test_author_gets_free_diamonds(harness):
+    h = harness
+    tg = h.tg
+    await h.text(1, 1, "/getdiamonds 1000000")  # шектен асады
+    assert "Қолданылуы" in tg.sent(1)[-1].text
+    await h.text(1, 1, "/getdiamonds 999999")
+    assert "999 999 алмаз" in tg.sent(1)[-1].text
+    await h.text(1, GROUP, "/getdiamonds 1")  # топта да жұмыс істейді
+    assert (await h.repo.get_user(1))["diamonds"] == 1_000_000
+    # Бот авторы емес (тіпті топ әкімшісі болса да) — ештеңе болмайды, жауап та жоқ.
+    for uid in (3, CHAT_ADMIN):
+        before = len(tg.sent())
+        await h.text(uid, uid, "/getdiamonds 500")
+        assert len(tg.sent()) == before
+        assert (await h.repo.get_user(uid) or {"diamonds": 0})["diamonds"] == 0
+
+
+async def test_players_gift_diamonds(harness):
+    h = harness
+    tg = h.tg
+    await h.text(1, 1, "/getdiamonds 10")
+    await h.text(5, 5, "/start")
+    target_msg = await h.text(3, GROUP, "сәлем бәріне")
+
+    # Хабарға жауап ретінде: 1-ойыншы 3-ойыншыға 3 алмаз береді.
+    await h.text(1, GROUP, "/give 3", reply_to=target_msg)
+    ok = tg.sent(GROUP)[-1]
+    assert "сыйлады" in ok.text and "tg://user?id=1" in ok.text and "tg://user?id=3" in ok.text
+    assert "Қалған" not in ok.text  # топта баланс жария етілмейді
+    assert any("сізге <b>3 💎</b> сыйлады" in c.text for c in tg.sent(3))
+    assert (await h.repo.get_user(1))["diamonds"] == 7
+    assert (await h.repo.get_user(3))["diamonds"] == 3  # бұрын ботқа жазбаса да тіркелді
+
+    # @username арқылы (ботқа белгілі ойыншы) және жеке чаттан.
+    await h.text(1, 1, "/give @p5 2")
+    assert "Қалған балансыңыз: <b>5 💎</b>" in tg.sent(1)[-1].text
+    assert (await h.repo.get_user(5))["diamonds"] == 2
+
+    # Қателер: белгісіз адам, жеткіліксіз алмаз, өзіне, ботқа, нөл, аргументсіз.
+    await h.text(1, GROUP, "/give @nobody 1")
+    assert "@nobody табылмады" in tg.sent(GROUP)[-1].text
+    await h.text(1, GROUP, "/give 100", reply_to=target_msg)
+    assert "жеткіліксіз" in tg.sent(GROUP)[-1].text
+    own = await h.text(1, GROUP, "менің хабарым")
+    await h.text(1, GROUP, "/give 1", reply_to=own)
+    assert "Өзіңізге" in tg.sent(GROUP)[-1].text
+    bot_msg = t.Message(message_id=1, date=now(), chat=chat(GROUP), text="бот",
+                        from_user=t.User(id=BOT_ID, is_bot=True, first_name="Mafia"))
+    await h.text(1, GROUP, "/give 1", reply_to=bot_msg)
+    assert "Ботқа" in tg.sent(GROUP)[-1].text
+    await h.text(1, GROUP, "/give 0", reply_to=target_msg)
+    assert "1-ден 999 999-ға дейін" in tg.sent(GROUP)[-1].text
+    await h.text(1, GROUP, "/give")
+    assert "Алмаз сыйлау" in tg.sent(GROUP)[-1].text
+    # Алмазы жоқ ойыншы бере алмайды.
+    await h.text(4, GROUP, "/give 1", reply_to=target_msg)
+    assert "жеткіліксіз" in tg.sent(GROUP)[-1].text
+    assert (await h.repo.get_user(1))["diamonds"] == 5
+    assert (await h.repo.get_user(3))["diamonds"] == 3
 
 
 async def test_user_language_switch(harness):
@@ -427,8 +501,12 @@ async def test_group_moderation(harness):
     # Әкімші «!» белгісімен — өшірілмейді; белгісіз — өшіріледі (бірақ әкімші шектелмейді).
     assert not deleted(await h.text(CHAT_ADMIN, GROUP, "!ереже: түнде үндемейміз"))
     assert deleted(await h.text(CHAT_ADMIN, GROUP, "белгісіз хабар")) and not mutes(CHAT_ADMIN)
-    # Өлген (ойыннан шыққан) ойыншы — өшіріліп, үнсіз етіледі.
+    # Түнде /give те топқа жазылмайды: хабар өшіріледі, алмаз берілмейді.
+    assert deleted(await h.text(2, GROUP, "/give @p3 1")) and not tg.sent(GROUP)[-1].text.startswith("💎")
+    # /leave: ойыншы шығады, рөлі топта ашылады.
     await h.text(4, GROUP, "/leave")
+    assert "өз еркімен ойыннан шықты" in tg.sent(GROUP)[-2].text + tg.sent(GROUP)[-1].text
+    # Өлген (ойыннан шыққан) ойыншы — өшіріліп, үнсіз етіледі.
     assert deleted(await h.text(4, GROUP, "мен әлі осындамын")) and mutes(4)
     # Ойын тоқтағанда үнсіздік алынады.
     await h.text(CHAT_ADMIN, GROUP, "/stop")

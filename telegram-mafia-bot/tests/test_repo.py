@@ -114,16 +114,28 @@ async def test_role_queue_purchase_limit_and_refund(repo):
     assert not limited.ok and limited.reason == "limit"
     queue = await repo.role_queue(1)
     assert [q["role"] for q in queue] == ["don", "doctor", "killer", "maniac", "witch"]
-    assert await repo.refund_role(1, queue[0]["purchase_id"]) == 1
+    # Дон, Киллер, Қанішер — 2 💎, Дәрігер мен Сиқыршы — 1 💎: барлығы 8 💎.
+    assert (await repo.get_user(1))["diamonds"] == 2
+    assert [q["price"] for q in queue] == [2, 1, 2, 2, 1]
+    assert await repo.refund_role(1, queue[0]["purchase_id"]) == 2  # төленген баға қайтарылады
     assert await repo.refund_role(1, queue[0]["purchase_id"]) is None
     assert await repo.refund_role(2, queue[1]["purchase_id"]) is None  # бөтен адамның сатып алуы
-    assert (await repo.get_user(1))["diamonds"] == 6
+    assert (await repo.get_user(1))["diamonds"] == 4
 
 
 async def test_role_purchase_needs_diamonds(repo):
     await add_user(repo, 1)
     r = await repo.queue_role(1, Role.DON)
     assert not r.ok and r.reason == "funds"
+
+
+async def test_premium_role_costs_two_diamonds(repo):
+    await add_user(repo, 1, diamonds=1)
+    r = await repo.queue_role(1, Role.PYRO)
+    assert not r.ok and r.reason == "funds" and r.balance == 1
+    assert (await repo.queue_role(1, Role.WOLF)).ok
+    assert not (await repo.queue_role(1, Role.HIGGS)).ok
+    assert (await repo.get_user(1))["diamonds"] == 0
 
 
 async def test_queue_heads_in_purchase_order(repo):
@@ -140,7 +152,7 @@ async def test_game_finalization_is_idempotent(repo):
     from mafia_bot.db.models import FinalRow
 
     for uid in range(1, 5):
-        await add_user(repo, uid, diamonds=1)
+        await add_user(repo, uid, diamonds=2)
     await repo.pool.execute("UPDATE users SET shields = 1, fake_docs = 1 WHERE user_id = 1")
     await repo.queue_role(1, Role.DON)
     purchase = (await repo.role_queue(1))[0]["purchase_id"]
@@ -171,7 +183,7 @@ async def test_game_finalization_is_idempotent(repo):
 
 async def test_aborted_game_keeps_purchases_and_releases_restrictions(repo):
     for uid in range(1, 5):
-        await add_user(repo, uid, diamonds=1)
+        await add_user(repo, uid, diamonds=2)
     await repo.queue_role(1, Role.DON)
     gid = await repo.create_game(-100)
     await repo.start_game(gid, [(1, "don"), (2, "doctor"), (3, "commissioner"), (4, "civilian")])
@@ -200,11 +212,41 @@ async def test_payment_is_credited_once(repo):
 async def test_refund_removes_diamonds(repo):
     await add_user(repo, 1)
     await repo.record_payment(1, "charge-2", None, "d10", "XTR", 10)
-    await repo.queue_role(1, Role.DON)  # 1 алмаз жұмсалды
+    await repo.queue_role(1, Role.DON)  # 2 алмаз жұмсалды
     payment = await repo.mark_refunded("charge-2")
     assert payment["user_id"] == 1
     assert (await repo.get_user(1))["diamonds"] == 0
     assert await repo.mark_refunded("charge-2") is None
+
+
+async def test_diamond_gift_is_atomic(repo):
+    await add_user(repo, 1, diamonds=5)
+    await add_user(repo, 2, diamonds=5)
+    # Алушы ботқа әлі жазбаған — ол тіркеледі.
+    r = await repo.transfer_diamonds(1, 3, 2, "p3", "Ойыншы 3")
+    assert r.ok and r.balance == 3 and r.receiver_balance == 2 and r.receiver_lang == "kk"
+    assert (await repo.get_user(3))["full_name"] == "Ойыншы 3"
+    # Баланстан көп беруге болмайды, баланс өзгермейді.
+    r = await repo.transfer_diamonds(1, 2, 4, None, "")
+    assert not r.ok and r.balance == 3
+    # Бір уақытта көп сыйлық: жалпы сома баланстан аспайды, қарсы бағыттағылар бөгелмейді.
+    results = await asyncio.gather(
+        *(repo.transfer_diamonds(1, 2, 1, None, "") for _ in range(6)),
+        *(repo.transfer_diamonds(2, 1, 1, None, "") for _ in range(6)),
+    )
+    users = {uid: (await repo.get_user(uid))["diamonds"] for uid in (1, 2, 3)}
+    assert sum(users.values()) == 10 and all(v >= 0 for v in users.values())
+    assert sum(r.ok for r in results) >= 6
+    ledger = await repo.pool.fetchval("SELECT coalesce(sum(delta), 0) FROM ledger WHERE reason LIKE 'gift_%'")
+    assert ledger == 0
+    with pytest.raises(ValueError):
+        await repo.transfer_diamonds(1, 1, 1, None, "")
+
+
+async def test_find_by_username(repo):
+    await repo.ensure_user(1, "Ali_K", "Әли")
+    assert (await repo.find_by_username("@ali_k"))["user_id"] == 1
+    assert await repo.find_by_username("nobody") is None
 
 
 async def test_chats(repo):
@@ -223,7 +265,7 @@ async def test_full_game_with_real_database(repo):
 
     notifier = FakeNotifier()
     manager = GameManager(notifier, repo, registration_seconds=5, time_scale=0.002,
-                          lobby_edit_delay=0, rng_factory=lambda: random.Random(3))
+                          lobby_edit_delay=0, confirm_edit_delay=0, rng_factory=lambda: random.Random(3))
     AutoPlayers(manager, notifier, seed=3)
     await repo.ensure_user(1, None, "Ойыншы 1")
     await repo.grant(1, "diamonds", 1, "test")

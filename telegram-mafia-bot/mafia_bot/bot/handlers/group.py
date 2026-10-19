@@ -122,6 +122,14 @@ async def leave(message: Message, manager: GameManager, lang: str) -> None:
     await message.reply(await manager.leave(message.from_user.id))
 
 
+@router.callback_query(F.data.regexp(r"^c:\d+:\d+:[01]$"))
+async def confirm_vote(callback: CallbackQuery, manager: GameManager) -> None:
+    """👍/👎 — ең көп дауыс жинаған ойыншыны дарға асуды растау."""
+    _, gid, day, yes = callback.data.split(":")
+    ok, text = await manager.confirm_vote(callback.from_user.id, int(gid), int(day), yes == "1")
+    await callback.answer(text, show_alert=not ok)
+
+
 @router.message(Command("rules", "help"))
 async def group_rules(message: Message, notifier: TelegramNotifier, lang: str) -> None:
     await message.reply(

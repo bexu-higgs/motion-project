@@ -66,7 +66,8 @@ MESSAGES: dict[str, str] = {
     "cause.witch": "cursed by the Witch",
     "cause.kamikaze": "taken down by the Kamikaze",
     "cause.lynch": "lynched",
-    "cause.desert": "fled the game",
+    "cause.desert": "left the game",
+    "cause.afk": "removed for inactivity",
 
     # --- Role message --------------------------------------------------------------------------
     "intro.role": "🎭 Your role: <b>{role}</b>",
@@ -203,7 +204,23 @@ MESSAGES: dict[str, str] = {
     "vote.higgs_saved": "⚛️ <b>The Higgs field saved you from the gallows!</b> This protection is now gone.",
     "vote.vote_shield_used": "⚖️ <b>Your vote protection saved you from the gallows!</b>",
     "vote.you_lynched": "☠️ <b>The town lynched you.</b>",
-    "desert.public": "🏃 {name} fled the game. They were <b>{role}</b>.",
+    "vote.candidate": "👉 {name} got the most votes. <b>Now we decide with 👍/👎 whether to really lynch them.</b>",
+    "confirm.ask": "⚖️ <b>Day {day} · Confirm the verdict</b>\n\nThe town wants to lynch {name}. <b>Do we really hang them?</b>\n👍 — hang · 👎 — spare\n\n<i>Living players have {seconds} seconds to press a button (you can change your mind). They are lynched only if 👍 outnumber 👎; on a tie or more 👎 they survive.</i>",
+    "confirm.closed": "⚖️ <b>Confirmation closed</b> · {name}: 👍 <b>{yes}</b> · 👎 <b>{no}</b>",
+    "confirm.stopped": "⚖️ <i>Confirmation stopped.</i>",
+    "confirm.not_now": "There is no confirmation vote right now.",
+    "confirm.not_alive": "Only living players of this game can vote.",
+    "confirm.self": "You can't vote on your own fate.",
+    "confirm.ok_yes": "👍 Your choice: hang.",
+    "confirm.ok_no": "👎 Your choice: spare.",
+    "confirm.result_title": "⚖️ <b>Confirmation result</b>",
+    "confirm.yes_line": "👍 Hang (<b>{count}</b>): {names}",
+    "confirm.no_line": "👎 Spare (<b>{count}</b>): {names}",
+    "confirm.spared": "🕊 {name} <b>survives</b> — 👍 did not outnumber 👎.",
+    "confirm.gone": "🚪 {name} left the game — nobody is lynched today.",
+    "desert.public": "🚪 {name} <b>left the game</b>. They were <b>{role}</b>.",
+    "afk.public": "💤 {name} was removed from the game for taking no action for <b>{nights} nights</b> in a row. They were <b>{role}</b>.",
+    "afk.dm": "💤 You took no action for <b>{nights} nights</b> in a row, so you were <b>removed from the game</b>. It counts as a loss.",
 
     # --- End of game ---------------------------------------------------------------------------
     "result.nobody_alive": "🤝 Nobody survived — it's a draw",
@@ -308,6 +325,7 @@ MESSAGES: dict[str, str] = {
         "/startgame — end registration and start right away\n"
         "/extend — extend registration by 30 seconds\n"
         "/leave — leave the registration or the game\n"
+        "/give 5 — gift diamonds to a player (as a reply to their message)\n"
         "/stop — stop the game <i>(admins)</i>\n"
         "/settingsmafiahiggs — registration time, who can start, language <i>(admins)</i>\n\n"
         "<b>In private chat:</b>\n"
@@ -318,8 +336,8 @@ MESSAGES: dict[str, str] = {
         "1. Someone types /game in the group, players press «🎮 Join the game».\n"
         "2. Once at least 4 players join, the game starts (up to 50).\n"
         "3. Your role arrives in this private chat — <b>don't show it to anyone!</b>\n"
-        "4. At night you choose your role's action here.\n"
-        "5. During the day you discuss in the group and vote here.\n\n"
+        "4. At night you choose your role's action here. <i>Skip 3 nights in a row and you are removed from the game.</i>\n"
+        "5. During the day you discuss in the group and vote here, then the group confirms the verdict with 👍/👎.\n\n"
         "<b>Group rules during a game:</b>\n"
         "• messages from non-players and dead players are deleted and they are <b>muted for 2 minutes</b>;\n"
         "• at night all players' messages are deleted;\n"
@@ -376,9 +394,9 @@ MESSAGES: dict[str, str] = {
         "• Roles are dealt at random and revealed only in private chat.\n"
         "• The game starts at <b>night</b>: special roles act in private chat, and each action is announced in the group as a separate message (without the target).\n"
         "• In the morning, the bot announces who died and their role.\n"
-        "• During the day — discussion, then voting in private chat. Each vote is announced in the group. The player with the most votes is lynched; in a tie nobody is.\n"
+        "• During the day — discussion, then voting in private chat. Each vote is announced in the group. For the player with the most votes the group then confirms with 👍/👎: they are lynched only if 👍 outnumber 👎. In a tie nobody is lynched.\n"
         "• During a game, messages from non-players and dead players are deleted and they are muted for 2 minutes; at night all players' messages are deleted. Admins can write with <code>!</code> at the start.\n"
-        "• A player who leaves the game (/leave) loses.\n\n"
+        "• A player who leaves the game (/leave) has their role revealed and loses. A player who takes no action for 3 nights in a row (AFK) is removed too.\n\n"
         "<b>Win conditions</b>\n"
         "🏘 Town — when every Don, mafioso, Killer and Maniac is eliminated.\n"
         "🤵 Mafia — when the Don, mafiosi and Killer are at least as many as everyone else (Defenders not counted) and the Maniac is dead.\n"
@@ -408,7 +426,7 @@ MESSAGES: dict[str, str] = {
     ),
     "rules.items_title": "🎒 <b>Items and perks</b>",
     "rules.item_line": "{emoji} <b>{name}</b> — {price}\n<i>{desc}</i>\n",
-    "rules.role_pick": "🎭 <b>Pick a role</b> — {price} 💎\n<i>You choose a role for the next game. It is given if it fits the number of players; otherwise your choice is kept or you can get the diamond back.</i>\n",
+    "rules.role_pick": "🎭 <b>Pick a role</b> — {price} 💎, powerful roles ({roles}) — {premium} 💎\n<i>You choose a role for the next game. It is given if it fits the number of players; otherwise your choice is kept or you can get the diamonds back. ⚛️ Higgs-Man is not for sale.</i>\n",
     "rules.fairness": "⚖️ <b>Fairness:</b> at most one shield, one vote protection and one bullet are used per game. Items are spent only when they are really needed.",
     "rules.balance_title": "⚖️ <b>Roles by number of players</b>\n<i>(remaining seats — 👨 civilians)</i>",
     "rules.higgs_rare": "⚛️ <b>Higgs-Man</b> — with {min}+ players, appears in each game with a ≈{chance}% chance in place of one civilian.",
@@ -461,12 +479,12 @@ MESSAGES: dict[str, str] = {
     "dia.intro": "The bigger the pack, the cheaper each diamond.\nPayment is made securely via <b>Telegram Stars (⭐)</b>.",
     "dia.line": "• <b>{diamonds} 💎</b> — {price} ₸ <i>({per} ₸/💎)</i> · {stars} ⭐",
     "rp.title": "🎭 <b>Pick a role for the next game</b>",
-    "rp.intro": "Price: <b>{price} 💎</b>. The role is given in a game with enough players. One choice is used per game, the rest wait in the queue.",
-    "rp.line": "{role} — <i>{min}+ players</i>",
+    "rp.intro": "Price: <b>{price} 💎</b>; powerful roles ({roles}) — <b>{premium} 💎</b>. The role is given in a game with enough players. One choice is used per game, the rest wait in the queue.",
+    "rp.line": "{role} — <b>{price} 💎</b> · <i>{min}+ players</i>",
     "rp.higgs_note": "{role} — <i>not for sale, appears rarely and at random.</i>",
     "rp.queue": "📋 <b>Your queue:</b> {roles}",
     "rp.not_buyable": "This role can't be bought.",
-    "rp.no_funds": "Not enough diamonds (you have {balance} 💎). Open «💎 Buy diamonds».",
+    "rp.no_funds": "Not enough diamonds: this role costs {price} 💎, you have {balance} 💎. Open «💎 Buy diamonds».",
     "rp.limit": "At most {limit} roles can be in the queue.",
     "rp.failed": "Purchase failed.",
     "rp.ok_alert": "✅ Role added to the queue!",
@@ -532,6 +550,15 @@ MESSAGES: dict[str, str] = {
     "pay.ok": "✅ <b>Payment confirmed! +{n} 💎</b>\nYour diamond balance: <b>{balance} 💎</b>",
 
     # --- Command descriptions ------------------------------------------------------------------
+    "give.usage": "💎 <b>Gift diamonds</b>\nReply to a player's message with <code>/give 5</code> or write <code>/give @username 5</code>.",
+    "give.bad_amount": "❌ Enter a valid number of diamonds: from 1 to {max}.",
+    "give.unknown": "❌ {name} was not found. They need to press /start in the bot first, or reply to their message instead.",
+    "give.self": "❌ You can't gift diamonds to yourself.",
+    "give.bot": "❌ You can't gift diamonds to a bot.",
+    "give.no_funds": "❌ Not enough diamonds: you have <b>{balance} 💎</b>.",
+    "give.ok": "💎 {giver} gifted <b>{n} diamonds</b> to {receiver}!",
+    "give.left": "Your remaining balance: <b>{balance} 💎</b>",
+    "give.dm": "🎁 {giver} gifted you <b>{n} 💎</b>! Your balance: <b>{balance} 💎</b>",
     "cmd.start": "Main menu",
     "cmd.profile": "My profile",
     "cmd.shop": "Shop",
@@ -546,6 +573,7 @@ MESSAGES: dict[str, str] = {
     "cmd.startgame": "Start the game right away",
     "cmd.extend": "Extend registration by 30 seconds",
     "cmd.leave": "Leave the game",
+    "cmd.give": "Gift diamonds to a player",
     "cmd.stop": "Stop the game (admin)",
     "cmd.settingsmafiahiggs": "Bot settings (admin)",
 }

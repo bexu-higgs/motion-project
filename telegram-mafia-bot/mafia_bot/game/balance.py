@@ -18,17 +18,19 @@ HIGGS_CHANCE = 0.10
 # Әр шек — сол ойыншылар санынан бастап қолданылатын рөлдер саны.
 # Шектер жинақталады: жаңа шекте рөл қосылады немесе бұрынғы рөлдің саны өседі.
 # Бос орындар қарапайым тұрғындармен толтырылады.
+# Хакер мен Қайыршы 6+, Қасқыр мен Камикадзе 8+ ойыншыда шығады. 8–9 ойыншыда орын
+# жетпейтіндіктен екінші мафия мен Сержант 10 ойыншыдан бастап қосылады.
 THRESHOLDS: tuple[tuple[int, dict[Role, int]], ...] = (
     (4, {Role.DON: 1, Role.COMMISSIONER: 1, Role.DOCTOR: 1}),
-    (6, {Role.MAFIA: 1}),
-    (8, {Role.MAFIA: 2, Role.SERGEANT: 1}),
-    (10, {Role.HACKER: 1}),
+    (6, {Role.MAFIA: 1, Role.HACKER: 1, Role.BEGGAR: 1}),
+    (8, {Role.WOLF: 1, Role.KAMIKAZE: 1}),
+    (10, {Role.MAFIA: 2, Role.SERGEANT: 1}),
     (12, {Role.MAFIA: 3}),
     (14, {Role.DEFENDER: 2}),
     (16, {Role.MAFIA: 4, Role.SERGEANT: 2}),
-    (20, {Role.KILLER: 1, Role.BEGGAR: 1}),
+    (20, {Role.KILLER: 1}),
     (24, {Role.MAFIA: 5, Role.SERGEANT: 3}),
-    (28, {Role.MAFIA: 6, Role.KAMIKAZE: 1}),
+    (28, {Role.MAFIA: 6}),
     (32, {Role.KAMIKAZE: 2, Role.WITCH: 1, Role.SUICIDE: 1}),
     (36, {Role.MAFIA: 7, Role.KAMIKAZE: 3}),
     (40, {Role.PYRO: 1, Role.WOLF: 2}),
@@ -72,16 +74,18 @@ class Timings:
     day: float
     vote: float
     witch: float = 30
+    confirm: float = 30   # 👍/👎 растау
 
 
 def timings(players: int, scale: float = 1.0) -> Timings:
     """Кезең ұзақтығы (секунд). Аз ойыншыда түн мен дауыс беру уақыты қысқарады."""
     if players <= 5:
-        night, day, vote = 45, 45, 30
+        night, day, vote, confirm = 45, 45, 30, 20
     elif players <= 12:
-        night, day, vote = 60, 60, 45
+        night, day, vote, confirm = 60, 60, 45, 30
     elif players <= 25:
-        night, day, vote = 75, 90, 60
+        night, day, vote, confirm = 75, 90, 60, 30
     else:
-        night, day, vote = 90, 120, 60
-    return Timings(night=night * scale, day=day * scale, vote=vote * scale, witch=30 * scale)
+        night, day, vote, confirm = 90, 120, 60, 40
+    return Timings(night=night * scale, day=day * scale, vote=vote * scale, witch=30 * scale,
+                   confirm=confirm * scale)

@@ -38,6 +38,16 @@ class PurchaseResult:
     count: int = 0
 
 
+@dataclass(frozen=True)
+class TransferResult:
+    """Ойыншыдан ойыншыға алмаз беру нәтижесі."""
+
+    ok: bool
+    balance: int = 0                 # берушінің қалған балансы
+    receiver_balance: int = 0
+    receiver_lang: str = "kk"
+
+
 START_MODES = ("all", "admins")  # ойынды кім ашып/бастай алады
 
 
