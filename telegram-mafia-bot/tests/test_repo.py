@@ -16,7 +16,7 @@ from mafia_bot.game.roles import Role
 DSN = os.getenv("TEST_DATABASE_URL")
 pytestmark = pytest.mark.skipif(not DSN, reason="TEST_DATABASE_URL көрсетілмеген")
 
-TABLES = "ledger, payments, role_purchases, game_players, games, chats, users"
+TABLES = "giveaway_claims, giveaways, ledger, payments, role_purchases, game_players, games, chats, users"
 
 
 @pytest.fixture
@@ -247,6 +247,65 @@ async def test_find_by_username(repo):
     await repo.ensure_user(1, "Ali_K", "Әли")
     assert (await repo.find_by_username("@ali_k"))["user_id"] == 1
     assert await repo.find_by_username("nobody") is None
+
+
+async def test_giveaway_first_n_claim_one_each(repo):
+    await add_user(repo, 1, diamonds=5)
+    gid, balance = await repo.create_giveaway(-100, 1, 3)
+    assert gid and balance == 2
+    assert await repo.create_giveaway(-100, 1, 3) == (None, 2)  # алмаз жетпейді
+    assert (await repo.claim_giveaway(gid, 1, "p1", "Иесі")).status == "own"
+    # 10 адам бір мезгілде басады — тек алғашқы 3-еуі алады.
+    results = await asyncio.gather(*(repo.claim_giveaway(gid, uid, f"p{uid}", f"О{uid}") for uid in range(2, 12)))
+    assert sorted(r.status for r in results) == ["gone"] * 7 + ["ok"] * 3
+    winners = [uid for uid, r in zip(range(2, 12), results, strict=True) if r.status == "ok"]
+    assert [(await repo.get_user(uid))["diamonds"] for uid in winners] == [1, 1, 1]
+    assert (await repo.claim_giveaway(gid, winners[0], None, "")).status == "gone"
+    view = await repo.giveaway_view(gid)
+    assert view.status == "done" and view.remaining == 0 and {u for u, _ in view.claimers} == set(winners)
+    assert (await repo.get_user(1))["diamonds"] == 2
+    assert await repo.expire_giveaways(0) == []  # аяқталған тарату қайтарылмайды
+
+
+async def test_giveaway_claim_once_and_expiry_refund(repo):
+    await add_user(repo, 1, diamonds=4)
+    gid, _ = await repo.create_giveaway(-100, 1, 4)
+    await repo.set_giveaway_message(gid, 777)
+    assert (await repo.claim_giveaway(gid, 2, "p2", "Бека")).status == "ok"
+    assert (await repo.claim_giveaway(gid, 2, "p2", "Бека")).status == "again"
+    assert await repo.expire_giveaways(3600) == []  # әлі мерзімі бітпеген
+    assert await repo.expire_giveaways(0) == [gid]
+    view = await repo.giveaway_view(gid)
+    assert view.status == "expired" and view.remaining == 3 and view.message_id == 777
+    assert (await repo.get_user(1))["diamonds"] == 3   # алынбаған 3 алмаз қайтты
+    assert (await repo.claim_giveaway(gid, 3, None, "Арман")).status == "gone"
+    total = await repo.pool.fetchval("SELECT sum(diamonds) FROM users")
+    assert total == 4
+
+
+async def test_weekly_top_is_per_chat_and_recent(repo):
+    from mafia_bot.db.models import FinalRow
+
+    for uid in range(1, 5):
+        await add_user(repo, uid)
+
+    async def finished_game(chat_id, winners, days_ago=0):
+        gid = await repo.create_game(chat_id)
+        await repo.start_game(gid, [(u, "civilian") for u in range(1, 5)])
+        rows = [FinalRow(u, "civilian", True, u in winners, 20 if u in winners else 0) for u in range(1, 5)]
+        await repo.finalize_game(gid, "town", 2, rows)
+        await repo.pool.execute(
+            "UPDATE games SET finished_at = now() - make_interval(days => $2) WHERE game_id = $1", gid, days_ago
+        )
+
+    await finished_game(-1, {1, 2})
+    await finished_game(-1, {2})
+    await finished_game(-1, {3}, days_ago=8)   # бір аптадан ескі
+    await finished_game(-2, {4})               # басқа чат
+    top = await repo.weekly_top(-1)
+    assert [(r["user_id"], r["wins"], r["games"], r["earned"]) for r in top][:2] == [(2, 2, 2, 40), (1, 1, 2, 20)]
+    assert {r["user_id"] for r in top} == {1, 2, 3, 4} and all(r["games"] == 2 for r in top)
+    assert await repo.weekly_top(-3) == []
 
 
 async def test_chats(repo):

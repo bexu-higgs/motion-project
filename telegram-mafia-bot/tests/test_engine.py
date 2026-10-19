@@ -355,6 +355,53 @@ def test_beggar_sees_visitors():
     assert "P1" in text and "P3" in text and "P4" not in text
 
 
+def test_targets_learn_about_night_actions_privately():
+    roles = [Role.DON, Role.BEGGAR, Role.DOCTOR, Role.COMMISSIONER, Role.HACKER, Role.CIVILIAN,
+             Role.CIVILIAN, Role.PYRO]
+    g = make_game(roles)
+    report, _ = night(g, {
+        1: (A.MAFIA_KILL, 6),    # мафия 6-ға шабуылдады, бірақ Дәрігер құтқарды
+        3: (A.HEAL, 6),
+        4: (A.CHECK, 7),         # Комиссар 7-ні тексерді
+        2: (A.VISIT, 4),         # Қайыршы Комиссарға барды
+        5: (A.BLOCK, 7),         # Хакер әрекеті жоқ 7-ні бұғаттады
+        8: (A.BOMB, 2),          # Пиро Қайыршыға бомба қойды
+    })
+    assert report.deaths == []
+    assert any("Дәрігер" in t and "құтқарып" in t for t in private_for(report, 6))
+    assert any("Комиссар" in t and "тексерді" in t for t in private_for(report, 7))
+    assert any("Хакер" in t and "телефоныңызды бұзды" in t for t in private_for(report, 7))
+    assert any("Қайыршы" in t and "бөтелке" in t for t in private_for(report, 4))
+    assert any("Пиро" in t and "бомба" in t for t in private_for(report, 2))
+    # Хабарда кім екені емес, тек рөлі айтылады; топқа ештеңе жарияланбайды.
+    for uid in (2, 4, 6, 7):
+        assert all("tg://user" not in t for t in private_for(report, uid) if "түнде" in t)
+    assert "тексерді" not in report.public and "бомба қойды" not in report.public
+
+
+def test_only_effective_actions_reach_alive_targets():
+    g = make_game([Role.DON, Role.DOCTOR, Role.HACKER, Role.COMMISSIONER, Role.CIVILIAN, Role.CIVILIAN])
+    report, _ = night(g, {1: (A.MAFIA_KILL, 5), 2: (A.HEAL, 6), 3: (A.BLOCK, 2), 4: (A.CHECK, 5)})
+    assert report.deaths == [5]
+    assert private_for(report, 6) == []                 # бұғатталған Дәрігердің емі болмады
+    assert any("әрекетіңіз орындалмады" in t for t in private_for(report, 2))
+    assert not any("тексерді" in t for t in private_for(report, 5))  # өлгенге хабар жоқ
+    healed = make_game([Role.DON, Role.DOCTOR, Role.COMMISSIONER, Role.CIVILIAN])
+    report, _ = night(healed, {2: (A.HEAL, 4)})
+    assert any("емдеп кетті" in t for t in private_for(report, 4))
+
+
+def test_player_numbers_never_change():
+    g = make_game([Role.DON, Role.DOCTOR, Role.COMMISSIONER, Role.CIVILIAN, Role.CIVILIAN])
+    assert [p.number for p in g.ordered()] == [1, 2, 3, 4, 5]
+    report, _ = night(g, {1: (A.MAFIA_KILL, 2)})
+    assert "2. " + g.players[2].mention in report.public    # қаза тапқандар тізімінде
+    alive = g.alive_list_text().splitlines()
+    assert [line.split(".")[0] for line in alive] == ["1", "3", "4", "5"]
+    g.desert(4)
+    assert [line.split(".")[0] for line in g.alive_list_text().splitlines()] == ["1", "3", "5"]
+
+
 def test_promotions():
     roles = [Role.DON, Role.MAFIA, Role.COMMISSIONER, Role.SERGEANT, Role.DEFENDER, Role.DEFENDER,
              Role.DOCTOR, Role.CIVILIAN, Role.CIVILIAN, Role.CIVILIAN]

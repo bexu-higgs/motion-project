@@ -75,6 +75,15 @@ CAUSES = (
     SRC_WITCH, SRC_KAMIKAZE, SRC_LYNCH, SRC_DESERT, SRC_AFK,
 )
 
+# Түнгі әрекет нысанасына таңертең жеке чатта келетін хабар: (кілт, әрекет иесінің рөлі).
+TARGET_NOTES: dict[ActionKind, tuple[str, Role]] = {
+    ActionKind.CHECK: ("night.checked_you", Role.COMMISSIONER),
+    ActionKind.HEAL: ("night.healed_you", Role.DOCTOR),
+    ActionKind.PROTECT: ("night.protected_you", Role.DEFENDER),
+    ActionKind.VISIT: ("night.visited_you", Role.BEGGAR),
+    ActionKind.BOMB: ("night.bombed_you", Role.PYRO),
+}
+
 # Түнгі әрекет басылғанда топқа шығатын хабар (``announce.<кілт>``).
 ANNOUNCE_KEYS: dict[ActionKind, str] = {
     ActionKind.KILLER_KILL: "killer",
@@ -132,6 +141,15 @@ class Player:
     @property
     def mention(self) -> str:
         return mention(self.user_id, self.name)
+
+    @property
+    def number(self) -> int:
+        """Ойын басында берілетін тұрақты реттік нөмір (ойын соңына дейін өзгермейді)."""
+        return self.order + 1
+
+    @property
+    def label(self) -> str:
+        return f"{self.number}. {self.mention}"
 
     @property
     def has_shield(self) -> bool:
@@ -248,6 +266,8 @@ class _PendingNight:
     public: list[str]
     private: list[tuple[int, str]]
     witch: WitchPrompt | None
+    blocked: set[int]
+    saved_by_doctor: set[int]
 
 
 @dataclass
@@ -369,7 +389,7 @@ class Game:
         return self.title(p.role)
 
     def alive_list_text(self) -> str:
-        return "\n".join(f"{i}. {p.mention}" for i, p in enumerate(self.alive(), 1))
+        return "\n".join(p.label for p in self.alive())
 
     def alive_roles_text(self) -> str:
         counts = Counter(p.role for p in self.alive())
@@ -623,9 +643,6 @@ class Game:
             if a.kind is not ActionKind.SKIP
             and (uid not in blocked or self.players[uid].role is Role.HACKER)
         }
-        for uid in blocked:
-            if uid in acts and acts[uid].kind is not ActionKind.SKIP:
-                private.append((uid, self.t("night.hacked")))
 
         # 3. Қорғаушылар.
         for uid, a in effective.items():
@@ -697,7 +714,7 @@ class Game:
         lethal_by: dict[int, list[Attack]] = defaultdict(list)
         witch_attackers: dict[int, list[int]] = defaultdict(list)
         wolf_hits: dict[int, str] = {}
-        saved = False
+        saved_by_doctor: set[int] = set()
         for atk in attacks:
             t = self.players[atk.target]
             if t.role is Role.WITCH and not t.witch_magic_used:
@@ -708,7 +725,7 @@ class Game:
                 wolf_hits.setdefault(t.user_id, atk.source)
                 continue
             if t.user_id in healed:
-                saved = True
+                saved_by_doctor.add(t.user_id)
                 continue
             if self._higgs_absorbs(t, private):
                 continue
@@ -730,12 +747,12 @@ class Game:
             deaths[pyro_id] = SRC_PYRO_SELF
             for b in targets:
                 if b in healed:
-                    saved = True
+                    saved_by_doctor.add(b)
                     continue
                 if self._higgs_absorbs(self.players[b], private):
                     continue
                 deaths.setdefault(b, SRC_BOMB)
-        if saved:
+        if saved_by_doctor:
             public.append(self.t("morning.saved"))
 
         witch_prompt: WitchPrompt | None = None
@@ -756,6 +773,8 @@ class Game:
             public=public,
             private=private,
             witch=witch_prompt,
+            blocked=blocked,
+            saved_by_doctor=saved_by_doctor,
         )
         return witch_prompt
 
@@ -826,6 +845,7 @@ class Game:
                     (uid, self.t("night.beggar_info", target=self._name(a.target), names=names))
                 )
 
+        private.extend(self._target_notes(pending))
         private.extend(self._promotions())
         self._pending = None
         if self.result is None:
@@ -836,7 +856,7 @@ class Game:
             lines.append(self.t("morning.dead"))
             for uid in dead_order:
                 p = self.players[uid]
-                lines.append(self.t("morning.dead_line", name=p.mention, role=self.reveal(p),
+                lines.append(self.t("morning.dead_line", name=p.label, role=self.reveal(p),
                                     cause=self.cause(p.death_cause)))
         else:
             lines.append(self.t("morning.nobody"))
@@ -844,6 +864,25 @@ class Game:
             lines += ["", self.t("morning.events"), *public]
         lines += ["", self.t("morning.alive", count=len(self.alive())), self.alive_list_text()]
         return Report(public="\n".join(lines), private=private, deaths=dead_order)
+
+    def _target_notes(self, pending: _PendingNight) -> list[tuple[int, str]]:
+        """Түнде өзіне әрекет жасалған тірі ойыншыларға жеке хабар (кім екені айтылмайды, тек рөлі)."""
+        notes: list[tuple[int, str]] = []
+        for uid in sorted(pending.blocked, key=lambda u: self.players[u].order):
+            if self.players[uid].alive:
+                own = self.actions.get(uid)
+                acted = own is not None and own.kind is not ActionKind.SKIP
+                key = "night.hacked" if acted else "night.hacked_idle"
+                notes.append((uid, self.t(key, role=self.title(Role.HACKER))))
+        for uid, a in pending.effective.items():
+            note = TARGET_NOTES.get(a.kind)
+            if note is None or a.target is None or a.target == uid or not self.players[a.target].alive:
+                continue
+            key, role = note
+            if a.kind is ActionKind.HEAL and a.target in pending.saved_by_doctor:
+                key = "night.healed_saved"
+            notes.append((a.target, self.t(key, role=self.title(role))))
+        return notes
 
     def _mafia_decision(self, effective: dict[int, NightAction]) -> tuple[int | None, int | None]:
         don = next(iter(self.with_role(Role.DON)), None)
@@ -992,7 +1031,7 @@ class Game:
         tally = Counter(t for t in votes.values() if t is not None)
         lines = [self.t("vote.result_title"), ""]
         for target, count in tally.most_common():
-            lines.append(self.t("vote.result_line", name=self._name(target), count=count))
+            lines.append(self.t("vote.result_line", name=self.players[target].label, count=count))
         abstained = sum(1 for t in votes.values() if t is None)
         if abstained:
             lines.append(self.t("vote.abstained", count=abstained))
@@ -1188,13 +1227,13 @@ class Game:
             for p in winners:
                 reward = rewards.get(p.user_id, 0)
                 bonus = self.t("final.bonus", reward=reward) if reward else ""
-                lines.append(self.t("final.winner_line", name=p.mention, role=self.reveal(p), bonus=bonus))
+                lines.append(self.t("final.winner_line", name=p.label, role=self.reveal(p), bonus=bonus))
             lines.append("")
         if losers:
             lines.append(self.t("final.losers"))
             for p in losers:
                 status = self.t("final.status_alive" if p.alive else "final.status_dead")
-                lines.append(self.t("final.loser_line", name=p.mention, role=self.reveal(p), status=status))
+                lines.append(self.t("final.loser_line", name=p.label, role=self.reveal(p), status=status))
         lines += ["", self.t("final.days", days=self.day), self.t("final.rule")]
         return "\n".join(lines)
 

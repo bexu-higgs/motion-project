@@ -138,7 +138,7 @@ async def group_rules(message: Message, notifier: TelegramNotifier, lang: str) -
     )
 
 
-# --- Чат баптаулары: /settingsmafiahiggs ---------------------------------------------------------
+# --- Чат баптаулары: /settingsmafia (бұрынғы атауы /settingsmafiahiggs да жұмыс істейді) ----------
 
 
 def _settings_text(cfg: ChatSettings, chat_title: str, registration: int) -> str:
@@ -158,7 +158,7 @@ def _registration(cfg: ChatSettings, settings: Settings) -> int:
     return int(cfg.registration_seconds or settings.registration_seconds)
 
 
-@router.message(Command("settingsmafiahiggs", "settings"))
+@router.message(Command("settingsmafia", "settingsmafiahiggs", "settings"))
 async def chat_settings(message: Message, bot: Bot, repo: Repo, settings: Settings, lang: str) -> None:
     if not await is_manager(bot, settings, message.chat.id, message.from_user.id):
         await message.reply(t(lang, "settings.admins_only"))
@@ -205,6 +205,19 @@ async def chat_settings_cb(
         )
     except TelegramAPIError:
         pass
+
+
+# --- Апта үздіктері: /topmafia ---------------------------------------------------------------------
+
+
+@router.message(Command("topmafia"))
+async def top_mafia(message: Message, bot: Bot, repo: Repo, settings: Settings, lang: str) -> None:
+    """Осы чаттағы соңғы 7 күннің үздік ойыншылары (тек чат әкімшілеріне)."""
+    if not await is_manager(bot, settings, message.chat.id, message.from_user.id):
+        await message.reply(t(lang, "top.admins_only"))
+        return
+    top = await repo.weekly_top(message.chat.id)
+    await message.answer(texts.weekly_top_text(top, message.chat.title or "", lang))
 
 
 # --- Қызметтік оқиғалар және модерация ---------------------------------------------------------

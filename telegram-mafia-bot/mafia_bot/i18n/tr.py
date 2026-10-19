@@ -149,6 +149,13 @@ MESSAGES: dict[str, str] = {
     "night.you_died": "☠️ <b>Öldünüz</b> <i>({cause})</i>.",
     "night.beggar_nobody": "kimse gelmedi",
     "night.beggar_info": "🍾 Gece {target} adlı oyuncunun evine gelenler: <b>{names}</b>.",
+    "night.checked_you": "{role} gece <b>sizi sorguladı</b>.",
+    "night.healed_you": "{role} gece size uğrayıp <b>sizi tedavi etti</b>.",
+    "night.healed_saved": "⚠️ Gece size saldırıldı ama {role} <b>hayatınızı kurtardı!</b>",
+    "night.hacked_idle": "{role} gece <b>telefonunuzu hackledi</b>.",
+    "night.protected_you": "{role} gece <b>sizi korudu</b>.",
+    "night.visited_you": "{role} gece kapınızı çalıp <b>bir şişe istedi</b>.",
+    "night.bombed_you": "{role} gece <b>kapınızın önüne bomba koydu!</b>",
     "night.wolf_mafia": "🐺 Mafya size saldırdı ama ölmediniz! <b>Artık rolünüz: {role}.</b>\n🤝 Takımınız: {team}",
     "night.wolf_sergeant": "🐺 Komiser sizi vurdu ama ölmediniz! <b>Artık rolünüz: {role}.</b>\n🤝 Takımınız: {team}",
     "night.wolf_joined_mafia": "🐺 {name} mafyaya katıldı!",
@@ -326,8 +333,10 @@ MESSAGES: dict[str, str] = {
         "/extend — kaydı 30 saniye uzat\n"
         "/leave — kayıttan ya da oyundan çık\n"
         "/give 5 — bir oyuncuya elmas hediye et (mesajına yanıt olarak)\n"
+        "/give 3 — yanıtsız yazarsanız: 🎁 elmas dağıtımı, ilk 3 kişi 1'er 💎 alır\n"
         "/stop — oyunu durdur <i>(yöneticiler)</i>\n"
-        "/settingsmafiahiggs — kayıt süresi, kimin başlatabileceği, dil <i>(yöneticiler)</i>\n\n"
+        "/settingsmafia — kayıt süresi, kimin başlatabileceği, dil <i>(yöneticiler)</i>\n"
+        "/topmafia — haftanın en iyi oyuncuları <i>(yöneticiler)</i>\n\n"
         "<b>Özel sohbette:</b>\n"
         "/profile — profil · /shop — mağaza · /daily — günlük ödül\n"
         "/rating — sıralama · /rules — kurallar · /language — dil\n"
@@ -360,7 +369,7 @@ MESSAGES: dict[str, str] = {
     ),
     "bot_promoted": (
         "✅ <b>Teşekkürler! Yönetici yetkileri verildi.</b>\n"
-        "Kaydı açmak için /game yazın. Ayarlar: /settingsmafiahiggs\n"
+        "Kaydı açmak için /game yazın. Ayarlar: /settingsmafia\n"
         "<i>Her oyuncu botla özel sohbet başlatmalıdır.</i>"
     ),
     "pay_support": (
@@ -502,6 +511,10 @@ MESSAGES: dict[str, str] = {
     "rating.empty": "<i>Henüz kimse oynamadı.</i>",
     "rating.line": "{medal} {name} — <b>{wins}</b> galibiyet / {games} oyun (%{rate})",
     "rating.me": "Sizin yeriniz: <b>{rank}</b>",
+    "top.title": "🏆 <b>Haftanın en iyileri</b> · {chat}\n<i>Bu sohbetin son 7 gündeki oyunlarına göre</i>",
+    "top.line": "{medal} {name} — <b>{wins}</b> galibiyet · {games} oyun · +{earned} ₸",
+    "top.empty": "<i>Son 7 günde bu sohbette biten oyun olmadı.</i>",
+    "top.admins_only": "⛔️ /topmafia komutu yalnızca sohbet yöneticileri içindir.",
     "daily.ok": "🎁 {day}. günün ödülü: <b>+{reward} ₸</b>!",
     "daily.balance": "Bakiyeniz: <b>{n} ₸</b>",
     "daily.tomorrow": "<i>Yarın yine gelin!</i>",
@@ -550,7 +563,7 @@ MESSAGES: dict[str, str] = {
     "pay.ok": "✅ <b>Ödeme onaylandı! +{n} 💎</b>\nElmas bakiyeniz: <b>{balance} 💎</b>",
 
     # --- Komut açıklamaları --------------------------------------------------------------------
-    "give.usage": "💎 <b>Elmas hediye et</b>\nBir oyuncunun mesajına <code>/give 5</code> ile yanıt verin ya da <code>/give @username 5</code> yazın.",
+    "give.usage": "💎 <b>Elmas hediye et</b>\n• Bir oyuncunun mesajına <code>/give 5</code> ile yanıt verin ya da <code>/give @username 5</code> yazın — o oyuncu 5 💎 alır.\n• Grupta sadece <code>/give 3</code> yazın — 🎁 elmas dağıtımı: «Hediyeyi aç» düğmesine ilk basan 3 kişi 1'er 💎 alır.",
     "give.bad_amount": "❌ Geçerli bir elmas sayısı yazın: 1 ile {max} arası.",
     "give.unknown": "❌ {name} bulunamadı. Önce botta /start komutuna basması gerekir ya da mesajına yanıt olarak yazın.",
     "give.self": "❌ Kendinize elmas veremezsiniz.",
@@ -559,6 +572,15 @@ MESSAGES: dict[str, str] = {
     "give.ok": "💎 {giver}, {receiver} adlı oyuncuya <b>{n} elmas</b> hediye etti!",
     "give.left": "Kalan bakiyeniz: <b>{balance} 💎</b>",
     "give.dm": "🎁 {giver} size <b>{n} 💎</b> hediye etti! Bakiyeniz: <b>{balance} 💎</b>",
+    "giveaway.open": "🎁 {giver} <b>{n} elmas</b> dağıtıyor — kapan alır!\nHerkes <b>1 💎</b> alır · Kalan: <b>{left}/{n}</b>",
+    "giveaway.done": "🎁 {giver} tarafından dağıtılan <b>{n} elmasın</b> hepsi alındı!",
+    "giveaway.expired": "⌛ {giver} tarafından dağıtılan {n} 💎 süresi doldu: alınmayan <b>{left} 💎</b> sahibine iade edildi.",
+    "giveaway.claimers": "✅ Alanlar ({count}): {names}",
+    "giveaway.btn": "🎁 Hediyeyi aç",
+    "giveaway.ok": "🎉 1 💎 aldınız! Bakiyeniz: {balance} 💎",
+    "giveaway.own": "Kendi hediyenizi alamazsınız 🙂",
+    "giveaway.again": "Bu hediyeden zaten aldınız.",
+    "giveaway.gone": "Üzgünüz, hediye bitti.",
     "cmd.start": "Ana menü",
     "cmd.profile": "Profilim",
     "cmd.shop": "Mağaza",
@@ -575,5 +597,6 @@ MESSAGES: dict[str, str] = {
     "cmd.leave": "Oyundan çık",
     "cmd.give": "Bir oyuncuya elmas hediye et",
     "cmd.stop": "Oyunu durdur (yönetici)",
-    "cmd.settingsmafiahiggs": "Bot ayarları (yönetici)",
+    "cmd.settingsmafia": "Bot ayarları (yönetici)",
+    "cmd.topmafia": "Haftanın en iyi oyuncuları (yönetici)",
 }

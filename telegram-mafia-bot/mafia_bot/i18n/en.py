@@ -149,6 +149,13 @@ MESSAGES: dict[str, str] = {
     "night.you_died": "☠️ <b>You died</b> <i>({cause})</i>.",
     "night.beggar_nobody": "nobody came",
     "night.beggar_info": "🍾 Visitors at {target}'s house tonight: <b>{names}</b>.",
+    "night.checked_you": "{role} <b>checked you</b> last night.",
+    "night.healed_you": "{role} visited you last night and <b>treated you</b>.",
+    "night.healed_saved": "⚠️ You were attacked last night, but {role} <b>saved your life!</b>",
+    "night.hacked_idle": "{role} <b>hacked your phone</b> last night.",
+    "night.protected_you": "{role} <b>guarded you</b> last night.",
+    "night.visited_you": "{role} knocked on your door last night and <b>asked for a bottle</b>.",
+    "night.bombed_you": "{role} <b>planted a bomb at your door</b> last night!",
     "night.wolf_mafia": "🐺 The mafia attacked you, but you didn't die! <b>Your role is now {role}.</b>\n🤝 Your team: {team}",
     "night.wolf_sergeant": "🐺 The Commissioner shot you, but you didn't die! <b>Your role is now {role}.</b>\n🤝 Your team: {team}",
     "night.wolf_joined_mafia": "🐺 {name} has joined the mafia!",
@@ -326,8 +333,10 @@ MESSAGES: dict[str, str] = {
         "/extend — extend registration by 30 seconds\n"
         "/leave — leave the registration or the game\n"
         "/give 5 — gift diamonds to a player (as a reply to their message)\n"
+        "/give 3 — without a reply: 🎁 diamond giveaway, the first 3 people get 1 💎 each\n"
         "/stop — stop the game <i>(admins)</i>\n"
-        "/settingsmafiahiggs — registration time, who can start, language <i>(admins)</i>\n\n"
+        "/settingsmafia — registration time, who can start, language <i>(admins)</i>\n"
+        "/topmafia — best players of the week <i>(admins)</i>\n\n"
         "<b>In private chat:</b>\n"
         "/profile — profile · /shop — shop · /daily — daily bonus\n"
         "/rating — rating · /rules — rules · /language — language\n"
@@ -360,7 +369,7 @@ MESSAGES: dict[str, str] = {
     ),
     "bot_promoted": (
         "✅ <b>Thanks! Admin rights granted.</b>\n"
-        "Type /game to open registration. Settings: /settingsmafiahiggs\n"
+        "Type /game to open registration. Settings: /settingsmafia\n"
         "<i>Every player must start a private chat with the bot.</i>"
     ),
     "pay_support": (
@@ -502,6 +511,10 @@ MESSAGES: dict[str, str] = {
     "rating.empty": "<i>Nobody has played yet.</i>",
     "rating.line": "{medal} {name} — <b>{wins}</b> wins / {games} games ({rate}%)",
     "rating.me": "Your position: <b>{rank}</b>",
+    "top.title": "🏆 <b>Best of the week</b> · {chat}\n<i>Based on this chat's games in the last 7 days</i>",
+    "top.line": "{medal} {name} — <b>{wins}</b> wins · {games} games · +{earned} ₸",
+    "top.empty": "<i>No finished games in this chat in the last 7 days.</i>",
+    "top.admins_only": "⛔️ /topmafia is for chat admins only.",
     "daily.ok": "🎁 Day {day} bonus: <b>+{reward} ₸</b>!",
     "daily.balance": "Your balance: <b>{n} ₸</b>",
     "daily.tomorrow": "<i>Come back tomorrow!</i>",
@@ -550,7 +563,7 @@ MESSAGES: dict[str, str] = {
     "pay.ok": "✅ <b>Payment confirmed! +{n} 💎</b>\nYour diamond balance: <b>{balance} 💎</b>",
 
     # --- Command descriptions ------------------------------------------------------------------
-    "give.usage": "💎 <b>Gift diamonds</b>\nReply to a player's message with <code>/give 5</code> or write <code>/give @username 5</code>.",
+    "give.usage": "💎 <b>Gift diamonds</b>\n• Reply to a player's message with <code>/give 5</code> or write <code>/give @username 5</code> — that player gets 5 💎.\n• In a group just write <code>/give 3</code> — 🎁 a giveaway: the first 3 people to press «Open the gift» get 1 💎 each.",
     "give.bad_amount": "❌ Enter a valid number of diamonds: from 1 to {max}.",
     "give.unknown": "❌ {name} was not found. They need to press /start in the bot first, or reply to their message instead.",
     "give.self": "❌ You can't gift diamonds to yourself.",
@@ -559,6 +572,15 @@ MESSAGES: dict[str, str] = {
     "give.ok": "💎 {giver} gifted <b>{n} diamonds</b> to {receiver}!",
     "give.left": "Your remaining balance: <b>{balance} 💎</b>",
     "give.dm": "🎁 {giver} gifted you <b>{n} 💎</b>! Your balance: <b>{balance} 💎</b>",
+    "giveaway.open": "🎁 {giver} is giving away <b>{n} diamonds</b> — grab one fast!\nEveryone gets <b>1 💎</b> · Left: <b>{left}/{n}</b>",
+    "giveaway.done": "🎁 All <b>{n} diamonds</b> from {giver} have been claimed!",
+    "giveaway.expired": "⌛ The giveaway of {n} 💎 from {giver} has expired: <b>{left} 💎</b> unclaimed went back to the owner.",
+    "giveaway.claimers": "✅ Claimed ({count}): {names}",
+    "giveaway.btn": "🎁 Open the gift",
+    "giveaway.ok": "🎉 You got 1 💎! Your balance: {balance} 💎",
+    "giveaway.own": "You can't claim your own gift 🙂",
+    "giveaway.again": "You have already claimed from this gift.",
+    "giveaway.gone": "Sorry, the gift has run out.",
     "cmd.start": "Main menu",
     "cmd.profile": "My profile",
     "cmd.shop": "Shop",
@@ -575,5 +597,6 @@ MESSAGES: dict[str, str] = {
     "cmd.leave": "Leave the game",
     "cmd.give": "Gift diamonds to a player",
     "cmd.stop": "Stop the game (admin)",
-    "cmd.settingsmafiahiggs": "Bot settings (admin)",
+    "cmd.settingsmafia": "Bot settings (admin)",
+    "cmd.topmafia": "Best players of the week (admin)",
 }

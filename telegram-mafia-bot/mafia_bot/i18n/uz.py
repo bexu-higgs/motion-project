@@ -149,6 +149,13 @@ MESSAGES: dict[str, str] = {
     "night.you_died": "☠️ <b>Siz halok bo‘ldingiz</b> <i>({cause})</i>.",
     "night.beggar_nobody": "hech kim kelmadi",
     "night.beggar_info": "🍾 Kechasi {target} uyiga kelganlar: <b>{names}</b>.",
+    "night.checked_you": "{role} kechasi sizni <b>tekshirdi</b>.",
+    "night.healed_you": "{role} kechasi sizga kelib, <b>davolab ketdi</b>.",
+    "night.healed_saved": "⚠️ Kechasi sizga hujum qilindi, lekin {role} <b>sizni qutqarib qoldi!</b>",
+    "night.hacked_idle": "{role} kechasi <b>telefoningizni buzdi</b>.",
+    "night.protected_you": "{role} kechasi <b>sizni qo‘riqladi</b>.",
+    "night.visited_you": "{role} kechasi eshigingizni taqillatib, <b>shisha so‘radi</b>.",
+    "night.bombed_you": "{role} kechasi <b>eshigingiz oldiga bomba qo‘ydi!</b>",
     "night.wolf_mafia": "🐺 Mafiya sizga hujum qildi, lekin siz o‘lmadingiz! <b>Endi sizning rolingiz — {role}.</b>\n🤝 Jamoangiz: {team}",
     "night.wolf_sergeant": "🐺 Komissar sizni otdi, lekin siz o‘lmadingiz! <b>Endi sizning rolingiz — {role}.</b>\n🤝 Jamoangiz: {team}",
     "night.wolf_joined_mafia": "🐺 {name} mafiyaga qo‘shildi!",
@@ -326,8 +333,10 @@ MESSAGES: dict[str, str] = {
         "/extend — ro‘yxatni 30 soniyaga uzaytirish\n"
         "/leave — ro‘yxatdan yoki o‘yindan chiqish\n"
         "/give 5 — o‘yinchiga olmos sovg‘a qilish (uning xabariga javob sifatida)\n"
+        "/give 3 — javobsiz yozsangiz: 🎁 olmos tarqatish, birinchi 3 kishi 1 💎 dan oladi\n"
         "/stop — o‘yinni to‘xtatish <i>(administratorlar)</i>\n"
-        "/settingsmafiahiggs — ro‘yxat vaqti, kim boshlay olishi, til <i>(administratorlar)</i>\n\n"
+        "/settingsmafia — ro‘yxat vaqti, kim boshlay olishi, til <i>(administratorlar)</i>\n"
+        "/topmafia — haftaning eng yaxshi o‘yinchilari <i>(administratorlar)</i>\n\n"
         "<b>Shaxsiy chatda:</b>\n"
         "/profile — profil · /shop — do‘kon · /daily — kunlik sovg‘a\n"
         "/rating — reyting · /rules — qoidalar · /language — til\n"
@@ -360,7 +369,7 @@ MESSAGES: dict[str, str] = {
     ),
     "bot_promoted": (
         "✅ <b>Rahmat! Administrator huquqlari berildi.</b>\n"
-        "Ro‘yxatni ochish uchun /game yozing. Sozlamalar: /settingsmafiahiggs\n"
+        "Ro‘yxatni ochish uchun /game yozing. Sozlamalar: /settingsmafia\n"
         "<i>Har bir o‘yinchi bot bilan shaxsiy chatni boshlashi kerak.</i>"
     ),
     "pay_support": (
@@ -502,6 +511,10 @@ MESSAGES: dict[str, str] = {
     "rating.empty": "<i>Hozircha hech kim o‘ynamagan.</i>",
     "rating.line": "{medal} {name} — <b>{wins}</b> g‘alaba / {games} o‘yin ({rate}%)",
     "rating.me": "Sizning o‘rningiz: <b>{rank}</b>",
+    "top.title": "🏆 <b>Hafta yulduzlari</b> · {chat}\n<i>Shu chatning so‘nggi 7 kunlik o‘yinlari bo‘yicha</i>",
+    "top.line": "{medal} {name} — <b>{wins}</b> g‘alaba · {games} o‘yin · +{earned} ₸",
+    "top.empty": "<i>So‘nggi 7 kunda bu chatda yakunlangan o‘yin bo‘lmadi.</i>",
+    "top.admins_only": "⛔️ /topmafia buyrug‘i faqat chat administratorlari uchun.",
     "daily.ok": "🎁 {day}-kun sovg‘asi: <b>+{reward} ₸</b>!",
     "daily.balance": "Balansingiz: <b>{n} ₸</b>",
     "daily.tomorrow": "<i>Ertaga yana keling!</i>",
@@ -550,7 +563,7 @@ MESSAGES: dict[str, str] = {
     "pay.ok": "✅ <b>To‘lov tasdiqlandi! +{n} 💎</b>\nOlmos balansingiz: <b>{balance} 💎</b>",
 
     # --- Buyruqlar tavsifi ---------------------------------------------------------------------
-    "give.usage": "💎 <b>Olmos sovg‘a qilish</b>\nO‘yinchining xabariga javob sifatida <code>/give 5</code> yozing yoki <code>/give @username 5</code>.",
+    "give.usage": "💎 <b>Olmos sovg‘a qilish</b>\n• O‘yinchining xabariga javob sifatida <code>/give 5</code> yoki <code>/give @username 5</code> — o‘sha o‘yinchiga 5 💎.\n• Guruhda shunchaki <code>/give 3</code> — 🎁 olmos tarqatish: «Sovg‘ani ochish» tugmasini birinchi bosgan 3 kishi 1 💎 dan oladi.",
     "give.bad_amount": "❌ Olmos sonini to‘g‘ri yozing: 1 dan {max} gacha.",
     "give.unknown": "❌ {name} topilmadi. U avval botda /start bosishi kerak, yoki uning xabariga javob sifatida yozing.",
     "give.self": "❌ O‘zingizga olmos bera olmaysiz.",
@@ -559,6 +572,15 @@ MESSAGES: dict[str, str] = {
     "give.ok": "💎 {giver} {receiver} o‘yinchisiga <b>{n} olmos</b> sovg‘a qildi!",
     "give.left": "Qolgan balansingiz: <b>{balance} 💎</b>",
     "give.dm": "🎁 {giver} sizga <b>{n} 💎</b> sovg‘a qildi! Balansingiz: <b>{balance} 💎</b>",
+    "giveaway.open": "🎁 {giver} <b>{n} olmos</b> tarqatdi — ulgurib oling!\nHar kim <b>1 💎</b> oladi · Qoldi: <b>{left}/{n}</b>",
+    "giveaway.done": "🎁 {giver} tarqatgan <b>{n} olmos</b> to‘liq olindi!",
+    "giveaway.expired": "⌛ {giver} tarqatgan {n} 💎 muddati tugadi: olinmagan <b>{left} 💎</b> egasiga qaytarildi.",
+    "giveaway.claimers": "✅ Olganlar ({count}): {names}",
+    "giveaway.btn": "🎁 Sovg‘ani ochish",
+    "giveaway.ok": "🎉 Siz 1 💎 oldingiz! Balansingiz: {balance} 💎",
+    "giveaway.own": "O‘z sovg‘angizni ola olmaysiz 🙂",
+    "giveaway.again": "Siz bu sovg‘adan olib bo‘ldingiz.",
+    "giveaway.gone": "Kechirasiz, sovg‘a tugadi.",
     "cmd.start": "Asosiy menyu",
     "cmd.profile": "Mening profilim",
     "cmd.shop": "Do‘kon",
@@ -575,5 +597,6 @@ MESSAGES: dict[str, str] = {
     "cmd.leave": "O‘yindan chiqish",
     "cmd.give": "O‘yinchiga olmos sovg‘a qilish",
     "cmd.stop": "O‘yinni to‘xtatish (administrator)",
-    "cmd.settingsmafiahiggs": "Bot sozlamalari (administrator)",
+    "cmd.settingsmafia": "Bot sozlamalari (administrator)",
+    "cmd.topmafia": "Haftaning eng yaxshi o‘yinchilari (administrator)",
 }

@@ -97,7 +97,7 @@ CREATE TABLE IF NOT EXISTS ledger (
 CREATE UNIQUE INDEX IF NOT EXISTS ledger_unique_ref ON ledger (user_id, reason, ref) WHERE ref IS NOT NULL;
 CREATE INDEX IF NOT EXISTS ledger_user_idx ON ledger (user_id, created_at);
 
--- v2: чат баптаулары (/settingsmafiahiggs) және пайдаланушы тілі.
+-- v2: чат баптаулары (/settingsmafia) және пайдаланушы тілі.
 ALTER TABLE chats ADD COLUMN IF NOT EXISTS lang TEXT NOT NULL DEFAULT 'kk';
 ALTER TABLE chats ADD COLUMN IF NOT EXISTS registration_seconds INT;
 ALTER TABLE chats ADD COLUMN IF NOT EXISTS start_mode TEXT NOT NULL DEFAULT 'all';
@@ -105,3 +105,24 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS lang TEXT NOT NULL DEFAULT 'kk';
 
 -- v3: /give командасында @username бойынша іздеу.
 CREATE INDEX IF NOT EXISTS users_username_idx ON users (lower(username));
+
+-- v4: 🎁 алмаз тарату (/give N топта): алғашқы N адам 1 💎-ден алады.
+CREATE TABLE IF NOT EXISTS giveaways (
+    giveaway_id BIGSERIAL PRIMARY KEY,
+    chat_id     BIGINT NOT NULL,
+    message_id  BIGINT,
+    giver_id    BIGINT NOT NULL REFERENCES users (user_id),
+    total       INT NOT NULL CHECK (total > 0),
+    remaining   INT NOT NULL CHECK (remaining >= 0),
+    status      TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'done', 'expired')),
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    closed_at   TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS giveaways_open_idx ON giveaways (status, created_at);
+
+CREATE TABLE IF NOT EXISTS giveaway_claims (
+    giveaway_id BIGINT NOT NULL REFERENCES giveaways (giveaway_id) ON DELETE CASCADE,
+    user_id     BIGINT NOT NULL REFERENCES users (user_id),
+    claimed_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (giveaway_id, user_id)
+);

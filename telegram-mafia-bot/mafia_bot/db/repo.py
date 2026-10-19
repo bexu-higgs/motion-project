@@ -23,7 +23,15 @@ from ..economy import (
 )
 from ..game.engine import RoleRequest
 from ..game.roles import Role
-from .models import ChatSettings, FinalRow, Inventory, PurchaseResult, TransferResult
+from .models import (
+    ChatSettings,
+    ClaimResult,
+    FinalRow,
+    GiveawayView,
+    Inventory,
+    PurchaseResult,
+    TransferResult,
+)
 
 SCHEMA_PATH = Path(__file__).with_name("schema.sql")
 
@@ -100,6 +108,26 @@ class Repo:
             LIMIT $1
             """,
             limit,
+        )
+
+    async def weekly_top(self, chat_id: int, limit: int = 10, days: int = 7) -> list[asyncpg.Record]:
+        """Осы чаттың соңғы ``days`` күндегі аяқталған ойындары бойынша үздік ойыншылар."""
+        return await self.pool.fetch(
+            """
+            SELECT gp.user_id, u.username, u.full_name,
+                   count(*) AS games,
+                   count(*) FILTER (WHERE gp.won) AS wins,
+                   coalesce(sum(gp.reward), 0) AS earned
+            FROM game_players gp
+            JOIN games g USING (game_id)
+            JOIN users u USING (user_id)
+            WHERE g.chat_id = $1 AND g.status = 'finished'
+              AND g.finished_at >= now() - make_interval(days => $3)
+            GROUP BY gp.user_id, u.username, u.full_name
+            ORDER BY wins DESC, earned DESC, games DESC, gp.user_id
+            LIMIT $2
+            """,
+            chat_id, limit, days,
         )
 
     async def user_rank(self, user_id: int) -> int | None:
@@ -515,6 +543,132 @@ class Repo:
             )
             return TransferResult(True, balance=balance, receiver_balance=row["diamonds"],
                                   receiver_lang=row["lang"])
+
+    # --- 🎁 Алмаз тарату --------------------------------------------------------------------
+
+    async def create_giveaway(self, chat_id: int, giver_id: int, amount: int) -> tuple[int | None, int]:
+        """Берушінің шотынан ``amount`` алмазды тоқтатып, тарату ашу.
+
+        ``(giveaway_id, баланс)`` қайтарады; алмаз жетпесе ``giveaway_id`` — ``None``.
+        """
+        if amount <= 0:
+            raise ValueError("amount must be positive")
+        async with self.pool.acquire() as conn, conn.transaction():
+            balance = await conn.fetchval(
+                "UPDATE users SET diamonds = diamonds - $2 WHERE user_id = $1 AND diamonds >= $2 "
+                "RETURNING diamonds",
+                giver_id, amount,
+            )
+            if balance is None:
+                current = await conn.fetchval("SELECT diamonds FROM users WHERE user_id = $1", giver_id)
+                return None, current or 0
+            giveaway_id = await conn.fetchval(
+                "INSERT INTO giveaways (chat_id, giver_id, total, remaining) VALUES ($1, $2, $3, $3) "
+                "RETURNING giveaway_id",
+                chat_id, giver_id, amount,
+            )
+            await conn.execute(
+                "INSERT INTO ledger (user_id, currency, delta, reason, ref) "
+                "VALUES ($1, 'diamonds', $2, 'giveaway', $3)",
+                giver_id, -amount, str(giveaway_id),
+            )
+            return giveaway_id, balance
+
+    async def set_giveaway_message(self, giveaway_id: int, message_id: int) -> None:
+        await self.pool.execute(
+            "UPDATE giveaways SET message_id = $2 WHERE giveaway_id = $1", giveaway_id, message_id
+        )
+
+    async def claim_giveaway(
+        self, giveaway_id: int, user_id: int, username: str | None, full_name: str
+    ) -> ClaimResult:
+        """Таратудан 1 алмаз алу. Әр адам бір рет; берушінің өзі ала алмайды."""
+        async with self.pool.acquire() as conn, conn.transaction():
+            row = await conn.fetchrow(
+                "SELECT giver_id, remaining, status FROM giveaways WHERE giveaway_id = $1 FOR UPDATE",
+                giveaway_id,
+            )
+            if row is None or row["status"] != "open" or row["remaining"] <= 0:
+                return ClaimResult("gone")
+            if row["giver_id"] == user_id:
+                return ClaimResult("own")
+            await conn.execute(
+                "INSERT INTO users (user_id, username, full_name) VALUES ($1, $2, $3) "
+                "ON CONFLICT (user_id) DO UPDATE SET username = EXCLUDED.username, "
+                "full_name = EXCLUDED.full_name",
+                user_id, username, full_name,
+            )
+            claimed = await conn.fetchval(
+                "INSERT INTO giveaway_claims (giveaway_id, user_id) VALUES ($1, $2) "
+                "ON CONFLICT DO NOTHING RETURNING user_id",
+                giveaway_id, user_id,
+            )
+            if claimed is None:
+                return ClaimResult("again")
+            await conn.execute(
+                "UPDATE giveaways SET remaining = remaining - 1, "
+                "status = CASE WHEN remaining = 1 THEN 'done' ELSE status END, "
+                "closed_at = CASE WHEN remaining = 1 THEN now() ELSE closed_at END "
+                "WHERE giveaway_id = $1",
+                giveaway_id,
+            )
+            balance = await conn.fetchval(
+                "UPDATE users SET diamonds = diamonds + 1 WHERE user_id = $1 RETURNING diamonds", user_id
+            )
+            await conn.execute(
+                "INSERT INTO ledger (user_id, currency, delta, reason, ref) "
+                "VALUES ($1, 'diamonds', 1, 'giveaway_claim', $2)",
+                user_id, str(giveaway_id),
+            )
+            return ClaimResult("ok", balance=balance)
+
+    async def giveaway_view(self, giveaway_id: int) -> GiveawayView | None:
+        row = await self.pool.fetchrow(
+            "SELECT g.*, u.full_name, u.username FROM giveaways g JOIN users u ON u.user_id = g.giver_id "
+            "WHERE g.giveaway_id = $1",
+            giveaway_id,
+        )
+        if row is None:
+            return None
+        claimers = await self.pool.fetch(
+            "SELECT c.user_id, u.full_name, u.username FROM giveaway_claims c "
+            "JOIN users u USING (user_id) WHERE c.giveaway_id = $1 ORDER BY c.claimed_at, c.user_id",
+            giveaway_id,
+        )
+        return GiveawayView(
+            giveaway_id=row["giveaway_id"],
+            chat_id=row["chat_id"],
+            message_id=row["message_id"],
+            giver_id=row["giver_id"],
+            giver_name=row["full_name"] or row["username"] or str(row["giver_id"]),
+            total=row["total"],
+            remaining=row["remaining"],
+            status=row["status"],
+            claimers=tuple((c["user_id"], c["full_name"] or c["username"] or str(c["user_id"]))
+                           for c in claimers),
+        )
+
+    async def expire_giveaways(self, older_than_seconds: float) -> list[int]:
+        """Мерзімі өткен таратуларды жабып, алынбаған алмазды иесіне қайтару. ID-лерін қайтарады."""
+        async with self.pool.acquire() as conn, conn.transaction():
+            rows = await conn.fetch(
+                "UPDATE giveaways SET status = 'expired', closed_at = now() "
+                "WHERE status = 'open' AND created_at < now() - make_interval(secs => $1) "
+                "RETURNING giveaway_id, giver_id, remaining",
+                float(older_than_seconds),
+            )
+            for r in rows:
+                if r["remaining"] > 0:
+                    await conn.execute(
+                        "UPDATE users SET diamonds = diamonds + $2 WHERE user_id = $1",
+                        r["giver_id"], r["remaining"],
+                    )
+                    await conn.execute(
+                        "INSERT INTO ledger (user_id, currency, delta, reason, ref) "
+                        "VALUES ($1, 'diamonds', $2, 'giveaway_refund', $3)",
+                        r["giver_id"], r["remaining"], str(r["giveaway_id"]),
+                    )
+            return [r["giveaway_id"] for r in rows]
 
     async def grant(self, user_id: int, currency: str, amount: int, reason: str) -> int | None:
         if currency not in ("tenge", "diamonds"):

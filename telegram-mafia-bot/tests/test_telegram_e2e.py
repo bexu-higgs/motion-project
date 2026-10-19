@@ -25,7 +25,7 @@ pytestmark = pytest.mark.skipif(not DSN, reason="TEST_DATABASE_URL көрсет�
 BOT_ID = 4242
 GROUP = -1009000
 CHAT_ADMIN = 7  # топ иесі (бот әкімшісі емес)
-TABLES = "ledger, payments, role_purchases, game_players, games, chats, users"
+TABLES = "giveaway_claims, giveaways, ledger, payments, role_purchases, game_players, games, chats, users"
 
 
 def now():
@@ -152,6 +152,9 @@ async def harness():
     from mafia_bot.bot.common import AdminCache
 
     AdminCache.shared.clear()
+    from mafia_bot.bot.handlers import diamonds
+
+    diamonds.refresher.delay = 0  # тарату хабары бірден жаңарсын
     repo = await Repo.connect(DSN)
     settings = Settings(bot_token="x", database_url=DSN, admin_ids=frozenset({1}))
     h = Harness(repo, settings)
@@ -513,3 +516,76 @@ async def test_group_moderation(harness):
     lifted = {c.user_id for c in tg.calls if isinstance(c, m.RestrictChatMember)
               and c.permissions.can_send_messages is True}
     assert {99, 4} <= lifted
+
+
+async def test_diamond_giveaway_first_three_get_one(harness):
+    from mafia_bot.bot.handlers import diamonds
+
+    h = harness
+    tg = h.tg
+    await h.text(1, 1, "/getdiamonds 5")
+    await h.text(1, GROUP, "/give 3")
+    msg = tg.sent(GROUP)[-1]
+    assert "<b>3 алмазын</b> таратты" in msg.text and "tg://user?id=1" in msg.text
+    (button,) = keyboard_buttons(msg)
+    assert button.text == "🎁 Сыйлықты ашу" and button.callback_data.startswith("ga:")
+    assert (await h.repo.get_user(1))["diamonds"] == 2  # 3 алмаз таратуға тоқтатылды
+
+    def last_answer():
+        return [c for c in tg.calls if isinstance(c, m.AnswerCallbackQuery)][-1].text
+
+    await h.click(1, 0, button.callback_data, chat_id=GROUP)
+    assert "Өз сыйлығыңызды" in last_answer()
+    for uid in (2, 3, 4):
+        await h.click(uid, 0, button.callback_data, chat_id=GROUP)
+        assert "Сіз 1 💎 алдыңыз" in last_answer()
+    await h.click(5, 0, button.callback_data, chat_id=GROUP)
+    assert "таусылды" in last_answer()
+    await diamonds.refresher.wait_idle()
+    final = [c for c in tg.calls if isinstance(c, m.EditMessageText) and c.chat_id == GROUP][-1]
+    assert "түгел алынды" in final.text and final.reply_markup is None
+    assert all(f"tg://user?id={uid}" in final.text for uid in (2, 3, 4))
+    assert [(await h.repo.get_user(uid))["diamonds"] for uid in (2, 3, 4)] == [1, 1, 1]
+    assert await h.repo.get_user(5) is None  # кешіккен адамға ештеңе берілмеді
+
+    # Алмаз жетпесе — тарату ашылмайды; жеке чатта алушысыз /give — нұсқаулық.
+    await h.text(1, GROUP, "/give 3")
+    assert "жеткіліксіз" in tg.sent(GROUP)[-1].text
+    await h.text(1, 1, "/give 2")
+    assert "Алмаз сыйлау" in tg.sent(1)[-1].text
+    assert (await h.repo.get_user(1))["diamonds"] == 2
+
+    # Мерзімі біткен тарату: алынбаған алмаз иесіне қайтады, хабар жаңарады.
+    await h.text(1, GROUP, "/give 2")
+    await h.repo.pool.execute("UPDATE giveaways SET created_at = now() - interval '2 hours' WHERE status = 'open'")
+    sweeper = asyncio.create_task(diamonds.giveaway_sweeper(h.bot, h.repo, interval=0.01))
+    for _ in range(200):
+        if (await h.repo.get_user(1))["diamonds"] == 2:
+            break
+        await asyncio.sleep(0.01)
+    sweeper.cancel()
+    assert (await h.repo.get_user(1))["diamonds"] == 2
+    expired = [c for c in tg.calls if isinstance(c, m.EditMessageText) and c.chat_id == GROUP][-1]
+    assert "мерзімі бітті" in expired.text and expired.reply_markup is None
+
+
+async def test_top_mafia_and_settings_alias(harness):
+    from mafia_bot.db.models import FinalRow
+
+    h = harness
+    tg = h.tg
+    await h.text(5, GROUP, "/topmafia")
+    assert "тек чат әкімшілеріне" in tg.sent(GROUP)[-1].text
+    await h.text(CHAT_ADMIN, GROUP, "/topmafia")
+    assert "Апта үздіктері" in tg.sent(GROUP)[-1].text and "ойын болған жоқ" in tg.sent(GROUP)[-1].text
+    for uid in range(1, 5):
+        await h.repo.ensure_user(uid, f"p{uid}", f"Ойыншы{uid}")
+    gid = await h.repo.create_game(GROUP)
+    await h.repo.start_game(gid, [(u, "civilian") for u in range(1, 5)])
+    await h.repo.finalize_game(gid, "town", 2, [FinalRow(u, "civilian", True, u == 3, 20 * (u == 3)) for u in range(1, 5)])
+    await h.text(CHAT_ADMIN, GROUP, "/topmafia")
+    text = tg.sent(GROUP)[-1].text
+    assert text.index("@p3") < text.index("@p1") and "🥇 @p3 — <b>1</b> жеңіс" in text
+    await h.text(CHAT_ADMIN, GROUP, "/settingsmafia")
+    assert "Мафия баптаулары" in tg.sent(GROUP)[-1].text
+

@@ -48,12 +48,33 @@ class TransferResult:
     receiver_lang: str = "kk"
 
 
+@dataclass(frozen=True)
+class GiveawayView:
+    """🎁 Тарату хабарын салу үшін қажет мәлімет."""
+
+    giveaway_id: int
+    chat_id: int
+    message_id: int | None
+    giver_id: int
+    giver_name: str
+    total: int
+    remaining: int
+    status: str                                   # "open" | "done" | "expired"
+    claimers: tuple[tuple[int, str], ...] = ()    # (user_id, аты) — алу ретімен
+
+
+@dataclass(frozen=True)
+class ClaimResult:
+    status: str        # "ok" | "own" | "again" | "gone"
+    balance: int = 0   # алушының жаңа балансы
+
+
 START_MODES = ("all", "admins")  # ойынды кім ашып/бастай алады
 
 
 @dataclass(frozen=True)
 class ChatSettings:
-    """Чат әкімшілері /settingsmafiahiggs арқылы өзгертетін баптаулар."""
+    """Чат әкімшілері /settingsmafia арқылы өзгертетін баптаулар."""
 
     lang: str = "kk"
     registration_seconds: int | None = None   # None — бот әдепкісі (REGISTRATION_SECONDS)

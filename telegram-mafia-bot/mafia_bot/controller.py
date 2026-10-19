@@ -147,6 +147,11 @@ def short(name: str, limit: int = 28) -> str:
     return name if len(name) <= limit else name[: limit - 1] + "…"
 
 
+def target_button_text(p: Player) -> str:
+    """Батырмадағы ойыншы: тұрақты реттік нөмірімен (мысалы, «3. Арман»)."""
+    return f"{p.number}. {short(p.name)}"
+
+
 class GameManager:
     def __init__(
         self,
@@ -701,7 +706,7 @@ class GameManager:
             chosen = next((o for o in targeted if o.kind is mode), targeted[0] if targeted else None)
             if chosen is not None:
                 for t in chosen.targets:
-                    rows.append([Button(short(g.players[t].name),
+                    rows.append([Button(target_button_text(g.players[t]),
                                         data=f"n:{gid}:{day}:{chosen.kind.value}:{t}")])
             if mode is not None and len(targeted) > 1:
                 rows.append([Button(s.t("game.back"), data=f"m:{gid}:{day}:back")])
@@ -719,7 +724,7 @@ class GameManager:
     async def _send_vote_prompt(self, s: Session, user_id: int) -> None:
         g = s.game
         rows = [
-            [Button(short(g.players[t].name), data=f"v:{s.game_id}:{g.day}:{t}")]
+            [Button(target_button_text(g.players[t]), data=f"v:{s.game_id}:{g.day}:{t}")]
             for t in g.vote_candidates(user_id)
         ]
         rows.append([Button(s.t("vote.abstain_btn"), data=f"v:{s.game_id}:{g.day}:0")])

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from collections.abc import Awaitable, Callable
 from typing import Any
@@ -74,7 +75,9 @@ class EnsureUserMiddleware(BaseMiddleware):
 PRIVATE_COMMANDS = (
     "start", "profile", "shop", "daily", "rating", "rules", "language", "give", "help", "paysupport", "terms",
 )
-GROUP_COMMANDS = ("game", "startgame", "extend", "leave", "give", "stop", "settingsmafiahiggs", "rules")
+GROUP_COMMANDS = (
+    "game", "startgame", "extend", "leave", "give", "stop", "settingsmafia", "topmafia", "rules",
+)
 
 
 async def set_commands(bot: Bot) -> None:
@@ -134,12 +137,15 @@ async def run(settings: Settings) -> None:
             mute_non_players=settings.mute_non_players,
         )
         dp = build_dispatcher(repo, manager, notifier, settings)
+        sweeper = asyncio.create_task(diamonds.giveaway_sweeper(bot, repo))
         try:
             await manager.recover_stale()
             await set_commands(bot)
             log.info("Бот іске қосылды: @%s", me.username)
             await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
         finally:
+            sweeper.cancel()
+            await asyncio.gather(sweeper, return_exceptions=True)
             await manager.shutdown()
             await repo.close()
     finally:

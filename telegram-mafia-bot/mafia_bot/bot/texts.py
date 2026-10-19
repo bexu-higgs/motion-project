@@ -215,6 +215,18 @@ def rating_text(top, me_rank: int | None, lang: str) -> str:
     return "\n".join(lines)
 
 
+def weekly_top_text(top, chat_title: str, lang: str) -> str:
+    lines = [t(lang, "top.title", chat=html.escape(chat_title)), ""]
+    medals = {1: "🥇", 2: "🥈", 3: "🥉"}
+    if not top:
+        lines.append(t(lang, "top.empty"))
+    for i, r in enumerate(top, 1):
+        lines.append(t(lang, "top.line", medal=medals.get(i, f"{i}."),
+                       name=display_name(r["username"], r["full_name"]), wins=r["wins"],
+                       games=r["games"], earned=r["earned"]))
+    return "\n".join(lines)
+
+
 def daily_text(day: int, reward: int, balance_now: int | None, lang: str) -> str:
     plan = " · ".join((f"<b>{r}</b>" if i + 1 == day else str(r)) for i, r in enumerate(DAILY_REWARDS))
     lines = [t(lang, "daily.ok", day=day, reward=reward), plan]

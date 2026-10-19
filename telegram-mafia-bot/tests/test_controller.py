@@ -360,3 +360,19 @@ async def test_afk_players_are_removed_after_three_nights():
         assert not rows[uid].won and not rows[uid].alive
         assert any("ойыннан шығарылдыңыз" in m.text for m in notifier.to(uid))
 
+
+async def test_buttons_show_fixed_player_numbers():
+    manager, notifier, storage = make_manager(time_scale=50)
+    await open_with_players(manager, 5)
+    await manager.force_start(CHAT)
+    await wait_until(lambda: CHAT in manager.sessions)
+    g = manager.sessions[CHAT].game
+    don = g.with_role(Role.DON)[0].user_id
+    prompt = next(m for m in notifier.to(don) if m.keyboard and m.keyboard[0][0].data.startswith("n:"))
+    labels = [b.text for row in prompt.keyboard for b in row if b.data.endswith(tuple(f":{u}" for u in g.players))]
+    for label in labels:
+        number, name = label.split(". ", 1)
+        uid = int(name.split()[-1])
+        assert g.players[uid].number == int(number)
+    await manager.abort(CHAT)
+
