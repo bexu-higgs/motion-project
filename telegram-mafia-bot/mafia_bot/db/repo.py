@@ -13,6 +13,7 @@ from typing import Any
 import asyncpg
 
 from ..economy import (
+    DIAMOND_TO_TENGE,
     PACKAGES_BY_ID,
     ROLE_QUEUE_LIMIT,
     SHOP,
@@ -30,6 +31,7 @@ from .models import (
     GiveawayView,
     Inventory,
     PurchaseResult,
+    ResetResult,
     TransferResult,
 )
 
@@ -669,6 +671,73 @@ class Repo:
                         r["giver_id"], r["remaining"], str(r["giveaway_id"]),
                     )
             return [r["giveaway_id"] for r in rows]
+
+    # --- 💱 Айырбас және алмазды нөлдеу ---------------------------------------------------------
+
+    async def exchange_diamonds(self, user_id: int, amount: int) -> tuple[bool, int, int]:
+        """``amount`` алмазды ₸-ге айырбастау (1 💎 = ``DIAMOND_TO_TENGE`` ₸).
+
+        ``(ok, алмаз қалдығы, ₸ балансы)`` қайтарады; алмаз жетпесе баланс өзгермейді.
+        """
+        if amount <= 0:
+            raise ValueError("amount must be positive")
+        tenge = amount * DIAMOND_TO_TENGE
+        async with self.pool.acquire() as conn, conn.transaction():
+            row = await conn.fetchrow(
+                "UPDATE users SET diamonds = diamonds - $2, tenge = tenge + $3 "
+                "WHERE user_id = $1 AND diamonds >= $2 RETURNING diamonds, tenge",
+                user_id, amount, tenge,
+            )
+            if row is None:
+                current = await conn.fetchrow("SELECT diamonds, tenge FROM users WHERE user_id = $1", user_id)
+                return False, current["diamonds"] if current else 0, current["tenge"] if current else 0
+            await conn.executemany(
+                "INSERT INTO ledger (user_id, currency, delta, reason) VALUES ($1, $2, $3, 'exchange')",
+                [(user_id, "diamonds", -amount), (user_id, "tenge", tenge)],
+            )
+            return True, row["diamonds"], row["tenge"]
+
+    async def diamond_totals(self) -> tuple[int, int]:
+        """(алмазы бар ойыншылар саны, барлық алмаз) — /reloaddm растауы үшін."""
+        row = await self.pool.fetchrow(
+            "SELECT count(*) AS users, coalesce(sum(diamonds), 0) AS total FROM users WHERE diamonds > 0"
+        )
+        open_giveaways = await self.pool.fetchval(
+            "SELECT coalesce(sum(remaining), 0) FROM giveaways WHERE status = 'open'"
+        )
+        return row["users"], row["total"] + open_giveaways
+
+    async def reset_all_diamonds(self, admin_id: int) -> ResetResult:
+        """Барлық ойыншының (әкімшінің де) алмазын 0-ге түсіру.
+
+        Ашық таратулар да жабылады — оларда тоқтатылған алмаз ешкімге берілмейді.
+        Әр ойыншының жойылған алмазы ``ledger`` журналына жазылады.
+        """
+        async with self.pool.acquire() as conn, conn.transaction():
+            rows = await conn.fetch(
+                """
+                WITH old AS (
+                    SELECT user_id, diamonds FROM users WHERE diamonds > 0 FOR UPDATE
+                ), cleared AS (
+                    UPDATE users u SET diamonds = 0 FROM old WHERE u.user_id = old.user_id
+                    RETURNING u.user_id
+                )
+                INSERT INTO ledger (user_id, currency, delta, reason, ref)
+                SELECT old.user_id, 'diamonds', -old.diamonds, 'admin_reset',
+                       $1::text || ':' || now()::text
+                FROM old JOIN cleared USING (user_id)
+                RETURNING delta
+                """,
+                str(admin_id),
+            )
+            giveaways = await conn.fetch(
+                "UPDATE giveaways SET status = 'cancelled', closed_at = now() WHERE status = 'open' "
+                "RETURNING giveaway_id, remaining",
+            )
+            total = -sum(r["delta"] for r in rows) + sum(g["remaining"] for g in giveaways)
+            return ResetResult(
+                users=len(rows), diamonds=total, giveaways=tuple(g["giveaway_id"] for g in giveaways)
+            )
 
     async def grant(self, user_id: int, currency: str, amount: int, reason: str) -> int | None:
         if currency not in ("tenge", "diamonds"):

@@ -308,6 +308,35 @@ async def test_weekly_top_is_per_chat_and_recent(repo):
     assert await repo.weekly_top(-3) == []
 
 
+async def test_exchange_diamonds_for_tenge(repo):
+    await add_user(repo, 1, tenge=10, diamonds=3)
+    assert await repo.exchange_diamonds(1, 2) == (True, 1, 510)   # 1 💎 = 250 ₸
+    assert await repo.exchange_diamonds(1, 2) == (False, 1, 510)  # жетпейді — ештеңе өзгермейді
+    assert await repo.exchange_diamonds(99, 1) == (False, 0, 0)
+    rows = await repo.pool.fetch("SELECT currency, delta FROM ledger WHERE reason = 'exchange' ORDER BY entry_id")
+    assert [(r["currency"], r["delta"]) for r in rows] == [("diamonds", -2), ("tenge", 500)]
+
+
+async def test_reset_all_diamonds(repo):
+    for uid, dia in ((1, 5), (2, 0), (3, 12)):
+        await add_user(repo, uid, tenge=7, diamonds=dia)
+    gid, _ = await repo.create_giveaway(-100, 3, 4)   # 4 💎 таратуда тұр
+    assert (await repo.claim_giveaway(gid, 2, None, "Бека")).status == "ok"
+    assert await repo.diamond_totals() == (3, 5 + 8 + 1 + 3)
+    result = await repo.reset_all_diamonds(admin_id=1)
+    assert result.users == 3 and result.diamonds == 5 + 8 + 1 + 3 and result.giveaways == (gid,)
+    users = [await repo.get_user(uid) for uid in (1, 2, 3)]
+    assert [u["diamonds"] for u in users] == [0, 0, 0] and [u["tenge"] for u in users] == [7, 7, 7]
+    assert (await repo.giveaway_view(gid)).status == "cancelled"
+    assert (await repo.claim_giveaway(gid, 1, None, "Айжан")).status == "gone"
+    assert await repo.expire_giveaways(0) == []      # жабылған тарату қайтарылмайды
+    assert (await repo.get_user(3))["diamonds"] == 0
+    logged = await repo.pool.fetchval("SELECT -sum(delta) FROM ledger WHERE reason = 'admin_reset'")
+    assert logged == 14
+    again = await repo.reset_all_diamonds(admin_id=1)
+    assert again.users == 0 and again.diamonds == 0
+
+
 async def test_chats(repo):
     await repo.upsert_chat(-1, "Топ", True, False)
     await repo.upsert_chat(-1, "Топ 2", True, True)

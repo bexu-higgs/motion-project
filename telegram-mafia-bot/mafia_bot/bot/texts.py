@@ -8,6 +8,7 @@ from datetime import timedelta
 from ..economy import (
     DAILY_REWARDS,
     DIAMOND_PACKAGES,
+    DIAMOND_TO_TENGE,
     PREMIUM_ROLE_PRICE,
     PREMIUM_ROLES,
     REWARD_POINTS,
@@ -78,6 +79,7 @@ def rules_page(page: str, lang: str) -> str:
                            price=item.price_label, desc=item.description(lang)))
         lines.append(t(lang, "rules.role_pick", price=ROLE_PICK_PRICE, premium=PREMIUM_ROLE_PRICE,
                        roles=premium_roles(lang)))
+        lines.append(t(lang, "rules.exchange", rate=DIAMOND_TO_TENGE))
         lines.append(t(lang, "rules.fairness"))
         return "\n".join(lines)
     if page == "balance":
@@ -164,6 +166,7 @@ def shop_text(user, lang: str) -> str:
     for item in SHOP.values():
         lines.append(t(lang, "rules.item_line", emoji=item.emoji, name=item.name(lang),
                        price=item.price_label, desc=item.description(lang)))
+    lines.append(t(lang, "rules.exchange", rate=DIAMOND_TO_TENGE))
     lines.append(t(lang, "shop.footer"))
     return "\n".join(lines)
 

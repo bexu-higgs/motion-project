@@ -340,6 +340,7 @@ MESSAGES: dict[str, str] = {
         "<b>Özel sohbette:</b>\n"
         "/profile — profil · /shop — mağaza · /daily — günlük ödül\n"
         "/rating — sıralama · /rules — kurallar · /language — dil\n"
+        "/exchange — 💎 elmasları ₸ ile değiştir\n"
         "/paysupport — ödeme desteği\n\n"
         "<b>Oyun nasıl işler:</b>\n"
         "1. Grupta /game yazılır, oyuncular «🎮 Oyuna katıl» düğmesine basar.\n"
@@ -436,6 +437,7 @@ MESSAGES: dict[str, str] = {
     "rules.items_title": "🎒 <b>Eşyalar ve avantajlar</b>",
     "rules.item_line": "{emoji} <b>{name}</b> — {price}\n<i>{desc}</i>\n",
     "rules.role_pick": "🎭 <b>Rol seçimi</b> — {price} 💎, güçlü roller ({roles}) — {premium} 💎\n<i>Bir sonraki oyun için rol seçersiniz. Rol oyuncu sayısına uygunsa verilir; değilse seçiminiz saklanır ya da elmaslarınızı geri alabilirsiniz. ⚛️ Higgs-Man satılmaz.</i>\n",
+    "rules.exchange": "💱 <b>Değişim</b> — 1 💎 = {rate} ₸ <i>(yalnızca 💎 → ₸; /exchange)</i>\n",
     "rules.fairness": "⚖️ <b>Adalet:</b> bir oyunda en fazla bir koruma, bir oylama koruması ve bir kurşun kullanılır. Eşyalar yalnızca gerçekten gerektiğinde harcanır.",
     "rules.balance_title": "⚖️ <b>Oyuncu sayısına göre roller</b>\n<i>(kalan yerler — 👨 vatandaşlar)</i>",
     "rules.higgs_rare": "⚛️ <b>Higgs-Man</b> — {min}+ oyunculu oyunlarda her oyunda ≈%{chance} olasılıkla bir vatandaşın yerine çıkar.",
@@ -575,15 +577,24 @@ MESSAGES: dict[str, str] = {
     "giveaway.open": "🎁 {giver} <b>{n} elmas</b> dağıtıyor — kapan alır!\nHerkes <b>1 💎</b> alır · Kalan: <b>{left}/{n}</b>",
     "giveaway.done": "🎁 {giver} tarafından dağıtılan <b>{n} elmasın</b> hepsi alındı!",
     "giveaway.expired": "⌛ {giver} tarafından dağıtılan {n} 💎 süresi doldu: alınmayan <b>{left} 💎</b> sahibine iade edildi.",
+    "giveaway.cancelled": "🎁 {giver} tarafından dağıtılan {n} 💎 kapatıldı — yönetici tüm elmasları sıfırladı.",
     "giveaway.claimers": "✅ Alanlar ({count}): {names}",
     "giveaway.btn": "🎁 Hediyeyi aç",
     "giveaway.ok": "🎉 1 💎 aldınız! Bakiyeniz: {balance} 💎",
     "giveaway.own": "Kendi hediyenizi alamazsınız 🙂",
     "giveaway.again": "Bu hediyeden zaten aldınız.",
     "giveaway.gone": "Üzgünüz, hediye bitti.",
+    "ex.title": "💱 <b>Elmasları ₸ ile değiştir</b>\nKur: <b>1 💎 = {rate} ₸</b>\nSizde: <b>{diamonds} 💎</b> · <b>{tenge} ₸</b>\n\nKaç elmas değiştirmek istiyorsunuz? Bir düğmeye basın ya da <code>/exchange 3</code> yazın.\n<i>Ters yönde değişim (₸ → 💎) yoktur.</i>",
+    "ex.btn": "{n} 💎 → {tenge} ₸",
+    "ex.all_btn": "Tümü: {n} 💎 → {tenge} ₸",
+    "ex.ok": "✅ <b>{n} 💎</b> → <b>{tenge} ₸</b> değiştirildi.\nBakiyeniz: <b>{diamonds} 💎</b> · <b>{balance} ₸</b>",
+    "ex.no_funds": "Yeterli elmas yok: sizde {diamonds} 💎 var.",
+    "ex.usage": "Kullanım: <code>/exchange 3</code> — 3 💎 değiştirir (1 💎 = {rate} ₸). Miktar: 1 ile {max} arası.",
+    "ex.shop_btn": "💱 Elmasları ₸ ile değiştir (1 💎 = {rate} ₸)",
     "cmd.start": "Ana menü",
     "cmd.profile": "Profilim",
     "cmd.shop": "Mağaza",
+    "cmd.exchange": "Elmasları ₸ ile değiştir",
     "cmd.daily": "Günlük ödül",
     "cmd.rating": "Sıralama",
     "cmd.rules": "Kurallar",

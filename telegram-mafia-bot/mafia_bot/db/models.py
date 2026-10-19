@@ -59,7 +59,7 @@ class GiveawayView:
     giver_name: str
     total: int
     remaining: int
-    status: str                                   # "open" | "done" | "expired"
+    status: str                                   # "open" | "done" | "expired" | "cancelled"
     claimers: tuple[tuple[int, str], ...] = ()    # (user_id, аты) — алу ретімен
 
 
@@ -67,6 +67,15 @@ class GiveawayView:
 class ClaimResult:
     status: str        # "ok" | "own" | "again" | "gone"
     balance: int = 0   # алушының жаңа балансы
+
+
+@dataclass(frozen=True)
+class ResetResult:
+    """/reloaddm нәтижесі."""
+
+    users: int                       # алмазы нөлденген ойыншылар саны
+    diamonds: int                    # жойылған алмаздың жалпы саны
+    giveaways: tuple[int, ...] = ()  # жабылған ашық таратулар
 
 
 START_MODES = ("all", "admins")  # ойынды кім ашып/бастай алады

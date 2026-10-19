@@ -11,7 +11,7 @@ from aiogram.types import (
 
 from ..controller import Keyboard
 from ..db.models import START_MODES, ChatSettings
-from ..economy import DIAMOND_PACKAGES, SHOP, format_kzt, role_price
+from ..economy import DIAMOND_PACKAGES, DIAMOND_TO_TENGE, SHOP, format_kzt, role_price
 from ..game.roles import PURCHASABLE_ROLES, Role, title
 from ..i18n import LANG_NAMES, LANGS, t
 from . import texts
@@ -48,6 +48,7 @@ def shop(lang: str) -> InlineKeyboardMarkup:
         for i in SHOP.values()
     ]
     rows.append([_button(t(lang, "btn.diamonds"), "dia")])
+    rows.append([_button(t(lang, "ex.shop_btn", rate=DIAMOND_TO_TENGE), "ex")])
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 

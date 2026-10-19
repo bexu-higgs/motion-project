@@ -589,3 +589,71 @@ async def test_top_mafia_and_settings_alias(harness):
     await h.text(CHAT_ADMIN, GROUP, "/settingsmafia")
     assert "Мафия баптаулары" in tg.sent(GROUP)[-1].text
 
+
+async def test_reloaddm_resets_all_diamonds_after_confirmation(harness):
+    h = harness
+    tg = h.tg
+    await h.text(1, 1, "/getdiamonds 50")
+    for uid in (2, 3):
+        await h.text(uid, uid, "/start")
+        await h.repo.grant(uid, "diamonds", 10, "test")
+    await h.text(1, GROUP, "/give 5")                # ашық тарату (5 💎 тоқтатылған)
+    giveaway_msg = tg.sent(GROUP)[-1]
+
+    before = len(tg.sent())
+    await h.text(2, 2, "/reloaddm")                  # бот авторы емес — жауап жоқ
+    await h.text(CHAT_ADMIN, GROUP, "/reloaddm")     # топ әкімшісі де бот авторы емес
+    assert len(tg.sent()) == before
+
+    await h.text(1, 1, "/reloaddm")
+    ask = tg.sent(1)[-1]
+    assert "0-ге" in ask.text and "70 💎" in ask.text
+    assert [b.callback_data for b in keyboard_buttons(ask)] == ["rdm:yes", "rdm:no"]
+
+    def last_answer():
+        return [c for c in tg.calls if isinstance(c, m.AnswerCallbackQuery)][-1]
+
+    await h.click(2, 0, "rdm:yes")                   # бөтен адам батырманы басса
+    assert last_answer().show_alert and "бот авторына" in last_answer().text
+    await h.click(1, 0, "rdm:no")
+    assert (await h.repo.get_user(2))["diamonds"] == 10
+    await h.click(1, 0, "rdm:yes")
+    assert [(await h.repo.get_user(uid))["diamonds"] for uid in (1, 2, 3)] == [0, 0, 0]
+    done = [c for c in tg.calls if isinstance(c, m.EditMessageText) and c.chat_id == 1][-1]
+    assert "0-ге түсірілді" in done.text and "3 ойыншыдан барлығы 70 💎" in done.text
+    closed = [c for c in tg.calls if isinstance(c, m.EditMessageText) and c.chat_id == GROUP][-1]
+    assert "нөлдеді" in closed.text and closed.reply_markup is None
+    await h.click(2, giveaway_msg.message_id if hasattr(giveaway_msg, "message_id") else 0,
+                  keyboard_buttons(giveaway_msg)[0].callback_data, chat_id=GROUP)
+    assert "таусылды" in last_answer().text and (await h.repo.get_user(2))["diamonds"] == 0
+
+
+async def test_exchange_diamonds_for_tenge(harness):
+    h = harness
+    tg = h.tg
+    await h.text(4, 4, "/start")
+    await h.repo.grant(4, "diamonds", 7, "test")
+    await h.text(4, 4, "/exchange 2")
+    assert "<b>2 💎</b> → <b>500 ₸</b>" in tg.sent(4)[-1].text
+    user = await h.repo.get_user(4)
+    assert (user["diamonds"], user["tenge"]) == (5, 500)
+
+    # Дүкендегі батырма → айырбас мәзірі → 1 💎.
+    await h.text(4, 4, "🛍 Дүкен")
+    shop = tg.sent(4)[-1]
+    assert "1 💎 = 250 ₸" in shop.text and "ex" in [b.callback_data for b in keyboard_buttons(shop)]
+    await h.click(4, 1, "ex")
+    menu = tg.sent(4)[-1]
+    assert [b.callback_data for b in keyboard_buttons(menu)] == ["ex:1", "ex:5"]
+    await h.click(4, 1, "ex:1")
+    user = await h.repo.get_user(4)
+    assert (user["diamonds"], user["tenge"]) == (4, 750)
+    await h.click(4, 1, "ex:5")                      # 4 алмаз ғана бар
+    answer = [c for c in tg.calls if isinstance(c, m.AnswerCallbackQuery)][-1]
+    assert answer.show_alert and "жеткіліксіз" in answer.text
+    await h.text(4, 4, "/exchange abc")
+    assert "Қолданылуы" in tg.sent(4)[-1].text
+    await h.text(4, 4, "/exchange")
+    assert "Бағам: <b>1 💎 = 250 ₸</b>" in tg.sent(4)[-1].text
+    assert (await h.repo.get_user(4))["diamonds"] == 4
+

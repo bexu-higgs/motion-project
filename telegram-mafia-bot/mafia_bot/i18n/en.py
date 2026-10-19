@@ -340,6 +340,7 @@ MESSAGES: dict[str, str] = {
         "<b>In private chat:</b>\n"
         "/profile — profile · /shop — shop · /daily — daily bonus\n"
         "/rating — rating · /rules — rules · /language — language\n"
+        "/exchange — exchange 💎 diamonds for ₸\n"
         "/paysupport — payment support\n\n"
         "<b>How it works:</b>\n"
         "1. Someone types /game in the group, players press «🎮 Join the game».\n"
@@ -436,6 +437,7 @@ MESSAGES: dict[str, str] = {
     "rules.items_title": "🎒 <b>Items and perks</b>",
     "rules.item_line": "{emoji} <b>{name}</b> — {price}\n<i>{desc}</i>\n",
     "rules.role_pick": "🎭 <b>Pick a role</b> — {price} 💎, powerful roles ({roles}) — {premium} 💎\n<i>You choose a role for the next game. It is given if it fits the number of players; otherwise your choice is kept or you can get the diamonds back. ⚛️ Higgs-Man is not for sale.</i>\n",
+    "rules.exchange": "💱 <b>Exchange</b> — 1 💎 = {rate} ₸ <i>(one way only, 💎 → ₸; /exchange)</i>\n",
     "rules.fairness": "⚖️ <b>Fairness:</b> at most one shield, one vote protection and one bullet are used per game. Items are spent only when they are really needed.",
     "rules.balance_title": "⚖️ <b>Roles by number of players</b>\n<i>(remaining seats — 👨 civilians)</i>",
     "rules.higgs_rare": "⚛️ <b>Higgs-Man</b> — with {min}+ players, appears in each game with a ≈{chance}% chance in place of one civilian.",
@@ -575,15 +577,24 @@ MESSAGES: dict[str, str] = {
     "giveaway.open": "🎁 {giver} is giving away <b>{n} diamonds</b> — grab one fast!\nEveryone gets <b>1 💎</b> · Left: <b>{left}/{n}</b>",
     "giveaway.done": "🎁 All <b>{n} diamonds</b> from {giver} have been claimed!",
     "giveaway.expired": "⌛ The giveaway of {n} 💎 from {giver} has expired: <b>{left} 💎</b> unclaimed went back to the owner.",
+    "giveaway.cancelled": "🎁 The giveaway of {n} 💎 from {giver} was closed — the admin reset all diamonds.",
     "giveaway.claimers": "✅ Claimed ({count}): {names}",
     "giveaway.btn": "🎁 Open the gift",
     "giveaway.ok": "🎉 You got 1 💎! Your balance: {balance} 💎",
     "giveaway.own": "You can't claim your own gift 🙂",
     "giveaway.again": "You have already claimed from this gift.",
     "giveaway.gone": "Sorry, the gift has run out.",
+    "ex.title": "💱 <b>Exchange diamonds for ₸</b>\nRate: <b>1 💎 = {rate} ₸</b>\nYou have: <b>{diamonds} 💎</b> · <b>{tenge} ₸</b>\n\nHow many diamonds do you want to exchange? Press a button or write <code>/exchange 3</code>.\n<i>There is no reverse exchange (₸ → 💎).</i>",
+    "ex.btn": "{n} 💎 → {tenge} ₸",
+    "ex.all_btn": "All: {n} 💎 → {tenge} ₸",
+    "ex.ok": "✅ Exchanged <b>{n} 💎</b> → <b>{tenge} ₸</b>.\nYour balance: <b>{diamonds} 💎</b> · <b>{balance} ₸</b>",
+    "ex.no_funds": "Not enough diamonds: you have {diamonds} 💎.",
+    "ex.usage": "Usage: <code>/exchange 3</code> — exchanges 3 💎 (1 💎 = {rate} ₸). Amount: from 1 to {max}.",
+    "ex.shop_btn": "💱 Exchange diamonds for ₸ (1 💎 = {rate} ₸)",
     "cmd.start": "Main menu",
     "cmd.profile": "My profile",
     "cmd.shop": "Shop",
+    "cmd.exchange": "Exchange diamonds for ₸",
     "cmd.daily": "Daily bonus",
     "cmd.rating": "Rating",
     "cmd.rules": "Rules",

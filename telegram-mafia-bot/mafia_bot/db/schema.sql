@@ -114,11 +114,15 @@ CREATE TABLE IF NOT EXISTS giveaways (
     giver_id    BIGINT NOT NULL REFERENCES users (user_id),
     total       INT NOT NULL CHECK (total > 0),
     remaining   INT NOT NULL CHECK (remaining >= 0),
-    status      TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'done', 'expired')),
+    status      TEXT NOT NULL DEFAULT 'open',
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
     closed_at   TIMESTAMPTZ
 );
 CREATE INDEX IF NOT EXISTS giveaways_open_idx ON giveaways (status, created_at);
+-- v5: 'cancelled' — /reloaddm барлық алмазды нөлдегенде ашық таратулар жабылады.
+ALTER TABLE giveaways DROP CONSTRAINT IF EXISTS giveaways_status_check;
+ALTER TABLE giveaways ADD CONSTRAINT giveaways_status_check
+    CHECK (status IN ('open', 'done', 'expired', 'cancelled'));
 
 CREATE TABLE IF NOT EXISTS giveaway_claims (
     giveaway_id BIGINT NOT NULL REFERENCES giveaways (giveaway_id) ON DELETE CASCADE,

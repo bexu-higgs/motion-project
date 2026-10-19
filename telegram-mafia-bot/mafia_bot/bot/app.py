@@ -73,7 +73,8 @@ class EnsureUserMiddleware(BaseMiddleware):
 
 
 PRIVATE_COMMANDS = (
-    "start", "profile", "shop", "daily", "rating", "rules", "language", "give", "help", "paysupport", "terms",
+    "start", "profile", "shop", "exchange", "daily", "rating", "rules", "language", "give", "help",
+    "paysupport", "terms",
 )
 GROUP_COMMANDS = (
     "game", "startgame", "extend", "leave", "give", "stop", "settingsmafia", "topmafia", "rules",

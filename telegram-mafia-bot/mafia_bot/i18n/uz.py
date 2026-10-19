@@ -340,6 +340,7 @@ MESSAGES: dict[str, str] = {
         "<b>Shaxsiy chatda:</b>\n"
         "/profile — profil · /shop — do‘kon · /daily — kunlik sovg‘a\n"
         "/rating — reyting · /rules — qoidalar · /language — til\n"
+        "/exchange — 💎 olmosni ₸ ga almashtirish\n"
         "/paysupport — to‘lov bo‘yicha yordam\n\n"
         "<b>O‘yin qanday o‘tadi:</b>\n"
         "1. Guruhda /game yoziladi, o‘yinchilar «🎮 O‘yinga qo‘shilish» tugmasini bosadi.\n"
@@ -436,6 +437,7 @@ MESSAGES: dict[str, str] = {
     "rules.items_title": "🎒 <b>Buyumlar va imtiyozlar</b>",
     "rules.item_line": "{emoji} <b>{name}</b> — {price}\n<i>{desc}</i>\n",
     "rules.role_pick": "🎭 <b>Rol tanlash</b> — {price} 💎, kuchli rollar ({roles}) — {premium} 💎\n<i>Keyingi o‘yin uchun rol tanlaysiz. Rol o‘yinchilar soniga mos bo‘lsa beriladi, aks holda tanlov saqlanadi yoki olmosni qaytarib olishingiz mumkin. ⚛️ Higgs-Man sotilmaydi.</i>\n",
+    "rules.exchange": "💱 <b>Almashtirish</b> — 1 💎 = {rate} ₸ <i>(faqat 💎 → ₸; /exchange)</i>\n",
     "rules.fairness": "⚖️ <b>Adolat:</b> bir o‘yinda ko‘pi bilan bitta himoya, bitta ovoz berishdan himoya va bitta o‘q ishlatiladi. Buyumlar faqat haqiqatan kerak bo‘lganda sarflanadi.",
     "rules.balance_title": "⚖️ <b>O‘yinchilar soniga qarab rollar</b>\n<i>(qolgan o‘rinlar — 👨 tinch aholi)</i>",
     "rules.higgs_rare": "⚛️ <b>Higgs-Man</b> — {min}+ o‘yinchida har bir o‘yinda ≈{chance}% ehtimol bilan bitta tinch aholi o‘rniga chiqadi.",
@@ -575,15 +577,24 @@ MESSAGES: dict[str, str] = {
     "giveaway.open": "🎁 {giver} <b>{n} olmos</b> tarqatdi — ulgurib oling!\nHar kim <b>1 💎</b> oladi · Qoldi: <b>{left}/{n}</b>",
     "giveaway.done": "🎁 {giver} tarqatgan <b>{n} olmos</b> to‘liq olindi!",
     "giveaway.expired": "⌛ {giver} tarqatgan {n} 💎 muddati tugadi: olinmagan <b>{left} 💎</b> egasiga qaytarildi.",
+    "giveaway.cancelled": "🎁 {giver} tarqatgan {n} 💎 yopildi — administrator barcha olmoslarni nolladi.",
     "giveaway.claimers": "✅ Olganlar ({count}): {names}",
     "giveaway.btn": "🎁 Sovg‘ani ochish",
     "giveaway.ok": "🎉 Siz 1 💎 oldingiz! Balansingiz: {balance} 💎",
     "giveaway.own": "O‘z sovg‘angizni ola olmaysiz 🙂",
     "giveaway.again": "Siz bu sovg‘adan olib bo‘ldingiz.",
     "giveaway.gone": "Kechirasiz, sovg‘a tugadi.",
+    "ex.title": "💱 <b>Olmosni ₸ ga almashtirish</b>\nKurs: <b>1 💎 = {rate} ₸</b>\nSizda: <b>{diamonds} 💎</b> · <b>{tenge} ₸</b>\n\nNechta olmos almashtirasiz? Tugmani bosing yoki <code>/exchange 3</code> deb yozing.\n<i>Teskari almashtirish (₸ → 💎) yo‘q.</i>",
+    "ex.btn": "{n} 💎 → {tenge} ₸",
+    "ex.all_btn": "Hammasi: {n} 💎 → {tenge} ₸",
+    "ex.ok": "✅ <b>{n} 💎</b> → <b>{tenge} ₸</b> almashtirildi.\nBalansingiz: <b>{diamonds} 💎</b> · <b>{balance} ₸</b>",
+    "ex.no_funds": "Olmos yetarli emas: sizda {diamonds} 💎 bor.",
+    "ex.usage": "Foydalanish: <code>/exchange 3</code> — 3 💎 almashtiradi (1 💎 = {rate} ₸). Soni: 1 dan {max} gacha.",
+    "ex.shop_btn": "💱 Olmosni ₸ ga almashtirish (1 💎 = {rate} ₸)",
     "cmd.start": "Asosiy menyu",
     "cmd.profile": "Mening profilim",
     "cmd.shop": "Do‘kon",
+    "cmd.exchange": "Olmosni ₸ ga almashtirish",
     "cmd.daily": "Kunlik sovg‘a",
     "cmd.rating": "Reyting",
     "cmd.rules": "Qoidalar",
