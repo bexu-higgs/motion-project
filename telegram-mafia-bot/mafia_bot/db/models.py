@@ -36,3 +36,15 @@ class PurchaseResult:
     reason: str = ""          # "funds" | "limit" | "unknown"
     balance: int = 0
     count: int = 0
+
+
+START_MODES = ("all", "admins")  # ойынды кім ашып/бастай алады
+
+
+@dataclass(frozen=True)
+class ChatSettings:
+    """Чат әкімшілері /settingsmafiahiggs арқылы өзгертетін баптаулар."""
+
+    lang: str = "kk"
+    registration_seconds: int | None = None   # None — бот әдепкісі (REGISTRATION_SECONDS)
+    start_mode: str = "all"                     # "all" — кез келген адам, "admins" — тек әкімшілер

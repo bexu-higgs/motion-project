@@ -96,3 +96,9 @@ CREATE TABLE IF NOT EXISTS ledger (
 );
 CREATE UNIQUE INDEX IF NOT EXISTS ledger_unique_ref ON ledger (user_id, reason, ref) WHERE ref IS NOT NULL;
 CREATE INDEX IF NOT EXISTS ledger_user_idx ON ledger (user_id, created_at);
+
+-- v2: чат баптаулары (/settingsmafiahiggs) және пайдаланушы тілі.
+ALTER TABLE chats ADD COLUMN IF NOT EXISTS lang TEXT NOT NULL DEFAULT 'kk';
+ALTER TABLE chats ADD COLUMN IF NOT EXISTS registration_seconds INT;
+ALTER TABLE chats ADD COLUMN IF NOT EXISTS start_mode TEXT NOT NULL DEFAULT 'all';
+ALTER TABLE users ADD COLUMN IF NOT EXISTS lang TEXT NOT NULL DEFAULT 'kk';

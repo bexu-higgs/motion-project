@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -22,7 +23,7 @@ from ..economy import (
 )
 from ..game.engine import RoleRequest
 from ..game.roles import Role
-from .models import FinalRow, Inventory, PurchaseResult
+from .models import ChatSettings, FinalRow, Inventory, PurchaseResult
 
 SCHEMA_PATH = Path(__file__).with_name("schema.sql")
 
@@ -30,6 +31,7 @@ SCHEMA_PATH = Path(__file__).with_name("schema.sql")
 class Repo:
     def __init__(self, pool: asyncpg.Pool) -> None:
         self.pool = pool
+        self._chat_settings: dict[int, ChatSettings] = {}  # бір процесс — қарапайым кэш
 
     @classmethod
     async def connect(cls, dsn: str) -> Repo:
@@ -50,15 +52,20 @@ class Repo:
 
     # --- Пайдаланушылар ----------------------------------------------------------
 
-    async def ensure_user(self, user_id: int, username: str | None, full_name: str) -> None:
-        await self.pool.execute(
+    async def ensure_user(self, user_id: int, username: str | None, full_name: str) -> str:
+        """Пайдаланушыны тіркеу/жаңарту. Оның таңдаған тілін қайтарады."""
+        return await self.pool.fetchval(
             """
             INSERT INTO users (user_id, username, full_name) VALUES ($1, $2, $3)
             ON CONFLICT (user_id) DO UPDATE
                 SET username = EXCLUDED.username, full_name = EXCLUDED.full_name
+            RETURNING lang
             """,
             user_id, username, full_name,
         )
+
+    async def set_user_lang(self, user_id: int, lang: str) -> None:
+        await self.pool.execute("UPDATE users SET lang = $2 WHERE user_id = $1", user_id, lang)
 
     async def get_user(self, user_id: int) -> asyncpg.Record | None:
         return await self.pool.fetchrow("SELECT * FROM users WHERE user_id = $1", user_id)
@@ -272,16 +279,11 @@ class Repo:
             )
             return [r["user_id"] for r in rows]
 
-    async def set_restricted(self, game_id: int, user_id: int, restricted: bool) -> None:
-        await self.pool.execute(
-            "UPDATE game_players SET restricted = $3 WHERE game_id = $1 AND user_id = $2",
-            game_id, user_id, restricted,
-        )
-
     async def stale_games(self) -> list[dict[str, Any]]:
         """Бот тоқтаған кезде аяқталмай қалған ойындар (қайта іске қосылғанда тазалау үшін)."""
         games = await self.pool.fetch(
-            "SELECT game_id, chat_id, status FROM games WHERE status IN ('lobby', 'running')"
+            "SELECT g.game_id, g.chat_id, g.status, coalesce(c.lang, 'kk') AS lang "
+            "FROM games g LEFT JOIN chats c USING (chat_id) WHERE g.status IN ('lobby', 'running')"
         )
         result = []
         for g in games:
@@ -294,6 +296,7 @@ class Repo:
                     "game_id": g["game_id"],
                     "chat_id": g["chat_id"],
                     "status": g["status"],
+                    "lang": g["lang"],
                     "restricted": [r["user_id"] for r in restricted],
                 }
             )
@@ -366,6 +369,33 @@ class Repo:
             """,
             chat_id, title, active, is_admin,
         )
+
+    async def get_chat_settings(self, chat_id: int) -> ChatSettings:
+        cached = self._chat_settings.get(chat_id)
+        if cached is not None:
+            return cached
+        row = await self.pool.fetchrow(
+            "SELECT lang, registration_seconds, start_mode FROM chats WHERE chat_id = $1", chat_id
+        )
+        cfg = ChatSettings(row["lang"], row["registration_seconds"], row["start_mode"]) if row else ChatSettings()
+        self._chat_settings[chat_id] = cfg
+        return cfg
+
+    async def update_chat_settings(self, chat_id: int, title: str, **changes: object) -> ChatSettings:
+        """Чат баптауларын өзгерту (``lang``, ``registration_seconds``, ``start_mode``)."""
+        cfg = replace(await self.get_chat_settings(chat_id), **changes)
+        await self.pool.execute(
+            """
+            INSERT INTO chats (chat_id, title, lang, registration_seconds, start_mode)
+            VALUES ($1, $2, $3, $4, $5)
+            ON CONFLICT (chat_id) DO UPDATE SET lang = EXCLUDED.lang,
+                registration_seconds = EXCLUDED.registration_seconds,
+                start_mode = EXCLUDED.start_mode, updated_at = now()
+            """,
+            chat_id, title, cfg.lang, cfg.registration_seconds, cfg.start_mode,
+        )
+        self._chat_settings[chat_id] = cfg
+        return cfg
 
     async def active_chats(self) -> list[asyncpg.Record]:
         return await self.pool.fetch(

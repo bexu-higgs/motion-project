@@ -34,9 +34,9 @@ class Settings:
     admin_ids: frozenset[int] = field(default_factory=frozenset)
     registration_seconds: float = 120
     time_scale: float = 1.0
-    restrict_dead: bool = True
+    mute_seconds: float = 120
     silence_night: bool = True
-    mute_non_players: bool = False
+    mute_non_players: bool = True
     require_admin_rights: bool = True
 
     @classmethod
@@ -59,8 +59,8 @@ class Settings:
             admin_ids=_ids("ADMIN_IDS"),
             registration_seconds=_float("REGISTRATION_SECONDS", 120),
             time_scale=_float("TIME_SCALE", 1.0),
-            restrict_dead=_bool("RESTRICT_DEAD", True),
+            mute_seconds=_float("MUTE_SECONDS", 120),
             silence_night=_bool("SILENCE_NIGHT", True),
-            mute_non_players=_bool("MUTE_NON_PLAYERS", False),
+            mute_non_players=_bool("MUTE_NON_PLAYERS", True),
             require_admin_rights=_bool("REQUIRE_ADMIN_RIGHTS", True),
         )

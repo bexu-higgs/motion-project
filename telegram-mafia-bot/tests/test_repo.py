@@ -47,7 +47,7 @@ async def test_schema_is_idempotent(repo):
 
 
 async def test_ensure_user_updates_name(repo):
-    await repo.ensure_user(1, None, "Әли")
+    assert await repo.ensure_user(1, None, "Әли") == "kk"
     await repo.ensure_user(1, "ali", "Әли Б")
     user = await repo.get_user(1)
     assert user["username"] == "ali" and user["full_name"] == "Әли Б" and user["tenge"] == 0
@@ -175,9 +175,10 @@ async def test_aborted_game_keeps_purchases_and_releases_restrictions(repo):
     await repo.queue_role(1, Role.DON)
     gid = await repo.create_game(-100)
     await repo.start_game(gid, [(1, "don"), (2, "doctor"), (3, "commissioner"), (4, "civilian")])
-    await repo.set_restricted(gid, 2, True)
+    # Ескі нұсқадан қалған шектеу белгісі (қайта іске қосылғанда алынуы керек).
+    await repo.pool.execute("UPDATE game_players SET restricted = TRUE WHERE game_id = $1 AND user_id = 2", gid)
     stale = await repo.stale_games()
-    assert stale == [{"game_id": gid, "chat_id": -100, "status": "running", "restricted": [2]}]
+    assert stale == [{"game_id": gid, "chat_id": -100, "status": "running", "lang": "kk", "restricted": [2]}]
     assert await repo.abort_game(gid) == [2]
     assert await repo.stale_games() == []
     assert len(await repo.role_queue(1)) == 1
@@ -245,3 +246,24 @@ async def test_full_game_with_real_database(repo):
     total = await repo.pool.fetchval("SELECT coalesce(sum(tenge), 0) FROM users")
     assert total == len(winners) * win_reward(8)
     assert await repo.role_queue(1) == []
+
+
+async def test_user_language(repo):
+    await repo.ensure_user(1, None, "A")
+    await repo.set_user_lang(1, "ru")
+    assert await repo.ensure_user(1, None, "A") == "ru"
+    assert (await repo.get_user(1))["lang"] == "ru"
+
+
+async def test_chat_settings_defaults_update_and_cache(repo):
+    cfg = await repo.get_chat_settings(-7)
+    assert (cfg.lang, cfg.registration_seconds, cfg.start_mode) == ("kk", None, "all")
+    cfg = await repo.update_chat_settings(-7, "Топ", lang="en")
+    cfg = await repo.update_chat_settings(-7, "Топ", registration_seconds=60, start_mode="admins")
+    assert (cfg.lang, cfg.registration_seconds, cfg.start_mode) == ("en", 60, "admins")
+    # upsert_chat баптауларды өшірмейді
+    await repo.upsert_chat(-7, "Жаңа атау", True, True)
+    repo._chat_settings.clear()
+    cfg = await repo.get_chat_settings(-7)
+    assert (cfg.lang, cfg.registration_seconds, cfg.start_mode) == ("en", 60, "admins")
+    assert (await repo.active_chats())[0]["title"] == "Жаңа атау"

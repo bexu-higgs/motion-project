@@ -6,13 +6,13 @@ import pytest
 
 from mafia_bot.game import balance
 from mafia_bot.game.engine import MAX_DAYS, Game, Phase, Player, assign_roles
-from mafia_bot.game.roles import Faction
+from mafia_bot.game.roles import Faction, Role
 
 
 def play_random_game(n: int, seed: int) -> Game:
     rng = random.Random(seed)
     ids = list(range(1000, 1000 + n))
-    assignment = assign_roles(ids, [], rng)
+    assignment = assign_roles(ids, [], rng, higgs_chance=0.5)
     players = []
     for order, uid in enumerate(ids):
         role = assignment.roles[uid]
@@ -59,8 +59,19 @@ def test_random_games_terminate(n):
         for uid in res.winners:
             p = g.players[uid]
             assert not p.deserted
-            if res.winner in (Faction.TOWN, Faction.MAFIA) and not p.personal_win:
+            if p.personal_win:
+                continue  # Өзін-өзі өлтіруші / Пиро — өлімі арқылы жеңеді
+            assert p.alive, "тек тірі қалғандар жеңеді"
+            if p.role is Role.HIGGS:
+                continue
+            if res.winner in (Faction.TOWN, Faction.MAFIA):
                 assert p.faction is res.winner
+        # Тірі Higgs-Man әрдайым жеңеді; өлгендер (жеке жеңістен басқа) ешқашан жеңбейді.
+        for p in g.players.values():
+            if p.role is Role.HIGGS and p.alive and not p.deserted:
+                assert p.user_id in res.winners
+            if not p.alive and not p.personal_win:
+                assert p.user_id not in res.winners
         # Бір ойыншы бір қалқанды ең көбі бір рет қолданады.
         for p in g.players.values():
             assert not (p.shield_used and not p.shield_available)

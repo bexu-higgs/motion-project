@@ -10,6 +10,11 @@ from .roles import Role
 MIN_PLAYERS = 4
 MAX_PLAYERS = 50
 
+# ⚛️ Higgs-Man — өте сирек рөл: осынша ойыншыдан бастап, әр ойында осы ықтималдықпен
+# бір қарапайым тұрғынның орнына шығады.
+HIGGS_MIN_PLAYERS = 8
+HIGGS_CHANCE = 0.10
+
 # Әр шек — сол ойыншылар санынан бастап қолданылатын рөлдер саны.
 # Шектер жинақталады: жаңа шекте рөл қосылады немесе бұрынғы рөлдің саны өседі.
 # Бос орындар қарапайым тұрғындармен толтырылады.
@@ -53,6 +58,8 @@ def role_available(role: Role, players: int) -> bool:
 
 
 def min_players_for(role: Role) -> int:
+    if role is Role.HIGGS:
+        return HIGGS_MIN_PLAYERS
     for threshold, roles in THRESHOLDS:
         if roles.get(role, 0) > 0:
             return threshold

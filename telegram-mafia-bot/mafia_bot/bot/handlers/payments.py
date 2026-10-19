@@ -13,6 +13,7 @@ from aiogram.types import CallbackQuery, LabeledPrice, Message, PreCheckoutQuery
 from ...config import Settings
 from ...db.repo import Repo
 from ...economy import PACKAGES_BY_ID, DiamondPackage, format_kzt
+from ...i18n import t
 from ..common import full_name
 
 log = logging.getLogger(__name__)
@@ -29,41 +30,40 @@ def package_from_payload(payload: str) -> DiamondPackage | None:
 
 
 @router.callback_query(F.data.startswith("pkg:"), F.message.chat.type == ChatType.PRIVATE)
-async def send_invoice(callback: CallbackQuery, bot: Bot) -> None:
+async def send_invoice(callback: CallbackQuery, bot: Bot, lang: str) -> None:
     package = PACKAGES_BY_ID.get(callback.data[4:])
     if package is None:
-        await callback.answer("Белгісіз пакет.", show_alert=True)
+        await callback.answer(t(lang, "pay.unknown_package"), show_alert=True)
         return
     await callback.answer()
+    n = format_kzt(package.diamonds)
     await bot.send_invoice(
         chat_id=callback.from_user.id,
-        title=f"{format_kzt(package.diamonds)} 💎 алмаз",
-        description=(
-            f"Мафия ботындағы {format_kzt(package.diamonds)} алмаз "
-            f"(≈ {format_kzt(package.price_kzt)} ₸). Төлем расталғаннан кейін бірден балансқа қосылады."
-        ),
+        title=t(lang, "pay.title", n=n),
+        description=t(lang, "pay.desc", n=n, price=format_kzt(package.price_kzt)),
         payload=f"{PAYLOAD_PREFIX}{package.id}",
         currency=STARS,
-        prices=[LabeledPrice(label=f"{package.diamonds} алмаз", amount=package.stars)],
+        prices=[LabeledPrice(label=t(lang, "pay.label", n=n), amount=package.stars)],
     )
 
 
 @router.pre_checkout_query()
-async def pre_checkout(query: PreCheckoutQuery) -> None:
+async def pre_checkout(query: PreCheckoutQuery, repo: Repo) -> None:
     package = package_from_payload(query.invoice_payload)
     if package is None or query.currency != STARS or query.total_amount != package.stars:
-        await query.answer(ok=False, error_message="Бұл пакет енді қолжетімсіз. Мәзірден қайта таңдаңыз.")
+        lang = await repo.ensure_user(query.from_user.id, query.from_user.username, full_name(query.from_user))
+        await query.answer(ok=False, error_message=t(lang, "pay.bad_package"))
         return
     await query.answer(ok=True)
 
 
 @router.message(F.successful_payment)
-async def successful_payment(message: Message, repo: Repo) -> None:
+async def successful_payment(message: Message, repo: Repo, lang: str) -> None:
     payment = message.successful_payment
     package = package_from_payload(payment.invoice_payload)
     if package is None:
         log.error("Белгісіз төлем payload: %s", payment.invoice_payload)
-        await message.answer("⚠️ Төлем қабылданды, бірақ пакет табылмады. /paysupport арқылы хабарласыңыз.")
+        await message.answer(t(lang, "pay.unknown"))
         return
     user = message.from_user
     await repo.ensure_user(user.id, user.username, full_name(user))
@@ -76,11 +76,9 @@ async def successful_payment(message: Message, repo: Repo) -> None:
         total_amount=payment.total_amount,
     )
     if balance is None:
-        await message.answer("ℹ️ Бұл төлем бұрын тіркелген, алмаз балансқа қосылып қойған.")
+        await message.answer(t(lang, "pay.dup"))
         return
-    await message.answer(
-        f"✅ Төлем расталды! +{format_kzt(package.diamonds)} 💎\nАлмаз балансыңыз: {balance} 💎"
-    )
+    await message.answer(t(lang, "pay.ok", n=format_kzt(package.diamonds), balance=balance))
 
 
 # --- Әкімші командалары -------------------------------------------------------------------------

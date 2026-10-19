@@ -1,8 +1,9 @@
-"""Боттың қазақ тіліндегі мәтіндері."""
+"""Бот хабарламаларын құрастыру. Барлық мәтін ``mafia_bot.i18n`` каталогынан алынады."""
 
 from __future__ import annotations
 
 import html
+from datetime import timedelta
 
 from ..economy import (
     DAILY_REWARDS,
@@ -14,317 +15,190 @@ from ..economy import (
     format_kzt,
 )
 from ..game import balance
-from ..game.roles import FACTION_TITLES, ROLE_INFO, Faction, Role, title
+from ..game.roles import PURCHASABLE_ROLES, ROLE_INFO, Faction, Role, description, faction_title, title
+from ..i18n import t
 
-# --- Басты мәзір батырмалары ---------------------------------------------------------------
+# --- Басты мәзір -------------------------------------------------------------------------------
 
-BTN_JOIN = "🎮 Ойынға қосылу"
-BTN_ROOM = "🏠 Ойын бөлмесін ашу"
-BTN_PROFILE = "👤 Менің профилім"
-BTN_SHOP = "🛍 Дүкен"
-BTN_DIAMONDS = "💎 Алмаз сатып алу"
-BTN_ROLE = "🎭 Рөл таңдау"
-BTN_RULES = "📜 Ережелер"
-BTN_RATING = "🏆 Рейтинг"
-BTN_DAILY = "🎁 Күнделікті сыйлық"
-BTN_HELP = "❓ Көмек"
-
-MENU_ROWS = (
-    (BTN_JOIN, BTN_ROOM),
-    (BTN_PROFILE, BTN_SHOP),
-    (BTN_DIAMONDS, BTN_ROLE),
-    (BTN_RULES, BTN_RATING),
-    (BTN_DAILY, BTN_HELP),
+MENU_KEYS: tuple[tuple[str, ...], ...] = (
+    ("btn.join", "btn.room"),
+    ("btn.profile", "btn.shop"),
+    ("btn.diamonds", "btn.role"),
+    ("btn.rules", "btn.rating"),
+    ("btn.daily", "btn.help"),
+    ("btn.lang",),
 )
 
-WELCOME = (
-    "🎭 <b>Мафия ботына қош келдіңіз!</b>\n\n"
-    "Мен топтық чатта 4–50 адамға арналған Мафия ойынын жүргіземін:\n"
-    "• рөлдерді кездейсоқ таратамын және әр ойыншыға тек жеке чатта айтамын;\n"
-    "• түнгі әрекеттер мен дауыс беру — осы жеке чатта;\n"
-    "• нәтижелер таң атқанда ортақ чатта жарияланады.\n\n"
-    "Бастау үшін мені топқа қосып, әкімші етіңіз де, топта /game жазыңыз.\n"
-    "Төмендегі мәзірді пайдаланыңыз 👇"
-)
-
-HELP = (
-    "❓ <b>Көмек</b>\n\n"
-    "<b>Топта:</b>\n"
-    "/game — жаңа ойынға тіркелуді ашу\n"
-    "/startgame — тіркелуді аяқтап, ойынды бірден бастау (ашқан адам не әкімші)\n"
-    "/extend — тіркелуді 30 секундқа ұзарту\n"
-    "/leave — тіркелуден не ойыннан шығу\n"
-    "/stop — ойынды тоқтату (тек әкімшілер)\n\n"
-    "<b>Жеке чатта:</b>\n"
-    "/profile — профиль, /shop — дүкен, /daily — күнделікті сыйлық,\n"
-    "/rating — рейтинг, /rules — ережелер, /paysupport — төлем бойынша көмек\n\n"
-    "<b>Ойын барысы:</b>\n"
-    "1. Топта /game жазылады, ойыншылар «🎮 Ойынға қосылу» батырмасын басады.\n"
-    "2. Кемінде 4 ойыншы жиналса, ойын басталады (ең көбі 50).\n"
-    "3. Рөліңіз осы жеке чатқа келеді — оны ешкімге көрсетпеңіз!\n"
-    "4. Түнде рөліңізге сай әрекетті осында таңдайсыз.\n"
-    "5. Күндіз топта талқылайсыз, ал дауысты осы чатта бересіз.\n\n"
-    "Мафия, Қорғаушылар және Комиссар командасы бір-біріне осы чат арқылы жаза алады: "
-    "ойын кезінде ботқа жазған хабарламаңыз серіктестеріңізге жіберіледі."
-)
-
-NEED_ADMIN = (
-    "⚠️ Ойынды жүргізу үшін маған әкімші құқықтары керек:\n"
-    "• 🗑 хабарламаларды өшіру;\n"
-    "• 🚫 қатысушыларды шектеу (өлген ойыншылардың жазуын шектеу үшін);\n"
-    "• 📌 хабарламаларды бекіту (міндетті емес).\n\n"
-    "Топ баптауларынан мені әкімші етіп тағайындаңыз, содан кейін /game жазыңыз."
-)
-
-BOT_ADDED = (
-    "👋 Сәлем! Мен — Мафия ойынының жүргізушісімін.\n\n" + NEED_ADMIN
-)
-
-BOT_PROMOTED = (
-    "✅ Рахмет! Әкімші құқықтары берілді.\n"
-    "Ойынға тіркелуді ашу үшін /game жазыңыз. Әр ойыншы ботпен жеке чатты бастауы керек."
-)
-
-PAY_SUPPORT = (
-    "💳 <b>Төлем бойынша көмек</b>\n\n"
-    "Алмаздар Telegram Stars (⭐) арқылы сатылады, төлем Telegram-ның өзінде өтеді.\n"
-    "Төлем расталғаннан кейін алмаз балансыңызға бірден қосылады; бір төлем үшін алмаз тек бір рет беріледі.\n"
-    "Мәселе туындаса, бот әкімшісіне төлем чегін (Telegram-дағы төлем хабарламасы) жіберіңіз."
-)
-
-TERMS = (
-    "📄 <b>Шарттар</b>\n\n"
-    "• ₸ — ойын ішіндегі тегін валюта, ол нақты ақша емес және айырбасталмайды.\n"
-    "• 💎 алмаз — Telegram Stars арқылы сатып алынатын цифрлық ойын тауары.\n"
-    "• Сатып алынған алмаздар мен заттар тек осы бот ішінде қолданылады.\n"
-    "• Алмазға сатылатын артықшылықтар ойын ережелеріне сай шектеулі "
-    "(бір ойында бір қорғаныс, бір оқ және т.б.).\n"
-    "• Ереже бұзылғанда немесе алаяқтық анықталғанда әкімші тіркелгіні шектей алады."
-)
+RULE_PAGES: tuple[str, ...] = ("general", "roles", "night", "items", "balance")
 
 
-def menu_hint() -> str:
-    return "Мәзірден қажетті бөлімді таңдаңыз 👇"
+def menu_rows(lang: str) -> list[list[str]]:
+    return [[t(lang, key) for key in row] for row in MENU_KEYS]
+
+
+def format_timedelta(delta: timedelta, lang: str) -> str:
+    total = max(0, int(delta.total_seconds()))
+    hours, rem = divmod(total, 3600)
+    minutes = rem // 60
+    if hours:
+        return t(lang, "time.hm", h=hours, m=minutes)
+    return t(lang, "time.m", m=max(minutes, 1))
 
 
 # --- Ережелер ----------------------------------------------------------------------------------
 
-RULE_PAGES = {
-    "general": "📖 Жалпы",
-    "roles": "🎭 Рөлдер",
-    "night": "🌙 Түн реті",
-    "items": "🎒 Заттар",
-    "balance": "⚖️ Баланс",
-}
 
-
-def rules_page(page: str) -> str:
+def rules_page(page: str, lang: str) -> str:
     if page == "roles":
-        lines = ["🎭 <b>Рөлдер</b>"]
+        lines = [t(lang, "rules.roles_title")]
         for faction in Faction:
-            lines += ["", f"<b>{FACTION_TITLES[faction]}</b>"]
+            lines += ["", f"<b>{faction_title(faction, lang)}</b>"]
             for ri in ROLE_INFO.values():
                 if ri.faction is faction:
-                    lines.append(f"{ri.title} — {ri.description}")
+                    lines.append(f"{title(ri.role, lang)} — <i>{description(ri.role, lang)}</i>")
         return "\n".join(lines)
     if page == "night":
-        return (
-            "🌙 <b>Түнгі әрекеттердің есептелу реті</b>\n\n"
-            "1. Барлық түнгі таңдаулар жиналады (бір мезгілде).\n"
-            "2. 💻 Хакер бұғаттаған ойыншының әрекеті орындалмайды.\n"
-            "3. 🛡 Бас қорғаушының нысанасы анықталады.\n"
-            "4. 👨‍⚕️ Дәрігер емдейді (емделген адам сол түні шабуылдан да, бомбадан да өлмейді).\n"
-            "5. 🤵 Мафияның ортақ шабуылы (Донның шешімі, болмаса мафия дауысы).\n"
-            "6. 🔪 Киллер, 7. 🪓 Қанішер шабуылдайды.\n"
-            "8. 🕵️ Комиссар тексереді немесе атады.\n"
-            "9. 🍾 Қайыршы кімдер келгенін біледі.\n"
-            "10. 🔥 Бомбалар қойылады не жарылады.\n"
-            "11. 🧙‍♀️ Сиқыршы шабуылдаушыны жазалайды не кешіреді.\n"
-            "12. 💣 Камикадзе өлтірушісін өзімен бірге алып кетеді (Дәрігерден басым).\n"
-            "13. 🐺 Қасқырлар фракциясын ауыстырады.\n"
-            "14. Өлім мен тірі қалу бекітіледі, 15. жеңіс шарттары тексеріледі,\n"
-            "16. таңғы хабар ортақ чатта жарияланады.\n\n"
-            "Сатып алынған 🛡 қорғаныс тек бірінші өлімге әкелетін шабуылды тоқтатады. "
-            "Ол бомбаны, Камикадзе мен Сиқыршының арнайы әсерін тоқтатпайды."
-        )
+        return t(lang, "rules.night")
     if page == "items":
-        lines = ["🎒 <b>Заттар мен артықшылықтар</b>", ""]
+        lines = [t(lang, "rules.items_title"), ""]
         for item in SHOP.values():
-            lines.append(f"{item.emoji} <b>{item.name}</b> — {item.price_label}\n{item.description}\n")
-        lines.append(
-            f"🎭 <b>Рөл таңдау</b> — {ROLE_PICK_PRICE} 💎\nКелесі ойынға рөл таңдайсыз. Рөл ойыншылар "
-            "санына сай қолжетімді болса беріледі, әйтпесе таңдау сақталады немесе алмазды қайтара аласыз.\n"
-        )
-        lines.append(
-            "⚖️ Әділдік: бір ойында ең көбі бір қорғаныс, бір дауыс қорғанысы және бір оқ қолданылады. "
-            "Заттар тек шын қажет болғанда жұмсалады."
-        )
+            lines.append(t(lang, "rules.item_line", emoji=item.emoji, name=item.name(lang),
+                           price=item.price_label, desc=item.description(lang)))
+        lines.append(t(lang, "rules.role_pick", price=ROLE_PICK_PRICE))
+        lines.append(t(lang, "rules.fairness"))
         return "\n".join(lines)
     if page == "balance":
         rows = []
         prev = None
         for n in range(balance.MIN_PLAYERS, balance.MAX_PLAYERS + 1):
-            comp = balance.composition(n)
-            special = {r: c for r, c in comp.items() if r is not Role.CIVILIAN}
+            special = {r: c for r, c in balance.composition(n).items() if r is not Role.CIVILIAN}
             if special != prev:
                 parts = ", ".join(
-                    f"{title(r).split(' ', 1)[0]}{'×' + str(c) if c > 1 else ''}" for r, c in special.items()
+                    f"{ROLE_INFO[r].emoji}{'×' + str(c) if c > 1 else ''}" for r, c in special.items()
                 )
                 rows.append(f"<b>{n}+</b>: {parts}")
                 prev = special
-        rewards = ", ".join(f"{n} ойыншы — {r} ₸" for n, r in REWARD_POINTS)
-        return (
-            "⚖️ <b>Ойыншылар санына қарай рөлдер</b>\n"
-            "(қалған орындар — 👨 Тұрғындар)\n\n" + "\n".join(rows)
-            + f"\n\n💰 <b>Жеңіс сыйақысы</b>: {rewards}; аралық сандар автоматты есептеледі."
-        )
-    return (
-        "📖 <b>Жалпы ережелер</b>\n\n"
-        f"• Ойынға {balance.MIN_PLAYERS}–{balance.MAX_PLAYERS} ойыншы қатысады.\n"
-        "• Рөлдер кездейсоқ таратылады және тек жеке чатта айтылады.\n"
-        "• Ойын түннен басталады. Түнде арнайы рөлдер жеке чатта әрекет етеді, басқалар ұйықтайды "
-        "(түнде топқа жазылған хабарламалар өшіріледі).\n"
-        "• Таңертең кім қаза тапқаны және оның рөлі жарияланады.\n"
-        "• Күндіз талқылау, содан кейін жеке чатта дауыс беру. Ең көп дауыс жинаған дарға асылады; "
-        "дауыс тең болса — ешкім асылмайды.\n"
-        "• Өлген ойыншылар топқа жаза алмайды (ойын соңына дейін).\n"
-        "• Ойыннан шыққан (/leave) ойыншы жеңіліске ұшырайды.\n\n"
-        "<b>Жеңіс шарттары</b>\n"
-        "🏘 Бейбіттер — барлық Дон, мафия, Киллер және Қанішер жойылса.\n"
-        "🤵 Мафия — Дон, мафия және Киллер саны қалған ойыншылардан (Қорғаушыларды есептемегенде) "
-        "кем болмаса және Қанішер тірі болмаса. Қорғаушылар мафиямен бірге жеңеді.\n"
-        "🪓 Қанішер — тірі ойыншылардың соңғы екеуінің бірі болса.\n"
-        "🤡 Өзін-өзі өлтіруші — дарға асылса; 🔥 Пиро — бомбаланғандарды түгел жарса.\n"
-        "Жеңімпаз фракцияның тірі де, өлген де мүшелері ₸ сыйақы алады."
-    )
+        rewards = ", ".join(f"{n} → {r} ₸" for n, r in REWARD_POINTS)
+        return "\n".join([
+            t(lang, "rules.balance_title"),
+            "",
+            *rows,
+            "",
+            t(lang, "rules.higgs_rare", min=balance.HIGGS_MIN_PLAYERS, chance=round(balance.HIGGS_CHANCE * 100)),
+            t(lang, "rules.rewards", rewards=rewards),
+        ])
+    return t(lang, "rules.general", min=balance.MIN_PLAYERS, max=balance.MAX_PLAYERS)
 
 
 # --- Профиль, дүкен, рейтинг -------------------------------------------------------------------
 
 
 def display_name(username: str | None, full_name: str) -> str:
-    return f"@{username}" if username else html.escape(full_name or "Ойыншы")
+    return f"@{username}" if username else html.escape(full_name or "—")
 
 
-def profile_text(user, recent, queue, rank: int | None) -> str:
+def profile_text(user, recent, queue, rank: int | None, lang: str) -> str:
     games = user["games_played"]
     wins = user["wins"]
-    rate = f"{wins / games * 100:.1f}".replace(".", ",") + "%" if games else "—"
+    rate = f"{wins / games * 100:.1f}%" if games else "—"
     lines = [
-        "👤 <b>Ойыншы профилі</b>",
+        t(lang, "profile.title"),
         "",
-        f"🎮 Ойыншы: {display_name(user['username'], user['full_name'])}",
-        f"🆔 ID: <code>{user['user_id']}</code>",
-        f"📅 Тіркелген күні: {user['registered_at']:%d.%m.%Y}",
+        t(lang, "profile.player", name=display_name(user["username"], user["full_name"])),
+        t(lang, "profile.id", id=user["user_id"]),
+        t(lang, "profile.registered", date=f"{user['registered_at']:%d.%m.%Y}"),
         "",
-        "📊 <b>Статистика:</b>",
-        f"Ойындар: {games}",
-        f"Жеңістер: {wins}",
-        f"Жеңілістер: {user['losses']}",
-        f"Жеңіс пайызы: {rate}",
+        t(lang, "profile.stats"),
+        t(lang, "profile.games", n=games),
+        t(lang, "profile.wins", n=wins),
+        t(lang, "profile.losses", n=user["losses"]),
+        t(lang, "profile.rate", rate=rate),
     ]
     if rank:
-        lines.append(f"Рейтингтегі орны: {rank}")
+        lines.append(t(lang, "profile.rank", rank=rank))
     if recent:
-        lines += ["", "🕹 <b>Соңғы ойындар:</b>"]
+        lines += ["", t(lang, "profile.recent")]
         for r in recent:
-            mark = "✅" if r["won"] else "❌"
-            role = Role(r["final_role"] or r["role"])
-            reward = f", +{r['reward']} ₸" if r["reward"] else ""
-            lines.append(f"{mark} {title(role)} — {r['players_count']} ойыншы{reward}")
+            reward = t(lang, "profile.reward", reward=r["reward"]) if r["reward"] else ""
+            lines.append(t(lang, "profile.recent_line", mark="✅" if r["won"] else "❌",
+                           role=title(Role(r["final_role"] or r["role"]), lang),
+                           count=r["players_count"], reward=reward))
     lines += [
         "",
-        "💰 <b>Баланс:</b>",
-        f"₸: {user['tenge']}",
-        f"💎 Алмаз: {user['diamonds']}",
+        t(lang, "profile.balance"),
+        t(lang, "profile.tenge", n=user["tenge"]),
+        t(lang, "profile.diamonds", n=user["diamonds"]),
         "",
-        "🎒 <b>Заттар:</b>",
-        f"🛡 Қорғаныс: {user['shields']}",
-        f"📄 Жалған құжат: {user['fake_docs']}",
+        t(lang, "profile.items"),
+        t(lang, "profile.shields", n=user["shields"]),
+        t(lang, "profile.fake_docs", n=user["fake_docs"]),
         "",
-        "💎 <b>Премиум артықшылықтар:</b>",
-        f"⚖️ Дауыс беруден қорғаныс: {user['vote_shields']}",
-        f"💥 Қорғанысты тесетін оқ: {user['piercing_bullets']}",
+        t(lang, "profile.premium"),
+        t(lang, "profile.vote_shields", n=user["vote_shields"]),
+        t(lang, "profile.bullets", n=user["piercing_bullets"]),
         "",
     ]
     if queue:
-        first = Role(queue[0]["role"])
-        rest = f" (кезекте тағы {len(queue) - 1})" if len(queue) > 1 else ""
-        lines.append(f"🎭 Келесі ойынның рөлі: {title(first)}{rest}")
+        more = t(lang, "profile.queue_more", n=len(queue) - 1) if len(queue) > 1 else ""
+        lines.append(t(lang, "profile.next_role", role=title(Role(queue[0]["role"]), lang), more=more))
     else:
-        lines.append("🎭 Келесі ойынның рөлі: таңдалмаған")
+        lines.append(t(lang, "profile.next_none"))
     return "\n".join(lines)
 
 
-def shop_text(user) -> str:
-    lines = [
-        "🛍 <b>Дүкен</b>",
-        f"Балансыңыз: {user['tenge']} ₸ · {user['diamonds']} 💎",
-        "",
-    ]
+def shop_text(user, lang: str) -> str:
+    lines = [t(lang, "shop.title"), t(lang, "shop.balance", tenge=user["tenge"], diamonds=user["diamonds"]), ""]
     for item in SHOP.values():
-        lines.append(f"{item.emoji} <b>{item.name}</b> — {item.price_label}\n{item.description}\n")
-    lines.append("Заттар профильде сақталады және келесі ойындарда автоматты түрде қолданылады.")
+        lines.append(t(lang, "rules.item_line", emoji=item.emoji, name=item.name(lang),
+                       price=item.price_label, desc=item.description(lang)))
+    lines.append(t(lang, "shop.footer"))
     return "\n".join(lines)
 
 
-def purchase_ok(item: Item, balance_left: int, count: int) -> str:
+def purchase_ok(item: Item, balance_left: int, count: int, lang: str) -> str:
     s = SHOP[item]
     currency = "₸" if s.currency == "tenge" else "💎"
-    return f"✅ {s.emoji} {s.name} сатып алынды! Қолыңызда: {count}. Қалған баланс: {balance_left} {currency}"
+    return t(lang, "shop.bought", emoji=s.emoji, name=s.name(lang), count=count,
+             balance=balance_left, currency=currency)
 
 
-def diamonds_text() -> str:
-    lines = [
-        "💎 <b>Алмаз сатып алу</b>",
-        "",
-        "Пакет үлкейген сайын бір алмаздың бағасы арзандайды.",
-        "Төлем Telegram Stars (⭐) арқылы қауіпсіз өтеді.",
-        "",
-    ]
+def diamonds_text(lang: str) -> str:
+    lines = [t(lang, "dia.title"), "", t(lang, "dia.intro"), ""]
     for p in DIAMOND_PACKAGES:
-        lines.append(
-            f"• <b>{format_kzt(p.diamonds)} 💎</b> — {format_kzt(p.price_kzt)} ₸ "
-            f"({format_kzt(round(p.per_diamond_kzt, 2))} ₸/💎) · {p.stars} ⭐"
-        )
+        lines.append(t(lang, "dia.line", diamonds=format_kzt(p.diamonds), price=format_kzt(p.price_kzt),
+                       per=format_kzt(round(p.per_diamond_kzt, 2)), stars=p.stars))
     return "\n".join(lines)
 
 
-def role_pick_text(queue) -> str:
-    lines = [
-        "🎭 <b>Келесі ойынға рөл таңдау</b>",
-        f"Бағасы: {ROLE_PICK_PRICE} 💎. Рөл ойыншылар саны жеткен ойында беріледі.",
-        "Бір ойында бір таңдау қолданылады, қалғандары кезекте тұрады.",
-        "",
-    ]
-    for role in Role:
-        if role is Role.CIVILIAN:
-            continue
-        lines.append(f"{title(role)} — {balance.min_players_for(role)}+ ойыншы")
+def role_pick_text(queue, lang: str) -> str:
+    lines = [t(lang, "rp.title"), t(lang, "rp.intro", price=ROLE_PICK_PRICE), ""]
+    for role in PURCHASABLE_ROLES:
+        lines.append(t(lang, "rp.line", role=title(role, lang), min=balance.min_players_for(role)))
+    lines += ["", t(lang, "rp.higgs_note", role=title(Role.HIGGS, lang))]
     if queue:
-        lines += ["", "📋 Кезегіңіз: " + ", ".join(title(Role(q["role"])) for q in queue)]
+        lines += ["", t(lang, "rp.queue", roles=", ".join(title(Role(q["role"]), lang) for q in queue))]
     return "\n".join(lines)
 
 
-def rating_text(top, me_rank: int | None) -> str:
-    lines = ["🏆 <b>Үздік ойыншылар</b>", ""]
+def rating_text(top, me_rank: int | None, lang: str) -> str:
+    lines = [t(lang, "rating.title"), ""]
     medals = {1: "🥇", 2: "🥈", 3: "🥉"}
     if not top:
-        lines.append("Әзірге ешкім ойнаған жоқ.")
+        lines.append(t(lang, "rating.empty"))
     for i, r in enumerate(top, 1):
         rate = r["wins"] / r["games_played"] * 100 if r["games_played"] else 0
-        lines.append(
-            f"{medals.get(i, f'{i}.')} {display_name(r['username'], r['full_name'])} — "
-            f"{r['wins']} жеңіс / {r['games_played']} ойын ({rate:.0f}%)"
-        )
+        lines.append(t(lang, "rating.line", medal=medals.get(i, f"{i}."),
+                       name=display_name(r["username"], r["full_name"]), wins=r["wins"],
+                       games=r["games_played"], rate=f"{rate:.0f}"))
     if me_rank:
-        lines += ["", f"Сіздің орныңыз: {me_rank}"]
+        lines += ["", t(lang, "rating.me", rank=me_rank)]
     return "\n".join(lines)
 
 
-def daily_text(day: int, reward: int, balance_now: int | None) -> str:
-    plan = " · ".join(
-        (f"<b>{r}</b>" if i + 1 == day else str(r)) for i, r in enumerate(DAILY_REWARDS)
-    )
-    tail = f"\nБалансыңыз: {balance_now} ₸" if balance_now is not None else ""
-    return f"🎁 {day}-күннің сыйлығы: <b>+{reward} ₸</b>!\n{plan}{tail}\nЕртең тағы келіңіз!"
+def daily_text(day: int, reward: int, balance_now: int | None, lang: str) -> str:
+    plan = " · ".join((f"<b>{r}</b>" if i + 1 == day else str(r)) for i, r in enumerate(DAILY_REWARDS))
+    lines = [t(lang, "daily.ok", day=day, reward=reward), plan]
+    if balance_now is not None:
+        lines.append(t(lang, "daily.balance", n=balance_now))
+    lines.append(t(lang, "daily.tomorrow"))
+    return "\n".join(lines)

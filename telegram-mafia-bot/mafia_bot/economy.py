@@ -6,6 +6,8 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from enum import StrEnum
 
+from .i18n import t
+
 # --- Жеңіс сыйақысы (₸) -------------------------------------------------------
 
 # Кестедегі тірек нүктелер: ойыншылар саны -> ₸.
@@ -28,6 +30,10 @@ def win_reward(players: int) -> int:
     raise AssertionError("unreachable")
 
 
+# ⚛️ Higgs-Man жеңсе, сыйақысы екі есе (100%-ға көп).
+HIGGS_REWARD_MULTIPLIER = 2
+
+
 # --- ₸ және 💎 заттар ---------------------------------------------------------
 
 
@@ -42,38 +48,25 @@ class Item(StrEnum):
 class ShopItem:
     item: Item
     emoji: str
-    name: str
     price: int
     currency: str  # "tenge" | "diamonds"
-    description: str
 
     @property
     def price_label(self) -> str:
         return f"{self.price} ₸" if self.currency == "tenge" else f"{self.price} 💎"
 
+    def name(self, lang: str | None = None) -> str:
+        return t(lang, f"item.{self.item.value}.name")
+
+    def description(self, lang: str | None = None) -> str:
+        return t(lang, f"item.{self.item.value}.desc")
+
 
 SHOP: dict[Item, ShopItem] = {
-    Item.SHIELD: ShopItem(
-        Item.SHIELD, "🛡", "Қорғаныс", 100, "tenge",
-        "Бір ойында бір рет түнгі өлімге әкелетін шабуылдан сақтайды (мафия, Киллер, "
-        "Қанішер, Комиссардың оғы). Қолданылғаны ешкімге жарияланбайды.",
-    ),
-    Item.FAKE_DOC: ShopItem(
-        Item.FAKE_DOC, "📄", "Жалған құжат", 160, "tenge",
-        "Дон, мафия, Пиро немесе Қанішер болсаңыз, Комиссардың бірінші тексеруі "
-        "сізді «Тұрғын» деп көрсетеді. Бір ойынға ғана жарамды.",
-    ),
-    Item.VOTE_SHIELD: ShopItem(
-        Item.VOTE_SHIELD, "⚖️", "Дауыс беруден қорғаныс", 1, "diamonds",
-        "Күндізгі дауыс беруде дарға асылуға таңдалсаңыз, бір рет тірі қаласыз. "
-        "Түнгі шабуылдан сақтамайды.",
-    ),
-    Item.PIERCING_BULLET: ShopItem(
-        Item.PIERCING_BULLET, "💥", "Қорғанысты тесетін оқ", 1, "diamonds",
-        "Дон (мафияның ортақ шабуылы), Киллер, Комиссар (оқ ату) не Қанішер болсаңыз, "
-        "шабуылыңыз нысананың сатып алынған қорғанысын бұзып өтеді. Тек қорғаныс шын "
-        "бұзылғанда жұмсалады.",
-    ),
+    Item.SHIELD: ShopItem(Item.SHIELD, "🛡", 100, "tenge"),
+    Item.FAKE_DOC: ShopItem(Item.FAKE_DOC, "📄", 160, "tenge"),
+    Item.VOTE_SHIELD: ShopItem(Item.VOTE_SHIELD, "⚖️", 1, "diamonds"),
+    Item.PIERCING_BULLET: ShopItem(Item.PIERCING_BULLET, "💥", 1, "diamonds"),
 }
 
 ROLE_PICK_PRICE = 1          # 💎 — келесі ойынға рөл таңдау
@@ -148,11 +141,3 @@ def compute_daily(last_claim: datetime | None, streak: int, now: datetime) -> Da
     day = streak % len(DAILY_REWARDS) + 1
     return DailyResult(ok=True, day=day, reward=DAILY_REWARDS[day - 1])
 
-
-def format_timedelta(delta: timedelta) -> str:
-    total = max(0, int(delta.total_seconds()))
-    hours, rem = divmod(total, 3600)
-    minutes = rem // 60
-    if hours:
-        return f"{hours} сағ {minutes} мин"
-    return f"{max(minutes, 1)} мин"

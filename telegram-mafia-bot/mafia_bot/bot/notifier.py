@@ -53,8 +53,6 @@ UNMUTED = ChatPermissions(
     can_pin_messages=True,
     can_manage_topics=True,
 )
-# Бот күтпеген жерден тоқтаса да, шектеу мәңгі қалмасын.
-RESTRICTION_SAFETY = timedelta(hours=6)
 
 
 class TelegramNotifier:
@@ -71,7 +69,8 @@ class TelegramNotifier:
             "&admin=delete_messages+restrict_members+pin_messages"
         )
 
-    async def _retry(self, call: Callable[[], Awaitable[T]], attempts: int = 3) -> T:
+    async def _retry(self, call: Callable[[], Awaitable[T]], attempts: int = 6) -> T:
+        # Топқа минутына ~20 хабар шегі бар: Telegram күтуді сұраса, күтіп, қайталаймыз.
         for attempt in range(attempts):
             try:
                 return await call()
@@ -111,20 +110,22 @@ class TelegramNotifier:
         except TelegramAPIError:
             log.exception("Хабарламаны өзгерту қатесі")
 
-    async def restrict(self, chat_id: int, user_id: int) -> bool:
+    async def restrict(self, chat_id: int, user_id: int, seconds: float) -> bool:
+        """Қатысушыны ``seconds`` секундқа үнсіз ету (Telegram өзі мерзімі біткенде алады)."""
         try:
             member = await self.bot.get_chat_member(chat_id, user_id)
             if member.status != "member":  # әкімшілерді және басқа шектеулерді өзгертпейміз
                 return False
+            until = datetime.now(UTC) + timedelta(seconds=max(seconds, 31))
             await self._retry(
                 lambda: self.bot.restrict_chat_member(
                     chat_id, user_id, permissions=MUTED, use_independent_chat_permissions=True,
-                    until_date=datetime.now(UTC) + RESTRICTION_SAFETY,
+                    until_date=until,
                 )
             )
             return True
         except TelegramAPIError as e:
-            log.info("Ойыншыны шектеу мүмкін болмады (%s/%s): %s", chat_id, user_id, e)
+            log.info("Қатысушыны үнсіз ету мүмкін болмады (%s/%s): %s", chat_id, user_id, e)
             return False
 
     async def unrestrict(self, chat_id: int, user_id: int) -> None:

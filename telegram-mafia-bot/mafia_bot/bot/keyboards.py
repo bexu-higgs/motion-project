@@ -10,14 +10,18 @@ from aiogram.types import (
 )
 
 from ..controller import Keyboard
+from ..db.models import START_MODES, ChatSettings
 from ..economy import DIAMOND_PACKAGES, SHOP, format_kzt
 from ..game.roles import PURCHASABLE_ROLES, Role, title
+from ..i18n import LANG_NAMES, LANGS, t
 from . import texts
 
+REGISTRATION_CHOICES = (30, 60, 90, 120, 180, 300)
 
-def main_menu() -> ReplyKeyboardMarkup:
+
+def main_menu(lang: str) -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
-        keyboard=[[KeyboardButton(text=t) for t in row] for row in texts.MENU_ROWS],
+        keyboard=[[KeyboardButton(text=label) for label in row] for row in texts.menu_rows(lang)],
         resize_keyboard=True,
         is_persistent=True,
     )
@@ -34,48 +38,71 @@ def inline(keyboard: Keyboard | None) -> InlineKeyboardMarkup | None:
     )
 
 
-def shop() -> InlineKeyboardMarkup:
+def _button(text: str, data: str) -> InlineKeyboardButton:
+    return InlineKeyboardButton(text=text, callback_data=data)
+
+
+def shop(lang: str) -> InlineKeyboardMarkup:
     rows = [
-        [InlineKeyboardButton(text=f"{i.emoji} {i.name} — {i.price_label}", callback_data=f"buy:{i.item.value}")]
+        [_button(f"{i.emoji} {i.name(lang)} — {i.price_label}", f"buy:{i.item.value}")]
         for i in SHOP.values()
     ]
-    rows.append([InlineKeyboardButton(text=texts.BTN_DIAMONDS, callback_data="dia")])
+    rows.append([_button(t(lang, "btn.diamonds"), "dia")])
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
 def diamond_packages() -> InlineKeyboardMarkup:
     rows = [
-        [InlineKeyboardButton(
-            text=f"{format_kzt(p.diamonds)} 💎 — {format_kzt(p.price_kzt)} ₸ · {p.stars} ⭐",
-            callback_data=f"pkg:{p.id}",
-        )]
+        [_button(f"{format_kzt(p.diamonds)} 💎 — {format_kzt(p.price_kzt)} ₸ · {p.stars} ⭐", f"pkg:{p.id}")]
         for p in DIAMOND_PACKAGES
     ]
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
-def role_pick() -> InlineKeyboardMarkup:
-    buttons = [
-        InlineKeyboardButton(text=title(r), callback_data=f"rp:{r.value}") for r in PURCHASABLE_ROLES
-    ]
+def role_pick(lang: str) -> InlineKeyboardMarkup:
+    buttons = [_button(title(r, lang), f"rp:{r.value}") for r in PURCHASABLE_ROLES]
     rows = [buttons[i:i + 2] for i in range(0, len(buttons), 2)]
-    rows.append([InlineKeyboardButton(text="📋 Менің кезегім", callback_data="rq")])
+    rows.append([_button(t(lang, "rq.button"), "rq")])
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
-def role_queue(queue) -> InlineKeyboardMarkup | None:
+def role_queue(queue, lang: str) -> InlineKeyboardMarkup | None:
     rows = [
-        [InlineKeyboardButton(
-            text=f"❌ {title(Role(q['role']))} — 💎 қайтару", callback_data=f"rr:{q['purchase_id']}"
-        )]
+        [_button(t(lang, "rq.refund_btn", role=title(Role(q["role"]), lang)), f"rr:{q['purchase_id']}")]
         for q in queue
     ]
     return InlineKeyboardMarkup(inline_keyboard=rows) if rows else None
 
 
-def rules() -> InlineKeyboardMarkup:
-    buttons = [InlineKeyboardButton(text=v, callback_data=f"rules:{k}") for k, v in texts.RULE_PAGES.items()]
+def rules(lang: str) -> InlineKeyboardMarkup:
+    buttons = [_button(t(lang, f"rules.tab.{page}"), f"rules:{page}") for page in texts.RULE_PAGES]
     return InlineKeyboardMarkup(inline_keyboard=[buttons[:3], buttons[3:]])
+
+
+def languages(prefix: str, current: str) -> list[list[InlineKeyboardButton]]:
+    buttons = [
+        _button(("✅ " if code == current else "") + LANG_NAMES[code], f"{prefix}{code}") for code in LANGS
+    ]
+    return [buttons[i:i + 2] for i in range(0, len(buttons), 2)]
+
+
+def user_languages(current: str) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=languages("ulang:", current))
+
+
+def chat_settings(cfg: ChatSettings, registration_seconds: int) -> InlineKeyboardMarkup:
+    lang = cfg.lang
+    reg = [
+        _button(("✅ " if s == registration_seconds else "") + t(lang, "settings.sec", n=s), f"cfg:reg:{s}")
+        for s in REGISTRATION_CHOICES
+    ]
+    start = [
+        _button(("✅ " if m == cfg.start_mode else "") + t(lang, f"settings.start.{m}"), f"cfg:start:{m}")
+        for m in START_MODES
+    ]
+    rows = [reg[:3], reg[3:], start, *languages("cfg:lang:", lang)]
+    rows.append([_button(t(lang, "settings.close_btn"), "cfg:close")])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
 def url_button(text: str, url: str) -> InlineKeyboardMarkup:

@@ -24,6 +24,7 @@ pytestmark = pytest.mark.skipif(not DSN, reason="TEST_DATABASE_URL көрсет�
 
 BOT_ID = 4242
 GROUP = -1009000
+CHAT_ADMIN = 7  # топ иесі (бот әкімшісі емес)
 TABLES = "ledger, payments, role_purchases, game_players, games, chats, users"
 
 
@@ -71,7 +72,11 @@ class FakeTelegram(BaseSession):
         if isinstance(method, m.GetChatMember):
             if method.user_id == BOT_ID and self.bot_is_admin:
                 return bot_admin()
+            if method.user_id == CHAT_ADMIN:
+                return t.ChatMemberOwner(user=user(CHAT_ADMIN), is_anonymous=False)
             return t.ChatMemberMember(user=user(method.user_id))
+        if isinstance(method, m.GetChatAdministrators):
+            return [t.ChatMemberOwner(user=user(CHAT_ADMIN), is_anonymous=False)]
         return True
 
     async def close(self):
@@ -124,10 +129,10 @@ class Harness:
         await self.dp.feed_update(self.bot, t.Update(update_id=next(self.update_ids), message=msg))
         return msg
 
-    async def click(self, from_id: int, message_id: int, data: str):
+    async def click(self, from_id: int, message_id: int, data: str, chat_id: int | None = None):
         cb = t.CallbackQuery(
             id=str(next(self.update_ids)), from_user=user(from_id), chat_instance="ci", data=data,
-            message=t.Message(message_id=message_id, date=now(), chat=chat(from_id), text="prompt"),
+            message=t.Message(message_id=message_id, date=now(), chat=chat(chat_id or from_id), text="prompt"),
         )
         await self.dp.feed_update(self.bot, t.Update(update_id=next(self.update_ids), callback_query=cb))
 
@@ -144,6 +149,9 @@ async def harness():
     conn = await asyncpg.connect(DSN)
     await conn.execute(f"DROP TABLE IF EXISTS {TABLES} CASCADE")
     await conn.close()
+    from mafia_bot.bot.common import AdminCache
+
+    AdminCache.shared.clear()
     repo = await Repo.connect(DSN)
     settings = Settings(bot_token="x", database_url=DSN, admin_ids=frozenset({1}))
     h = Harness(repo, settings)
@@ -206,23 +214,29 @@ async def test_full_game_through_telegram_handlers(harness):
         await h.text(uid, uid, f"/start {payload}")
         assert "тіркелдіңіз" in tg.sent(uid)[-1].text
 
-    # Бөгде адам ойынды бастай алмайды; ашқан адам бастай алады.
+    # «Барлығы» режимінде (әдепкі) бөгде адам да бастай алар еді — әкімші режимін қосамыз.
+    await h.text(CHAT_ADMIN, GROUP, "/settingsmafiahiggs")
+    settings_msg = tg.sent(GROUP)[-1]
+    assert "Мафия баптаулары" in settings_msg.text
+    datas = [b.callback_data for b in keyboard_buttons(settings_msg)]
+    assert "cfg:start:admins" in datas and "cfg:lang:en" in datas and "cfg:reg:60" in datas
+    await h.click(2, settings_msg.message_id if hasattr(settings_msg, "message_id") else 1,
+                  "cfg:start:admins", chat_id=GROUP)
+    denied = [c for c in tg.calls if isinstance(c, m.AnswerCallbackQuery)][-1]
+    assert denied.show_alert and "әкімшілері" in denied.text
+    await h.click(CHAT_ADMIN, 1, "cfg:start:admins", chat_id=GROUP)
+    assert (await h.repo.get_chat_settings(GROUP)).start_mode == "admins"
     await h.text(99, GROUP, "/startgame")
-    assert "бастай алады" in tg.sent(GROUP)[-1].text
+    assert "тек әкімшілер" in tg.sent(GROUP)[-1].text
     stop = asyncio.Event()
     player_task = asyncio.create_task(autoplay(h, random.Random(1), stop))
-    await h.text(1, GROUP, "/startgame")
+    await h.text(CHAT_ADMIN, GROUP, "/startgame")
     for _ in range(500):
         if GROUP in h.manager.sessions:
             break
         await asyncio.sleep(0.002)
     assert GROUP in h.manager.sessions
     s = h.manager.sessions[GROUP]
-
-    # Түнде топқа жазылған хабарлама өшіріледі.
-    if s.game.phase.value == "night":
-        msg = await h.text(2, GROUP, "мен тұрғынмын!")
-        assert any(isinstance(c, m.DeleteMessage) and c.message_id == msg.message_id for c in tg.calls)
 
     gid = s.game_id
     for _ in range(3000):
@@ -245,12 +259,12 @@ async def test_full_game_through_telegram_handlers(harness):
                   and c.permissions.can_send_messages is False]
     lifted = [c.user_id for c in tg.calls if isinstance(c, m.RestrictChatMember)
               and c.permissions.can_send_messages is True]
-    assert sorted(restricted) == sorted(lifted)
+    assert set(restricted) <= set(lifted)  # ойын соңында үнсіздік алынады
 
     # Профиль статистиканы көрсетеді.
     await h.text(1, 1, "👤 Менің профилім")
     text = tg.sent(1)[-1].text
-    assert "Ойындар: 1" in text and "ID: <code>1</code>" in text
+    assert "Ойындар: <b>1</b>" in text and "ID: <code>1</code>" in text
 
 
 async def test_shop_daily_roles_and_payments(harness):
@@ -270,7 +284,7 @@ async def test_shop_daily_roles_and_payments(harness):
     assert answer.show_alert and "жеткіліксіз" in answer.text
     await h.repo.grant(5, "tenge", 200, "test")
     await h.click(5, 1, "buy:shields")
-    assert "Қорғаныс сатып алынды" in tg.sent(5)[-1].text
+    assert "Қорғаныс</b> сатып алынды" in tg.sent(5)[-1].text
 
     # Алмаз сатып алу: шот → pre_checkout → сәтті төлем (екі рет келсе де бір рет қосылады).
     await h.click(5, 1, "pkg:d40")
@@ -306,8 +320,8 @@ async def test_shop_daily_roles_and_payments(harness):
 
     # Мәзірдің басқа бөлімдері қатесіз жауап береді.
     for button in ("🛍 Дүкен", "💎 Алмаз сатып алу", "🎭 Рөл таңдау", "📜 Ережелер",
-                   "🏆 Рейтинг", "❓ Көмек", "🎮 Ойынға қосылу", "🏠 Ойын бөлмесін ашу",
-                   "/paysupport", "/terms", "кез келген мәтін"):
+                   "🏆 Рейтинг", "❓ Көмек", "🎮 Ойынға қосылу", "🏠 Ойын бөлмесін ашу", "🌐 Тіл",
+                   "/paysupport", "/terms", "/language", "кез келген мәтін"):
         before = len(tg.sent(5))
         await h.text(5, 5, button)
         assert len(tg.sent(5)) == before + 1, button
@@ -332,3 +346,92 @@ async def test_admin_commands(harness):
     assert "Жаңа баланс: 5" in h.tg.sent(1)[-1].text
     await h.text(3, 3, "/give 2 diamonds 5")  # әкімші емес — жауап жоқ
     assert (await h.repo.get_user(2))["diamonds"] == 5
+
+
+async def test_user_language_switch(harness):
+    h = harness
+    tg = h.tg
+    await h.text(3, 3, "/start")
+    await h.text(3, 3, "/language")
+    langs = [b.callback_data for b in keyboard_buttons(tg.sent(3)[-1])]
+    assert langs == ["ulang:kk", "ulang:en", "ulang:ru", "ulang:uz", "ulang:ky", "ulang:tr"]
+    await h.click(3, 1, "ulang:en")
+    reply = tg.sent(3)[-1]
+    assert "Language changed" in reply.text
+    labels = [b.text for row in reply.reply_markup.keyboard for b in row]
+    assert "👤 My profile" in labels
+    await h.text(3, 3, "👤 My profile")
+    assert "Player profile" in tg.sent(3)[-1].text
+    # Басқа тілдегі батырма да танылады
+    await h.text(3, 3, "👤 Менің профилім")
+    assert "Player profile" in tg.sent(3)[-1].text
+    await h.click(3, 1, "ulang:ru")
+    await h.text(3, 3, "/daily")
+    assert "Бонус" in tg.sent(3)[-1].text
+
+
+async def test_chat_language_and_registration_time(harness):
+    h = harness
+    tg = h.tg
+    await h.text(CHAT_ADMIN, GROUP, "/settingsmafiahiggs")
+    await h.click(CHAT_ADMIN, 1, "cfg:lang:tr", chat_id=GROUP)
+    await h.click(CHAT_ADMIN, 1, "cfg:reg:30", chat_id=GROUP)
+    edit = [c for c in tg.calls if isinstance(c, m.EditMessageText)][-1]
+    assert "Mafya ayarları" in edit.text and "30 sn" in edit.text
+    cfg = await h.repo.get_chat_settings(GROUP)
+    assert cfg.lang == "tr" and cfg.registration_seconds == 30
+    await h.text(4, GROUP, "/game")
+    lobby = next(c for c in tg.sent(GROUP) if "kayıt açık" in c.text)
+    assert "30 sn" in lobby.text or "29 sn" in lobby.text
+    await h.text(4, GROUP, "/stop")
+    assert "yöneticileri" in tg.sent(GROUP)[-1].text  # әкімші емес — тоқтата алмайды
+    await h.text(CHAT_ADMIN, GROUP, "/stop")
+    assert not h.manager.busy(GROUP)
+
+
+async def test_settings_only_for_admins(harness):
+    h = harness
+    await h.text(5, GROUP, "/settingsmafiahiggs")
+    assert "әкімшілері" in h.tg.sent(GROUP)[-1].text
+
+
+async def test_group_moderation(harness):
+    h = harness
+    tg = h.tg
+    h.manager.time_scale = 50  # түн ұзақ болсын — ешкім әрекет жасамайды
+    await h.text(CHAT_ADMIN, GROUP, "/game")
+    payload = keyboard_buttons(next(c for c in tg.sent(GROUP) if "тіркелу ашық" in c.text))[0].url.split("start=")[1]
+    for uid in range(1, 6):
+        await h.text(uid, uid, f"/start {payload}")
+    await h.text(CHAT_ADMIN, GROUP, "/startgame")
+    for _ in range(500):
+        if GROUP in h.manager.sessions:
+            break
+        await asyncio.sleep(0.002)
+    s = h.manager.sessions[GROUP]
+    assert s.game.phase.value == "night"
+
+    def deleted(msg):
+        return any(isinstance(c, m.DeleteMessage) and c.message_id == msg.message_id for c in tg.calls)
+
+    def mutes(uid):
+        return [c for c in tg.calls if isinstance(c, m.RestrictChatMember) and c.user_id == uid
+                and c.permissions.can_send_messages is False]
+
+    # Түнде тірі ойыншы: хабары өшіріледі, үнсіз етілмейді.
+    assert deleted(await h.text(2, GROUP, "мен тұрғынмын!")) and not mutes(2)
+    # Ойынға қатыспайтын адам: өшіріледі және 2 минутқа үнсіз етіледі.
+    assert deleted(await h.text(99, GROUP, "мен көрермен"))
+    (mute,) = mutes(99)
+    assert 100 <= (mute.until_date - now()).total_seconds() <= 125
+    # Әкімші «!» белгісімен — өшірілмейді; белгісіз — өшіріледі (бірақ әкімші шектелмейді).
+    assert not deleted(await h.text(CHAT_ADMIN, GROUP, "!ереже: түнде үндемейміз"))
+    assert deleted(await h.text(CHAT_ADMIN, GROUP, "белгісіз хабар")) and not mutes(CHAT_ADMIN)
+    # Өлген (ойыннан шыққан) ойыншы — өшіріліп, үнсіз етіледі.
+    await h.text(4, GROUP, "/leave")
+    assert deleted(await h.text(4, GROUP, "мен әлі осындамын")) and mutes(4)
+    # Ойын тоқтағанда үнсіздік алынады.
+    await h.text(CHAT_ADMIN, GROUP, "/stop")
+    lifted = {c.user_id for c in tg.calls if isinstance(c, m.RestrictChatMember)
+              and c.permissions.can_send_messages is True}
+    assert {99, 4} <= lifted

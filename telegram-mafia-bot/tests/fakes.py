@@ -23,8 +23,9 @@ class FakeNotifier:
     def __init__(self, unreachable: set[int] | None = None) -> None:
         self.sent: list[Sent] = []
         self.edits: list[tuple[int, int, str]] = []
-        self.restricted: set[tuple[int, int]] = set()
+        self.restricted: dict[tuple[int, int], float] = {}   # (chat, user) -> секунд
         self.unrestricted: list[tuple[int, int]] = []
+        self.deleted: list[tuple[int, int]] = []
         self.unreachable = unreachable or set()
         self._next_id = 1
         self.on_send = None  # callable(Sent) -> None
@@ -42,12 +43,15 @@ class FakeNotifier:
     async def edit(self, chat_id, message_id, text, keyboard=None):
         self.edits.append((chat_id, message_id, text))
 
-    async def restrict(self, chat_id, user_id):
-        self.restricted.add((chat_id, user_id))
+    async def delete(self, chat_id, message_id):
+        self.deleted.append((chat_id, message_id))
+
+    async def restrict(self, chat_id, user_id, seconds):
+        self.restricted[(chat_id, user_id)] = seconds
         return True
 
     async def unrestrict(self, chat_id, user_id):
-        self.restricted.discard((chat_id, user_id))
+        self.restricted.pop((chat_id, user_id), None)
         self.unrestricted.append((chat_id, user_id))
 
     async def pin(self, chat_id, message_id):
@@ -77,6 +81,7 @@ class FakeStorage:
 
     async def ensure_user(self, user_id, username, full_name):
         self.users.add(user_id)
+        return "kk"
 
     async def create_game(self, chat_id):
         gid = self._next
@@ -96,12 +101,6 @@ class FakeStorage:
         released = [uid for gid, uid in self.restricted if gid == game_id]
         self.restricted = {(g, u) for g, u in self.restricted if g != game_id}
         return released
-
-    async def set_restricted(self, game_id, user_id, restricted):
-        if restricted:
-            self.restricted.add((game_id, user_id))
-        else:
-            self.restricted.discard((game_id, user_id))
 
     async def finalize_game(self, game_id, winner, days, rows):
         self.finalize_calls += 1

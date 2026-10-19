@@ -8,7 +8,8 @@ from aiogram.exceptions import TelegramAPIError
 from aiogram.types import CallbackQuery, Message
 
 from ...controller import GameManager
-from .. import keyboards, texts
+from ...i18n import t
+from .. import keyboards
 
 router = Router(name="game")
 router.callback_query.filter(F.message.chat.type == ChatType.PRIVATE)
@@ -66,7 +67,7 @@ fallback.message.filter(F.chat.type == ChatType.PRIVATE)
 
 
 @fallback.message(F.text & ~F.text.startswith("/"))
-async def private_text(message: Message, manager: GameManager) -> None:
+async def private_text(message: Message, manager: GameManager, lang: str) -> None:
     if await manager.private_text(message.from_user.id, message.text):
         return
-    await message.answer(texts.menu_hint(), reply_markup=keyboards.main_menu())
+    await message.answer(t(lang, "menu_hint"), reply_markup=keyboards.main_menu(lang))

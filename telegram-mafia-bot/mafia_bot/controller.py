@@ -1,4 +1,4 @@
-"""Ойын контроллері: лобби, кезеңдер, таймерлер және хабарламалар.
+"""Ойын контроллері: лобби, кезеңдер, таймерлер, хабарламалар және топ модерациясы.
 
 Контроллер Telegram API-ді тікелей қолданбайды — ол ``Notifier`` арқылы хабар жібереді,
 ал деректерді ``Storage`` арқылы сақтайды. Сондықтан оны толығымен тестілеуге болады.
@@ -11,15 +11,16 @@ import html
 import logging
 import random
 import time
-from collections.abc import Callable
+from collections import defaultdict
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from typing import Protocol
 
+from . import i18n
 from .db.models import FinalRow, Inventory
-from .economy import win_reward
+from .economy import HIGGS_REWARD_MULTIPLIER, win_reward
 from .game import balance
 from .game.engine import (
-    ACTION_LABELS,
     ActionKind,
     Game,
     GameResult,
@@ -29,7 +30,7 @@ from .game.engine import (
     WitchPrompt,
     assign_roles,
 )
-from .game.roles import FAKE_DOC_ROLES, Role, title
+from .game.roles import FAKE_DOC_ROLES, Role
 
 log = logging.getLogger(__name__)
 
@@ -55,7 +56,9 @@ class Notifier(Protocol):
         self, chat_id: int, message_id: int, text: str, keyboard: Keyboard | None = None
     ) -> None: ...
 
-    async def restrict(self, chat_id: int, user_id: int) -> bool: ...
+    async def delete(self, chat_id: int, message_id: int) -> None: ...
+
+    async def restrict(self, chat_id: int, user_id: int, seconds: float) -> bool: ...
 
     async def unrestrict(self, chat_id: int, user_id: int) -> None: ...
 
@@ -67,15 +70,13 @@ class Notifier(Protocol):
 
 
 class Storage(Protocol):
-    async def ensure_user(self, user_id: int, username: str | None, full_name: str) -> None: ...
+    async def ensure_user(self, user_id: int, username: str | None, full_name: str) -> str: ...
 
     async def create_game(self, chat_id: int) -> int: ...
 
     async def start_game(self, game_id: int, players: list[tuple[int, str]]) -> None: ...
 
     async def abort_game(self, game_id: int) -> list[int]: ...
-
-    async def set_restricted(self, game_id: int, user_id: int, restricted: bool) -> None: ...
 
     async def finalize_game(
         self, game_id: int, winner: str | None, days: int, rows: list[FinalRow]
@@ -98,6 +99,7 @@ class Lobby:
     chat_title: str
     owner_id: int
     deadline: float
+    lang: str = i18n.DEFAULT_LANG
     players: dict[int, str] = field(default_factory=dict)
     message_id: int | None = None
     started: bool = False
@@ -107,6 +109,9 @@ class Lobby:
     dirty: bool = False
     reminded: bool = False
 
+    def t(self, key: str, /, **params: object) -> str:
+        return i18n.t(self.lang, key, **params)
+
 
 @dataclass
 class Session:
@@ -115,7 +120,7 @@ class Session:
     timings: balance.Timings
     wake: asyncio.Event = field(default_factory=asyncio.Event)
     prompts: dict[int, int] = field(default_factory=dict)   # user_id -> message_id
-    restricted: set[int] = field(default_factory=set)
+    muted: dict[int, float] = field(default_factory=dict)   # user_id -> үнсіздік мерзімі
     witch_event: asyncio.Event = field(default_factory=asyncio.Event)
     witch_choice: bool | None = None
     witch_id: int | None = None
@@ -126,6 +131,9 @@ class Session:
     @property
     def game_id(self) -> int:
         return self.game.game_id
+
+    def t(self, key: str, /, **params: object) -> str:
+        return self.game.t(key, **params)
 
 
 def short(name: str, limit: int = 28) -> str:
@@ -141,9 +149,10 @@ class GameManager:
         *,
         registration_seconds: float = 120,
         time_scale: float = 1.0,
-        restrict_dead: bool = True,
+        mute_seconds: float = 120,
         silence_night: bool = True,
-        mute_non_players: bool = False,
+        mute_non_players: bool = True,
+        higgs_chance: float = balance.HIGGS_CHANCE,
         rng_factory: Callable[[], random.Random] = random.SystemRandom,
         lobby_edit_delay: float = 1.5,
     ) -> None:
@@ -151,9 +160,10 @@ class GameManager:
         self.storage = storage
         self.registration_seconds = registration_seconds
         self.time_scale = time_scale
-        self.restrict_dead = restrict_dead
+        self.mute_seconds = mute_seconds
         self.silence_night = silence_night
         self.mute_non_players = mute_non_players
+        self.higgs_chance = higgs_chance
         self.rng_factory = rng_factory
         self.lobby_edit_delay = lobby_edit_delay
         self.lobbies: dict[int, Lobby] = {}          # chat_id -> Lobby
@@ -161,12 +171,36 @@ class GameManager:
         self.sessions: dict[int, Session] = {}       # chat_id -> Session
         self.user_chat: dict[int, int] = {}          # user_id -> chat_id (лобби не ойын)
         self._background: set[asyncio.Task] = set()
+        # Топқа хабарлар ретімен шығуы үшін әр чаттың өз кезегі (asyncio.Lock — FIFO).
+        self._chat_locks: dict[int, asyncio.Lock] = defaultdict(asyncio.Lock)
+        self._announcements: dict[int, set[asyncio.Task]] = defaultdict(set)
 
     def _spawn(self, coro) -> asyncio.Task:
         task = asyncio.create_task(coro)
         self._background.add(task)
         task.add_done_callback(self._background.discard)
         return task
+
+    async def _send_ordered(self, chat_id: int, text: str, keyboard: Keyboard | None = None) -> int | None:
+        async with self._chat_locks[chat_id]:
+            return await self.notifier.send(chat_id, text, keyboard)
+
+    async def _say(self, chat_id: int, text: str, keyboard: Keyboard | None = None) -> int | None:
+        """Топқа хабар жіберу. Алдымен кезектегі әрекет/дауыс хабарлары шығады —
+        сондықтан, мысалы, таңғы хабар түнгі әрекеттер туралы хабарлардан кейін келеді."""
+        pending = self._announcements.get(chat_id)
+        if pending:
+            await asyncio.gather(*list(pending), return_exceptions=True)
+        return await self._send_ordered(chat_id, text, keyboard)
+
+    def _announce(self, chat_id: int, text: str | None) -> None:
+        """Түнгі әрекет не дауыс туралы хабарды кезекке қою (батырма жауабын кідіртпейді)."""
+        if not text:
+            return
+        task = self._spawn(self._send_ordered(chat_id, text))
+        pending = self._announcements[chat_id]
+        pending.add(task)
+        task.add_done_callback(pending.discard)
 
     # --- Сұраулар ----------------------------------------------------------------------
 
@@ -183,39 +217,81 @@ class GameManager:
     def open_lobbies(self) -> list[Lobby]:
         return [lb for lb in self.lobbies.values() if not lb.started]
 
-    def should_delete(self, chat_id: int, user_id: int) -> bool:
-        """Топтағы хабарламаны өшіру керек пе (өлгендер мен түнгі тыныштық)."""
+    # --- Топ модерациясы ------------------------------------------------------------------
+
+    def _verdict(self, chat_id: int, user_id: int) -> tuple[bool, bool]:
+        """(өшіру керек пе, үнсіз ету керек пе) — әкімшілікті есепке алмай."""
         s = self.sessions.get(chat_id)
         if s is None or s.finished or s.game.result is not None:
-            return False
+            return False, False
         p = s.game.player(user_id)
         if p is None:
-            return self.mute_non_players
+            return self.mute_non_players, self.mute_non_players
         if not p.alive:
-            return True
-        return self.silence_night and s.game.phase is Phase.NIGHT
+            return True, True
+        return self.silence_night and s.game.phase is Phase.NIGHT, False
+
+    async def moderate(
+        self,
+        chat_id: int,
+        user_id: int,
+        message_id: int,
+        text: str | None,
+        is_admin: Callable[[], Awaitable[bool]],
+    ) -> bool:
+        """Ойын кезіндегі хабарламаны тексеру. Өшірілсе ``True`` қайтарады.
+
+        Ойынға қатыспайтындар мен өлгендердің хабары өшіріліп, олар ``mute_seconds``
+        секундқа үнсіз етіледі. Түнде тірі ойыншылардың хабары да өшіріледі.
+        Әкімші хабарын ``!`` белгісімен бастаса, ол өшірілмейді.
+        """
+        delete, mute = self._verdict(chat_id, user_id)
+        if not delete:
+            return False
+        if await is_admin():
+            if (text or "").lstrip().startswith("!"):
+                return False
+            mute = False  # Telegram әкімшілерді шектей алмайды
+        await self.notifier.delete(chat_id, message_id)
+        s = self.sessions.get(chat_id)
+        if mute and s is not None and self.mute_seconds > 0:
+            now = time.monotonic()
+            if s.muted.get(user_id, 0) <= now and await self.notifier.restrict(
+                chat_id, user_id, self.mute_seconds
+            ):
+                s.muted[user_id] = now + self.mute_seconds
+        return True
 
     # --- Лобби ----------------------------------------------------------------------------
 
-    async def open_lobby(self, chat_id: int, chat_title: str, owner_id: int) -> str | None:
+    async def open_lobby(
+        self,
+        chat_id: int,
+        chat_title: str,
+        owner_id: int,
+        lang: str = i18n.DEFAULT_LANG,
+        registration_seconds: float | None = None,
+    ) -> str | None:
+        lang = i18n.norm(lang)
         if self.busy(chat_id):
-            return "Бұл чатта ойын немесе тіркелу жүріп жатыр."
+            return i18n.t(lang, "lobby.busy")
         game_id = await self.storage.create_game(chat_id)
         if self.busy(chat_id):  # await кезінде басқа сұрау үлгеріп кетсе
             await self.storage.abort_game(game_id)
-            return "Бұл чатта ойын немесе тіркелу жүріп жатыр."
+            return i18n.t(lang, "lobby.busy")
+        seconds = registration_seconds or self.registration_seconds
         lobby = Lobby(
             game_id=game_id,
             chat_id=chat_id,
             chat_title=chat_title,
             owner_id=owner_id,
-            deadline=time.monotonic() + self.registration_seconds,
+            deadline=time.monotonic() + seconds,
+            lang=lang,
+            reminded=seconds <= 45,  # қысқа тіркелуде «30 секунд қалды» ескертуі керек емес
         )
         self.lobbies[chat_id] = lobby
         self.lobby_by_game[game_id] = lobby
-        lobby.message_id = await self.notifier.send(
-            chat_id, self._lobby_text(lobby), self._lobby_keyboard(lobby)
-        )
+        lobby.message_id = await self._say(chat_id, self._lobby_text(lobby), self._lobby_keyboard(lobby))
         if lobby.message_id is not None:
             await self.notifier.pin(chat_id, lobby.message_id)
         lobby.task = asyncio.create_task(self._lobby_timer(lobby))
@@ -227,17 +303,20 @@ class GameManager:
             f"{i}. <a href=\"tg://user?id={uid}\">{html.escape(name)}</a>"
             for i, (uid, name) in enumerate(lobby.players.items(), 1)
         ]
-        return (
-            "🎲 <b>Мафия ойынына тіркелу ашық!</b>\n\n"
-            f"⏳ Тіркелу аяқталуына ≈ {left} сек\n"
-            f"👥 Тіркелгендер ({len(lobby.players)}/{balance.MAX_PLAYERS}):\n"
-            + ("\n".join(names) if names else "— әзірге ешкім жоқ —")
-            + f"\n\nОйын бастау үшін кемінде {balance.MIN_PLAYERS} ойыншы керек.\n"
-            "Рөлдер мен түнгі әрекеттер ботпен жеке чатта болады."
-        )
+        return "\n".join([
+            lobby.t("lobby.title"),
+            "",
+            lobby.t("lobby.time", seconds=left),
+            lobby.t("lobby.players", count=len(lobby.players), max=balance.MAX_PLAYERS),
+            "\n".join(names) if names else lobby.t("lobby.empty"),
+            "",
+            lobby.t("lobby.min", min=balance.MIN_PLAYERS),
+            lobby.t("lobby.how"),
+        ])
 
     def _lobby_keyboard(self, lobby: Lobby) -> Keyboard:
-        return [[Button("🎮 Ойынға қосылу", url=self.notifier.start_link(f"join_{lobby.game_id}"))]]
+        url = self.notifier.start_link(f"join_{lobby.game_id}")
+        return [[Button(lobby.t("lobby.join_btn"), url=url)]]
 
     def _schedule_lobby_update(self, lobby: Lobby) -> None:
         """Лобби хабарын жаңарту. Көп адам қатар тіркелсе, өзгерістер бір өңдеуге жиналады."""
@@ -264,70 +343,72 @@ class GameManager:
     async def join(self, game_id: int, user_id: int, name: str, username: str | None = None) -> str:
         lobby = self.lobby_by_game.get(game_id)
         if lobby is None or lobby.started:
-            return "❌ Бұл ойынға тіркелу жабық."
+            return i18n.t(None, "lobby.closed_join")
+        chat = html.escape(lobby.chat_title)
         if user_id in lobby.players:
-            return f"✅ Сіз «{html.escape(lobby.chat_title)}» чатындағы ойынға тіркелгенсіз."
+            return lobby.t("lobby.already_joined", chat=chat)
         if self.in_game(user_id):
-            return "❌ Сіз басқа ойынға тіркелгенсіз немесе ойнап жатырсыз."
+            return lobby.t("lobby.other_game")
         if len(lobby.players) >= balance.MAX_PLAYERS:
-            return f"❌ Бөлме толы ({balance.MAX_PLAYERS} ойыншы)."
+            return lobby.t("lobby.full", max=balance.MAX_PLAYERS)
         await self.storage.ensure_user(user_id, username, name)
         if lobby.started or user_id in lobby.players or self.in_game(user_id):
-            return "❌ Тіркелу мүмкін болмады, қайталап көріңіз."
+            return lobby.t("lobby.retry")
         if len(lobby.players) >= balance.MAX_PLAYERS:
-            return f"❌ Бөлме толы ({balance.MAX_PLAYERS} ойыншы)."
+            return lobby.t("lobby.full", max=balance.MAX_PLAYERS)
         lobby.players[user_id] = name
         self.user_chat[user_id] = lobby.chat_id
         self._schedule_lobby_update(lobby)
         if len(lobby.players) >= balance.MAX_PLAYERS:
             lobby.wake.set()  # бөлме толды — бірден бастаймыз
-        return (
-            f"✅ Сіз «{html.escape(lobby.chat_title)}» чатындағы ойынға тіркелдіңіз! "
-            f"({len(lobby.players)}/{balance.MAX_PLAYERS})\nРөліңіз осында келеді."
-        )
+        return lobby.t("lobby.joined", chat=chat, count=len(lobby.players), max=balance.MAX_PLAYERS)
 
     async def leave(self, user_id: int) -> str:
         chat_id = self.user_chat.get(user_id)
         if chat_id is None:
-            return "Сіз ешбір ойында жоқсыз."
+            return i18n.t(None, "lobby.not_in_game")
         lobby = self.lobbies.get(chat_id)
         if lobby is not None and not lobby.started and user_id in lobby.players:
             del lobby.players[user_id]
             self.user_chat.pop(user_id, None)
             self._schedule_lobby_update(lobby)
-            return "👋 Сіз тіркелуден шықтыңыз."
+            return lobby.t("lobby.left")
         s = self.sessions.get(chat_id)
         if s is not None and not s.finished:
             report = s.game.desert(user_id)
             if report is None:
-                return "Сіз бұл ойында тірі ойыншы емессіз."
-            await self.notifier.send(chat_id, report.public)
+                return s.t("lobby.not_alive")
+            await self._say(chat_id, report.public)
             await self._deliver(report.private)
             await self._after_deaths(s, report.deaths, last_words=False)
             if s.game.check_winner() is not None:
                 s.witch_event.set()  # Сиқыршының шешімін күтпеу
             s.wake.set()
-            return "🏃 Сіз ойыннан шықтыңыз. Бұл ойын жеңіліс болып есептеледі."
-        return "Сіз ешбір ойында жоқсыз."
+            return s.t("lobby.deserted")
+        return i18n.t(None, "lobby.not_in_game")
+
+    def lobby_lang(self, chat_id: int) -> str:
+        lobby = self.lobbies.get(chat_id)
+        if lobby is not None:
+            return lobby.lang
+        s = self.sessions.get(chat_id)
+        return s.game.lang if s is not None else i18n.DEFAULT_LANG
 
     async def extend(self, chat_id: int, seconds: float = 30) -> str | None:
         lobby = self.lobbies.get(chat_id)
         if lobby is None or lobby.started:
             return None
         lobby.deadline += seconds
-        lobby.reminded = False
+        lobby.reminded = lobby.deadline - time.monotonic() <= 45
         self._schedule_lobby_update(lobby)
-        return f"⏳ Тіркелу {int(seconds)} секундқа ұзартылды."
+        return lobby.t("lobby.extended", seconds=int(seconds))
 
     async def force_start(self, chat_id: int) -> str | None:
         lobby = self.lobbies.get(chat_id)
         if lobby is None or lobby.started:
-            return "Ашық тіркелу жоқ. Жаңа ойын үшін /game жазыңыз."
+            return i18n.t(self.lobby_lang(chat_id), "lobby.no_open")
         if len(lobby.players) < balance.MIN_PLAYERS:
-            return (
-                f"Ойын бастау үшін кемінде {balance.MIN_PLAYERS} ойыншы керек "
-                f"(қазір {len(lobby.players)})."
-            )
+            return lobby.t("lobby.need_min", min=balance.MIN_PLAYERS, count=len(lobby.players))
         lobby.deadline = time.monotonic()
         lobby.wake.set()
         return None
@@ -342,11 +423,9 @@ class GameManager:
                 left = lobby.deadline - time.monotonic()
                 if left <= 0:
                     break
-                if not lobby.reminded and left <= remind_at + 0.5 and self.registration_seconds > 45:
+                if not lobby.reminded and left <= remind_at + 0.5:
                     lobby.reminded = True
-                    await self.notifier.send(
-                        lobby.chat_id, f"⏳ Тіркелудің аяқталуына {remind_at} секунд қалды!"
-                    )
+                    await self._say(lobby.chat_id, lobby.t("lobby.reminder", seconds=remind_at))
                 wait = left - remind_at if not lobby.reminded and left > remind_at + 0.5 else left
                 try:
                     await asyncio.wait_for(lobby.wake.wait(), timeout=max(wait, 0.01))
@@ -358,16 +437,14 @@ class GameManager:
                 await self._start_game(lobby)
             else:
                 await self._cancel_lobby(
-                    lobby,
-                    f"😔 Ойыншылар жеткіліксіз ({len(lobby.players)}/{balance.MIN_PLAYERS}). "
-                    "Тіркелу жабылды. Қайта бастау үшін /game жазыңыз.",
+                    lobby, lobby.t("lobby.not_enough", count=len(lobby.players), min=balance.MIN_PLAYERS)
                 )
         except asyncio.CancelledError:
             raise
         except Exception:
             log.exception("Лобби таймерінде қате")
             if lobby.chat_id in self.lobbies:
-                await self._cancel_lobby(lobby, "⚠️ Ойынды бастау кезінде қате шықты. Тіркелу жабылды.")
+                await self._cancel_lobby(lobby, lobby.t("lobby.error"))
 
     def _drop_lobby(self, lobby: Lobby) -> None:
         lobby.started = True
@@ -385,8 +462,8 @@ class GameManager:
                 self.user_chat.pop(uid, None)
         await self.storage.abort_game(lobby.game_id)
         if lobby.message_id is not None:
-            await self.notifier.edit(lobby.chat_id, lobby.message_id, "🚫 Тіркелу жабылды.")
-        await self.notifier.send(lobby.chat_id, text)
+            await self.notifier.edit(lobby.chat_id, lobby.message_id, lobby.t("lobby.closed"))
+        await self._say(lobby.chat_id, text)
 
     # --- Ойынды бастау ----------------------------------------------------------------------
 
@@ -397,7 +474,7 @@ class GameManager:
         inventories = await self.storage.inventories(user_ids)
         requests = await self.storage.queue_heads(user_ids)
         rng = self.rng_factory()
-        assignment = assign_roles(user_ids, requests, rng)
+        assignment = assign_roles(user_ids, requests, rng, higgs_chance=self.higgs_chance)
         purchases = {r.user_id: r.purchase_id for r in assignment.fulfilled}
         players: list[Player] = []
         for order, uid in enumerate(user_ids):
@@ -412,52 +489,39 @@ class GameManager:
                     p.fake_doc = p.fake_doc_activated = True
             p.purchase_id = purchases.get(uid)
             players.append(p)
-        game = Game(lobby.game_id, lobby.chat_id, players, rng=rng)
+        game = Game(lobby.game_id, lobby.chat_id, players, rng=rng, lang=lobby.lang)
         await self.storage.start_game(game.game_id, [(p.user_id, p.role.value) for p in players])
         session = Session(game=game, chat_id=lobby.chat_id,
                           timings=balance.timings(len(players), self.time_scale))
         self.sessions[lobby.chat_id] = session
         self._drop_lobby(lobby)
         if lobby.message_id is not None:
-            await self.notifier.edit(
-                lobby.chat_id, lobby.message_id,
-                f"✅ Тіркелу аяқталды: {len(players)} ойыншы. Ойын басталды!",
-            )
+            await self.notifier.edit(lobby.chat_id, lobby.message_id, lobby.t("lobby.done", count=len(players)))
         failed: list[Player] = []
         for p in game.ordered():
             text = game.role_intro(p.user_id)
             if p.purchase_id is not None:
-                text = "💎 Сатып алған рөліңіз берілді!\n\n" + text
+                text = game.t("game.purchased_role") + "\n\n" + text
             if await self.notifier.send(p.user_id, text) is None:
                 failed.append(p)
         for req in assignment.unfulfilled:
             await self.notifier.send(
                 req.user_id,
-                f"🎭 Сіз таңдаған {title(req.role)} рөлі бұл ойында берілмеді "
-                f"({len(players)} ойыншы үшін қолжетімсіз немесе басқа ойыншы бұрын сатып алған).\n"
-                "Таңдауыңыз келесі ойынға сақталды. Қаласаңыз, алмазды қайтара аласыз.",
-                [[Button("💎 Алмазды қайтару", data=f"rr:{req.purchase_id}")]],
+                game.t("game.unfulfilled", role=game.title(req.role), count=len(players)),
+                [[Button(game.t("game.refund_btn"), data=f"rr:{req.purchase_id}")]],
             )
-        comp = balance.composition(len(players))
-        roles_line = ", ".join(
-            f"{title(r)}{' ×' + str(c) if c > 1 else ''}" for r, c in comp.items()
-        )
-        text = (
-            f"🎭 <b>Ойын басталды!</b> Ойыншылар: {len(players)}\n"
-            "Рөлдер әр ойыншыға жеке чатта жіберілді.\n\n"
-            f"Рөлдер құрамы: {roles_line}"
-        )
+        roles = sorted({p.role for p in players}, key=list(Role).index)
+        counts = {r: sum(1 for p in players if p.role is r) for r in roles}
+        roles_line = ", ".join(f"{game.title(r)}{' ×' + str(counts[r]) if counts[r] > 1 else ''}" for r in roles)
+        lines = [game.t("game.started", count=len(players)), "", game.t("game.composition", roles=roles_line)]
         if failed:
-            text += (
-                "\n\n⚠️ Бот мына ойыншыларға жеке хабарлама жібере алмады — ботты ашып "
-                "/start басыңыз: " + ", ".join(p.mention for p in failed)
-            )
-        await self.notifier.send(lobby.chat_id, text, self._bot_button())
+            lines += ["", game.t("game.dm_failed", names=", ".join(p.mention for p in failed))]
+        await self._say(lobby.chat_id, "\n".join(lines), self._bot_button(game.lang))
         if not session.finished:  # хабарламалар жіберілгенше ойын тоқтатылмаса
             session.task = asyncio.create_task(self._run(session))
 
-    def _bot_button(self) -> Keyboard:
-        return [[Button("🤖 Ботқа өту", url=self.notifier.start_link("menu"))]]
+    def _bot_button(self, lang: str) -> Keyboard:
+        return [[Button(i18n.t(lang, "game.bot_btn"), url=self.notifier.start_link("menu"))]]
 
     # --- Ойын циклі ----------------------------------------------------------------------------
 
@@ -474,7 +538,7 @@ class GameManager:
             raise
         except Exception:
             log.exception("Ойын циклінде қате (game_id=%s)", s.game_id)
-            await self.abort(s.chat_id, "⚠️ Ойында күтпеген қате шықты, ойын тоқтатылды.")
+            await self.abort(s.chat_id, s.t("game.error"))
 
     async def _wait(self, s: Session, timeout: float, done: Callable[[], bool]) -> None:
         def finished() -> bool:
@@ -494,37 +558,37 @@ class GameManager:
 
     async def _night(self, s: Session) -> None:
         g = s.game
-        await self.notifier.send(s.chat_id, g.start_night(), self._bot_button())
+        await self._say(s.chat_id, g.start_night(), self._bot_button(g.lang))
         s.prompts = {}
         for uid in sorted(g.expected_actors(), key=lambda u: g.players[u].order):
             await self._send_night_prompt(s, uid)
         await self._wait(s, s.timings.night, g.night_complete)
-        await self._close_prompts(s, "⌛ Түн аяқталды.")
+        await self._close_prompts(s, s.t("game.night_over"))
         if g.result is not None:
             return
         witch = g.resolve_night()
         choice = await self._ask_witch(s, witch) if witch is not None else None
         report = g.complete_night(choice)
-        await self.notifier.send(s.chat_id, report.public)
+        await self._say(s.chat_id, report.public)
         await self._deliver(report.private)
         await self._after_deaths(s, report.deaths, last_words=True)
 
     async def _day(self, s: Session) -> None:
         g = s.game
-        await self.notifier.send(s.chat_id, g.day_text())
+        await self._say(s.chat_id, g.day_text(int(s.timings.day)))
         await self._wait(s, s.timings.day, lambda: False)
         if g.result is not None:
             return
-        await self.notifier.send(s.chat_id, g.start_vote(), self._bot_button())
+        await self._say(s.chat_id, g.start_vote(int(s.timings.vote)), self._bot_button(g.lang))
         s.prompts = {}
         for p in g.alive():
             await self._send_vote_prompt(s, p.user_id)
         await self._wait(s, s.timings.vote, g.vote_complete)
-        await self._close_prompts(s, "⌛ Дауыс беру аяқталды.")
+        await self._close_prompts(s, s.t("game.vote_over"))
         if g.result is not None:
             return
         report = g.resolve_vote()
-        await self.notifier.send(s.chat_id, report.public)
+        await self._say(s.chat_id, report.public)
         await self._deliver(report.private)
         await self._after_deaths(s, report.deaths, last_words=True)
         g.end_cycle()
@@ -550,7 +614,7 @@ class GameManager:
         plain = [o for o in options if not o.needs_target]
         rows: Keyboard = []
         if mode is None and len(targeted) > 1:
-            rows = [[Button(o.label, data=f"m:{gid}:{day}:{o.kind.value}")] for o in targeted]
+            rows = [[Button(g.action_label(o.kind), data=f"m:{gid}:{day}:{o.kind.value}")] for o in targeted]
         else:
             chosen = next((o for o in targeted if o.kind is mode), targeted[0] if targeted else None)
             if chosen is not None:
@@ -558,9 +622,9 @@ class GameManager:
                     rows.append([Button(short(g.players[t].name),
                                         data=f"n:{gid}:{day}:{chosen.kind.value}:{t}")])
             if mode is not None and len(targeted) > 1:
-                rows.append([Button("⬅️ Артқа", data=f"m:{gid}:{day}:back")])
+                rows.append([Button(s.t("game.back"), data=f"m:{gid}:{day}:back")])
         for o in plain:
-            rows.append([Button(o.label, data=f"n:{gid}:{day}:{o.kind.value}:0")])
+            rows.append([Button(g.action_label(o.kind), data=f"n:{gid}:{day}:{o.kind.value}:0")])
         return rows
 
     async def _send_night_prompt(self, s: Session, user_id: int) -> None:
@@ -576,10 +640,8 @@ class GameManager:
             [Button(short(g.players[t].name), data=f"v:{s.game_id}:{g.day}:{t}")]
             for t in g.vote_candidates(user_id)
         ]
-        rows.append([Button("🤐 Қалыс қалу", data=f"v:{s.game_id}:{g.day}:0")])
-        mid = await self.notifier.send(
-            user_id, f"🗳 <b>{g.day}-күн.</b> Кімді дарға асу керек деп ойлайсыз?", rows
-        )
+        rows.append([Button(s.t("vote.abstain_btn"), data=f"v:{s.game_id}:{g.day}:0")])
+        mid = await self.notifier.send(user_id, g.vote_prompt(), rows)
         if mid is not None:
             s.prompts[user_id] = mid
 
@@ -596,41 +658,39 @@ class GameManager:
         mid = await self.notifier.send(
             prompt.witch_id,
             s.game.witch_prompt_text(prompt),
-            [[Button("⚔️ Жазалау", data=f"w:{gid}:{day}:1"),
-              Button("🕊 Кешіру", data=f"w:{gid}:{day}:0")]],
+            [[Button(s.t("witch.punish"), data=f"w:{gid}:{day}:1"),
+              Button(s.t("witch.forgive"), data=f"w:{gid}:{day}:0")]],
         )
         if mid is not None:
             try:
                 await asyncio.wait_for(s.witch_event.wait(), timeout=s.timings.witch)
             except TimeoutError:
-                await self.notifier.edit(prompt.witch_id, mid, "⌛ Уақыт бітті — сіз кешірдіңіз.")
+                await self.notifier.edit(prompt.witch_id, mid, s.t("witch.timeout"))
         s.witch_id = None
         return bool(s.witch_choice)
 
     async def _after_deaths(self, s: Session, deaths: list[int], last_words: bool) -> None:
+        if not last_words or s.game.result is not None:
+            return
         for uid in deaths:
-            if last_words and s.game.result is None:
-                s.last_words[uid] = time.monotonic() + s.timings.day + s.timings.vote
-                await self.notifier.send(
-                    uid, "💬 Соңғы сөзіңізді жазыңыз — ол ортақ чатқа жіберіледі (бір хабарлама)."
-                )
-            if self.restrict_dead and await self.notifier.restrict(s.chat_id, uid):
-                s.restricted.add(uid)
-                await self.storage.set_restricted(s.game_id, uid, True)
+            s.last_words[uid] = time.monotonic() + s.timings.day + s.timings.vote
+            await self.notifier.send(uid, s.t("game.last_words_prompt"))
 
     # --- Ойыншы әрекеттері (callback-тер) ------------------------------------------------------
 
     def _session_by_game(self, game_id: int) -> Session | None:
         return next((s for s in self.sessions.values() if s.game_id == game_id), None)
 
-    async def choose_mode(self, user_id: int, game_id: int, day: int, kind: str) -> tuple[str, Keyboard | None]:
+    async def choose_mode(
+        self, user_id: int, game_id: int, day: int, kind: str
+    ) -> tuple[str, Keyboard | None]:
         s = self._session_by_game(game_id)
         if s is None or s.game.day != day or s.game.phase is not Phase.NIGHT or user_id in s.game.actions:
-            return "⌛ Бұл таңдау ескірген.", None
+            return i18n.t(s.game.lang if s else None, "game.stale"), None
         mode = None if kind == "back" else ActionKind(kind)
         text = s.game.night_prompt(user_id)
         if mode is not None:
-            text += f"\n\n{ACTION_LABELS[mode]}: ойыншыны таңдаңыз."
+            text += "\n\n" + s.t("game.mode", action=s.game.action_label(mode))
         return text, self._night_keyboard(s, user_id, mode)
 
     async def night_action(
@@ -638,47 +698,45 @@ class GameManager:
     ) -> tuple[bool, str]:
         s = self._session_by_game(game_id)
         if s is None or s.game.day != day:
-            return False, "⌛ Бұл таңдау ескірген."
+            return False, i18n.t(s.game.lang if s else None, "game.stale")
         try:
             action = ActionKind(kind)
         except ValueError:
-            return False, "Белгісіз әрекет."
+            return False, s.t("game.unknown_action")
         g = s.game
         result = g.submit_action(user_id, action, target or None)
         if not result.ok:
             return False, result.message
         s.prompts.pop(user_id, None)
-        actor = g.players[user_id]
+        self._announce(s.chat_id, g.action_announcement(user_id, action))
         if action is ActionKind.MAFIA_KILL:
-            label = "Дон" if actor.role is Role.DON else "Мафия"
-            note = f"🗳 {label} {actor.mention}: {g.players[target].mention}"
+            note = g.team_vote_note(user_id, target)
             for mate in g.team_of(user_id):
                 await self.notifier.send(mate.user_id, note)
         elif action is ActionKind.PROTECT:
             for mate in g.team_of(user_id):
-                await self.notifier.send(
-                    mate.user_id, f"🛡 Бас қорғаушы бүгін {g.players[target].mention} қорғауды таңдады."
-                )
+                await self.notifier.send(mate.user_id, s.t("game.defender_note", target=g.players[target].mention))
         s.wake.set()
         return True, result.message
 
     async def vote(self, user_id: int, game_id: int, day: int, target: int) -> tuple[bool, str]:
         s = self._session_by_game(game_id)
         if s is None or s.game.day != day:
-            return False, "⌛ Бұл дауыс беру ескірген."
+            return False, i18n.t(s.game.lang if s else None, "game.stale_vote")
         result = s.game.submit_vote(user_id, target or None)
         if result.ok:
             s.prompts.pop(user_id, None)
+            self._announce(s.chat_id, s.game.vote_announcement(user_id))
             s.wake.set()
         return result.ok, result.message
 
     async def witch_decision(self, user_id: int, game_id: int, day: int, punish: bool) -> tuple[bool, str]:
         s = self._session_by_game(game_id)
         if s is None or s.game.day != day or s.witch_id != user_id or s.witch_event.is_set():
-            return False, "⌛ Бұл шешім ескірген."
+            return False, i18n.t(s.game.lang if s else None, "game.stale_witch")
         s.witch_choice = punish
         s.witch_event.set()
-        return True, ("⚔️ Шабуылдаушы жазаланады." if punish else "🕊 Сіз кешірдіңіз.")
+        return True, s.t("witch.ok_punish" if punish else "witch.ok_forgive")
 
     async def private_text(self, user_id: int, text: str) -> bool:
         """Ойын кезіндегі жеке хабарлама: соңғы сөз немесе команда ішіндегі чат."""
@@ -692,25 +750,34 @@ class GameManager:
         body = html.escape(text[:1000])
         deadline = s.last_words.pop(user_id, None)
         if deadline is not None and deadline >= time.monotonic() and not p.alive:
-            await self.notifier.send(s.chat_id, f"💬 {p.mention} соңғы сөзі:\n<i>{body}</i>")
-            await self.notifier.send(user_id, "✅ Соңғы сөзіңіз жіберілді.")
+            await self._say(s.chat_id, s.t("game.last_words", name=p.mention, text=body))
+            await self.notifier.send(user_id, s.t("game.last_words_sent"))
             return True
         mates = g.team_of(user_id)
         if not mates:
             return False
         for mate in mates:
-            await self.notifier.send(mate.user_id, f"💬 {title(p.role)} {p.mention}:\n{body}")
+            await self.notifier.send(
+                mate.user_id, s.t("game.team_msg", role=g.title(p.role), name=p.mention, text=body)
+            )
         return True
 
     # --- Аяқтау және тоқтату ----------------------------------------------------------------------
+
+    def rewards_for(self, game: Game, result: GameResult) -> dict[int, int]:
+        """Жеңімпаздардың сыйақысы. ⚛️ Higgs-Man екі есе алады."""
+        base = win_reward(game.size)
+        return {
+            uid: base * (HIGGS_REWARD_MULTIPLIER if game.players[uid].role is Role.HIGGS else 1)
+            for uid in result.winners
+        }
 
     async def _finish(self, s: Session, result: GameResult) -> None:
         if s.finished:
             return
         s.finished = True
         g = s.game
-        reward = win_reward(g.size)
-        rewards = {uid: reward for uid in result.winners}
+        rewards = self.rewards_for(g, result)
         rows = [
             FinalRow(
                 user_id=p.user_id,
@@ -736,31 +803,34 @@ class GameManager:
             saved = False
         if not saved:
             rewards = {}
-        await self.notifier.send(s.chat_id, g.final_text(rewards))
+        await self._say(s.chat_id, g.final_text(rewards))
         await self._release(s)
         for p in g.ordered():
             if p.user_id in result.winners:
-                bonus = f" +{rewards[p.user_id]} ₸" if p.user_id in rewards else ""
-                await self.notifier.send(p.user_id, f"🏆 Ойын аяқталды — сіз жеңдіңіз!{bonus}")
+                bonus = s.t("game.win_bonus", reward=rewards[p.user_id]) if p.user_id in rewards else ""
+                await self.notifier.send(p.user_id, s.t("game.win_dm", bonus=bonus))
+            elif not p.alive and result.winner is not None and p.faction is result.winner:
+                await self.notifier.send(p.user_id, s.t("game.lose_dead_dm"))
             else:
-                await self.notifier.send(p.user_id, "🏁 Ойын аяқталды. Бұл жолы жеңіліс... Келесі жолы сәттілік!")
+                await self.notifier.send(p.user_id, s.t("game.lose_dm"))
 
     async def _release(self, s: Session) -> None:
-        for uid in list(s.restricted):
-            await self.notifier.unrestrict(s.chat_id, uid)
-            await self.storage.set_restricted(s.game_id, uid, False)
-        s.restricted.clear()
+        now = time.monotonic()
+        for uid, until in list(s.muted.items()):
+            if until > now:
+                await self.notifier.unrestrict(s.chat_id, uid)
+        s.muted.clear()
         self.sessions.pop(s.chat_id, None)
         for uid in s.game.players:
             if self.user_chat.get(uid) == s.chat_id:
                 self.user_chat.pop(uid, None)
 
-    async def abort(self, chat_id: int, text: str = "🛑 Ойын тоқтатылды.") -> bool:
+    async def abort(self, chat_id: int, text: str | None = None) -> bool:
         lobby = self.lobbies.get(chat_id)
         if lobby is not None:
             if lobby.task and lobby.task is not asyncio.current_task():
                 lobby.task.cancel()
-            await self._cancel_lobby(lobby, text)
+            await self._cancel_lobby(lobby, text or lobby.t("game.stopped"))
             return True
         s = self.sessions.get(chat_id)
         if s is None or s.finished:
@@ -768,16 +838,16 @@ class GameManager:
         s.finished = True
         if s.task and s.task is not asyncio.current_task():
             s.task.cancel()
-        await self._close_prompts(s, "🛑 Ойын тоқтатылды.")
+        await self._close_prompts(s, s.t("game.stopped"))
         await self.storage.abort_game(s.game_id)
         await self._release(s)
-        await self.notifier.send(chat_id, text)
+        await self._say(chat_id, text or s.t("game.stopped"))
         return True
 
     async def shutdown(self) -> None:
         for chat_id in list(self.lobbies) + list(self.sessions):
             try:
-                await self.abort(chat_id, "⚠️ Бот тоқтатылды, ойын тоқтатылды.")
+                await self.abort(chat_id, i18n.t(self.lobby_lang(chat_id), "game.shutdown"))
             except Exception:  # pragma: no cover
                 log.exception("Ойынды тоқтату кезінде қате")
 
@@ -788,6 +858,5 @@ class GameManager:
             for uid in restricted:
                 await self.notifier.unrestrict(g["chat_id"], uid)
             if g["status"] == "running":
-                await self.notifier.send(
-                    g["chat_id"], "⚠️ Бот қайта іске қосылды, алдыңғы ойын тоқтатылды. Жаңа ойын: /game"
-                )
+                await self.notifier.send(g["chat_id"], i18n.t(g.get("lang"), "game.restarted"))
+

@@ -126,13 +126,124 @@ async def test_moderation_rules():
     await wait_until(lambda: CHAT in manager.sessions)
     s = manager.sessions[CHAT]
     assert s.game.phase is Phase.NIGHT
-    assert manager.should_delete(CHAT, 1)          # түнде бәрі үндемейді
-    assert not manager.should_delete(CHAT, 999)    # бөгде адамдарға тиіспейміз (әдепкі)
+
+    async def no() -> bool:
+        return False
+
+    async def yes() -> bool:
+        return True
+
+    # Түнде тірі ойыншының хабары өшіріледі, бірақ ол үнсіз етілмейді.
+    assert await manager.moderate(CHAT, 1, 101, "сәлем", no)
+    assert (CHAT, 101) in notifier.deleted and (CHAT, 1) not in notifier.restricted
+    # Ойынға қатыспайтын адам — өшіріліп, 2 минутқа үнсіз етіледі.
+    assert await manager.moderate(CHAT, 999, 102, "мен де ойнаймын", no)
+    assert notifier.restricted[(CHAT, 999)] == 120
+    # Әкімші «!» белгісімен жазса — өшірілмейді; белгісіз жазса — өшіріледі, бірақ шектелмейді.
+    assert not await manager.moderate(CHAT, 998, 103, "! ереже еске салу", yes)
+    assert await manager.moderate(CHAT, 998, 104, "белгісіз", yes)
+    assert (CHAT, 998) not in notifier.restricted
+    # Күндіз тірі ойыншы еркін жаза алады.
+    s.game.phase = Phase.DAY
+    assert not await manager.moderate(CHAT, 1, 105, "мен тұрғынмын", no)
+    # Өлген ойыншы — өшіріліп, үнсіз етіледі; қайта шектеу жіберілмейді.
     await manager.leave(2)
-    assert manager.should_delete(CHAT, 2)          # өлген ойыншы
-    assert (CHAT, 2) in notifier.restricted
+    assert await manager.moderate(CHAT, 2, 106, "мен өлмедім!", no)
+    assert notifier.restricted[(CHAT, 2)] == 120
+    notifier.restricted.clear()
+    assert await manager.moderate(CHAT, 2, 107, "тағы", no)
+    assert (CHAT, 2) not in notifier.restricted  # әлі үнсіз — қайта шектемейміз
     await manager.abort(CHAT)
-    assert (CHAT, 2) not in notifier.restricted    # ойын соңында шектеу алынады
+    assert (CHAT, 2) in notifier.unrestricted and (CHAT, 999) in notifier.unrestricted
+    # Ойын жоқ кезде ештеңе өшірілмейді.
+    assert not await manager.moderate(CHAT, 999, 108, "ойын бітті", no)
+
+
+async def test_no_mute_when_disabled():
+    manager, notifier, storage = make_manager(time_scale=50, mute_seconds=0, mute_non_players=False)
+    await open_with_players(manager, 4)
+    await manager.force_start(CHAT)
+    await wait_until(lambda: CHAT in manager.sessions)
+
+    async def no() -> bool:
+        return False
+
+    manager.sessions[CHAT].game.phase = Phase.DAY
+    assert not await manager.moderate(CHAT, 999, 1, "сәлем", no)
+    await manager.leave(1)
+    assert await manager.moderate(CHAT, 1, 2, "сәлем", no)
+    assert not notifier.restricted
+    await manager.abort(CHAT)
+
+
+async def test_votes_and_actions_are_announced_one_by_one():
+    manager, notifier, storage = make_manager(rng_factory=lambda: random.Random(3))
+    AutoPlayers(manager, notifier, seed=3)
+    gid = await open_with_players(manager, 8)
+    await manager.force_start(CHAT)
+    await wait_until(lambda: storage.games.get(gid) == "finished", timeout=60)
+    group = [m.text for m in notifier.to(CHAT)]
+    casts = [t for t in group if "өз дауысын" in t or "қалыс қалды" in t]
+    assert casts, "әр дауыс жеке хабар болуы керек"
+    assert all(t.count("tg://user") <= 2 for t in casts)
+    assert any("тергеу жүргізуде" in t or "тапаншасын көтерді" in t for t in group)
+    assert any("Дон" in t and "белгіледі" in t for t in group)
+    # Әр дауыс өз дауыс беру кезеңінің ішінде, әр түнгі әрекет өз түнінің ішінде шығады.
+    phase = None
+    for text in group:
+        if "-түн</b>" in text:
+            phase = "night"
+        elif "Таң атты" in text or "Дауыс беру нәтижесі" in text or "Ойын аяқталды" in text:
+            phase = None
+        elif "Дауыс беру басталды" in text:
+            phase = "vote"
+        elif "өз дауысын" in text or "қалыс қалды" in text:
+            assert phase == "vote", text
+        elif "<i>" in text and text.count("\n") == 0 and "…" not in text and "..." in text:
+            assert phase == "night", text
+
+
+async def test_higgs_reward_is_doubled_and_dead_winners_get_nothing():
+    manager, notifier, storage = make_manager(higgs_chance=1, rng_factory=lambda: random.Random(4))
+    AutoPlayers(manager, notifier, seed=4)
+    gid = await open_with_players(manager, 10)
+    await manager.force_start(CHAT)
+    await wait_until(lambda: CHAT in manager.sessions)
+    roles = dict(storage.started[gid])
+    higgs = next(uid for uid, role in roles.items() if role == "higgs")
+    await wait_until(lambda: storage.games.get(gid) == "finished", timeout=60)
+    rows = {r.user_id: r for r in storage.finalized[gid]}
+    base = win_reward(10)
+    for r in rows.values():
+        if r.won and not r.alive:
+            assert r.final_role in ("suicide", "pyro")
+        if r.won:
+            assert r.reward == (base * 2 if r.user_id == higgs else base)
+        else:
+            assert r.reward == 0
+    assert rows[higgs].won == rows[higgs].alive
+
+
+async def test_english_game():
+    manager, notifier, storage = make_manager(rng_factory=lambda: random.Random(9))
+    AutoPlayers(manager, notifier, seed=9)
+    assert await manager.open_lobby(CHAT, "Test chat", 1, lang="en") is None
+    gid = next(iter(manager.lobby_by_game))
+    for uid in range(1, 6):
+        assert "You joined" in await manager.join(gid, uid, f"Player {uid}")
+    assert "Registration for Mafia is open" in notifier.to(CHAT)[0].text
+    await manager.force_start(CHAT)
+    await wait_until(lambda: storage.games.get(gid) == "finished", timeout=60)
+    group = "\n".join(m.text for m in notifier.to(CHAT))
+    assert "Night 1" in group and "Game over" in group
+    assert "Your role" in next(m.text for m in notifier.to(1) if "role" in m.text.lower())
+
+
+async def test_registration_time_from_chat_settings():
+    manager, notifier, storage = make_manager(registration_seconds=60)
+    assert await manager.open_lobby(CHAT, "Чат", 1, registration_seconds=0.05) is None
+    gid = next(iter(manager.lobby_by_game))
+    await wait_until(lambda: storage.games[gid] == "aborted", timeout=5)
 
 
 async def test_unreachable_player_is_reported():

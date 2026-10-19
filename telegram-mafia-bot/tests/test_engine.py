@@ -5,7 +5,7 @@ import pytest
 
 from mafia_bot.game import balance
 from mafia_bot.game.engine import ActionKind as A
-from mafia_bot.game.engine import Phase, RoleRequest, assign_roles
+from mafia_bot.game.engine import Game, Phase, Player, RoleRequest, assign_roles
 from mafia_bot.game.roles import Faction, Role, title
 
 from conftest import make_game
@@ -471,13 +471,27 @@ def test_defenders_win_with_mafia_but_do_not_count_for_parity():
     assert res.winner is Faction.MAFIA and res.winners == {1, 2, 3}
 
 
-def test_town_wins_and_dead_town_members_win_too():
+def test_only_alive_town_members_win():
     g = make_game([Role.DON, Role.DOCTOR, Role.COMMISSIONER, Role.CIVILIAN, Role.CIVILIAN])
     night(g, {1: (A.MAFIA_KILL, 4)})
     g.desert(1)
     res = g.check_winner()
     assert res.winner is Faction.TOWN
-    assert res.winners == {2, 3, 4, 5}
+    assert res.winners == {2, 3, 5}  # түнде өлген 4-ойыншы жеңбейді
+
+
+def test_dead_mafia_members_lose_even_if_mafia_wins():
+    g = make_game([Role.DON, Role.MAFIA, Role.DOCTOR, Role.COMMISSIONER, Role.CIVILIAN, Role.CIVILIAN])
+    to_vote(g)
+    for voter in (1, 3, 4, 5, 6):
+        g.submit_vote(voter, 2)
+    g.resolve_vote()  # мафия мүшесі дарға асылды
+    g.desert(5)
+    g.desert(6)
+    assert g.check_winner() is None  # Дон 1 vs 2 бейбіт — ойын жалғасады
+    g.desert(4)
+    res = g.check_winner()
+    assert res.winner is Faction.MAFIA and res.winners == {1}
 
 
 def test_deserter_never_wins():
@@ -532,3 +546,130 @@ def test_role_intro_lists_team_and_items():
     text = g.role_intro(1)
     assert "Дон" in text and "P2" in text and "Қорғаныс" in text
     assert "P3" not in g.role_intro(2).split("командаңыз")[-1]
+
+
+# --- ⚛️ Higgs-Man ----------------------------------------------------------------------------
+
+
+def higgs_game():
+    return make_game([Role.DON, Role.HIGGS, Role.DOCTOR, Role.COMMISSIONER, Role.KILLER,
+                      Role.CIVILIAN, Role.CIVILIAN, Role.CIVILIAN])
+
+
+def next_night(g):
+    g.start_vote()
+    g.resolve_vote()
+    g.end_cycle()
+    g.start_night()
+
+
+def test_higgs_survives_three_shots_and_dies_on_fourth():
+    g = higgs_game()
+    assert g.players[2].higgs_armor == 3 and g.players[2].higgs_vote_save
+    report, _ = night(g, {1: (A.MAFIA_KILL, 2), 5: (A.KILLER_KILL, 2)})
+    assert report.deaths == [] and g.players[2].higgs_armor == 1
+    assert sum("Higgs" in t for t in private_for(report, 2)) == 2
+    assert "Higgs" not in report.public  # ешкімге жарияланбайды
+    next_night(g)
+    report, _ = night(g, {1: (A.MAFIA_KILL, 2)})
+    assert report.deaths == [] and g.players[2].higgs_armor == 0
+    next_night(g)
+    report, _ = night(g, {5: (A.KILLER_KILL, 2)})
+    assert report.deaths == [2]
+
+
+def test_doctor_heal_keeps_higgs_armor():
+    g = higgs_game()
+    night(g, {1: (A.MAFIA_KILL, 2), 3: (A.HEAL, 2)})
+    assert g.players[2].higgs_armor == 3
+
+
+def test_higgs_survives_only_first_lynch():
+    g = higgs_game()
+    for _ in range(2):
+        to_vote(g)
+        for voter in (1, 3, 4, 5, 6, 7, 8):
+            g.submit_vote(voter, 2)
+        res = g.resolve_vote()
+        g.end_cycle()
+        if g.players[2].alive:
+            assert "аман қалды" in res.public and not g.players[2].higgs_vote_save
+        g.start_night()
+    assert not g.players[2].alive
+
+
+def test_higgs_wins_with_any_side_if_alive():
+    g = higgs_game()
+    for uid in (3, 4, 6, 7, 8):
+        g.desert(uid)
+    res = g.check_winner()  # Дон+Киллер (2) vs Higgs (1) — мафия жеңді
+    assert res.winner is Faction.MAFIA and res.winners == {1, 2, 5}
+
+    g = higgs_game()
+    for uid in (1, 5):
+        g.desert(uid)
+    res = g.check_winner()
+    assert res.winner is Faction.TOWN and 2 in res.winners
+
+
+def test_dead_higgs_loses():
+    g = higgs_game()
+    g.desert(2)
+    for uid in (1, 5):
+        g.desert(uid)
+    assert 2 not in g.check_winner().winners
+
+
+def test_higgs_appears_rarely_and_cannot_be_bought():
+    ids = list(range(1, 11))
+    always = assign_roles(ids, [], random.Random(1), higgs_chance=1)
+    assert Counter(always.roles.values())[Role.HIGGS] == 1
+    assert sum(always.roles[u] is Role.CIVILIAN for u in ids) == balance.composition(10)[Role.CIVILIAN] - 1
+    never = assign_roles(ids, [], random.Random(1), higgs_chance=0)
+    assert Role.HIGGS not in never.roles.values()
+    small = assign_roles(list(range(1, 8)), [], random.Random(1), higgs_chance=1)
+    assert Role.HIGGS not in small.roles.values()  # 8-ден аз ойыншыда шықпайды
+    bought = assign_roles(ids, [RoleRequest(1, Role.HIGGS, 9)], random.Random(1), higgs_chance=1)
+    assert not bought.fulfilled and [r.purchase_id for r in bought.unfulfilled] == [9]
+
+
+def test_higgs_shown_to_commissioner():
+    g = higgs_game()
+    report, _ = night(g, {4: (A.CHECK, 2)})
+    assert any("Higgs-Man" in t for t in private_for(report, 4))
+
+
+# --- Ортақ чатқа шығатын хабарлар -------------------------------------------------------------
+
+
+def test_action_announcements_hide_targets():
+    g = make_game([Role.DON, Role.MAFIA, Role.DOCTOR, Role.COMMISSIONER, Role.HACKER, Role.CIVILIAN])
+    don = g.action_announcement(1, A.MAFIA_KILL)
+    mafia = g.action_announcement(2, A.MAFIA_KILL)
+    assert "Дон" in don and "Мафия мүшесі" in mafia and don != mafia
+    assert "тергеу" in g.action_announcement(4, A.CHECK)
+    assert "тапаншасын" in g.action_announcement(4, A.SHOOT)
+    assert g.action_announcement(3, A.SKIP) is None
+    for kind in (A.HEAL, A.BLOCK, A.KILLER_KILL, A.MANIAC_KILL, A.PROTECT, A.VISIT, A.BOMB, A.DETONATE):
+        text = g.action_announcement(3, kind)
+        assert text and "P" not in text  # ойыншы аты айтылмайды
+
+
+def test_vote_announcement_per_voter():
+    g = make_game([Role.DON, Role.DOCTOR, Role.COMMISSIONER, Role.CIVILIAN])
+    to_vote(g)
+    g.submit_vote(1, 2)
+    g.submit_vote(3, None)
+    assert "P1" in g.vote_announcement(1) and "P2" in g.vote_announcement(1)
+    assert "өз дауысын" in g.vote_announcement(1)
+    assert "қалыс" in g.vote_announcement(3)
+
+
+@pytest.mark.parametrize("lang,word", [("en", "Night"), ("ru", "Ночь"), ("tr", "gece"),
+                                       ("uz", "kecha"), ("ky", "түн"), ("kk", "түн")])
+def test_game_texts_follow_language(lang, word):
+    players = [Player(i, f"P{i}", i, role=r, initial_role=r)
+               for i, r in enumerate([Role.DON, Role.DOCTOR, Role.COMMISSIONER, Role.CIVILIAN], 1)]
+    g = Game(1, -1, players, rng=random.Random(0), lang=lang)
+    assert word in g.start_night()
+    assert g.t("role.don") in g.role_intro(1)
