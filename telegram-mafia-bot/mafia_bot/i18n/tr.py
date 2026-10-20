@@ -36,8 +36,8 @@ MESSAGES: dict[str, str] = {
     "role.maniac.desc": "Kimsenin tarafında değilsiniz. Her gece bir oyuncuyu öldürürsünüz. Hayatta kalan son iki oyuncudan biri olursanız — kazanırsınız.",
     "role.higgs": "Higgs-Man",
     "role.higgs.desc": "Çok nadir görülen özel bir karakter. Higgs alanı sizi gece 3 kurşundan korur — 4. kurşun öldürür. İlk asılışınızdan da sağ çıkarsınız. Kimin tarafını tutacağınıza siz karar verirsiniz: oyunun sonunda hayattaysanız, kim kazanırsa kazansın siz de kazanır ve iki kat ödül alırsınız.",
-    "role.sleepless": "Uykusuz",
-    "role.sleepless.desc": "Vatandaştan bile zayıfsınız. Gece uyumadan «Uyanık kal» düğmesine en az 10 kez basmalısınız — yoksa sabaha kadar mafya sizi öldürür. Başka eyleminiz yok.",
+    "role.sleepless": "Balım jalep",
+    "role.sleepless.desc": "Vatandaştan bile kötü. Amaç: gece uyumadan «Em» düğmesine durmadan basmak. 10 kezden az basarsanız otomatik olarak kaybedersiniz.",
     "role.was": "{role} <i>(önceden {old})</i>",
 
     "faction.town": "Vatandaşlar",
@@ -56,7 +56,7 @@ MESSAGES: dict[str, str] = {
     "action.vs": "Ziyaret et",
     "action.bm": "Bomba koy",
     "action.dt": "Patlat",
-    "action.aw": "Uyanık kal",
+    "action.aw": "Em",
     "action.sk": "Geç",
 
     # --- Ölüm nedenleri ------------------------------------------------------------------------
@@ -71,7 +71,7 @@ MESSAGES: dict[str, str] = {
     "cause.lynch": "asıldı",
     "cause.desert": "kendi isteğiyle oyundan çıktı",
     "cause.afk": "hareketsizlik nedeniyle çıkarıldı",
-    "cause.sleepless": "uyuyakaldığı için mafya öldürdü",
+    "cause.sleepless": "mafya öldürdü",
 
     # --- Rol mesajı ----------------------------------------------------------------------------
     "intro.role": "Rolünüz: <b>{role}</b>",
@@ -118,9 +118,9 @@ MESSAGES: dict[str, str] = {
     "prompt.pyro_bombed": "<b>Bomba konulanlar:</b> {names}",
     "prompt.pyro_ready": "<b>Artık hepsini patlatabilirsiniz</b> (siz de ölürsünüz).",
     "prompt.none": "<i>Bu gece bir eyleminiz yok.</i>",
-    "prompt.sleepless": "Uyumayın! Gece bitmeden düğmeye en az {need} kez basın, yoksa sabaha kadar mafya sizi öldürür.",
+    "prompt.sleepless": "Uyumayın! «Em» düğmesine durmadan basın — en az {need} kez, yoksa kaybedersiniz.",
     "awake.progress": "Basıldı: {count}/{need}",
-    "awake.done": "Aferin, bu gece uyanık kaldınız.",
+    "awake.done": "Aferin, bu gece hayatta kaldınız.",
     "submit.not_night": "Şu an gece değil.",
     "submit.not_alive": "Bu oyunda hayattaki bir oyuncu değilsiniz.",
     "submit.already": "Bu gece seçiminizi zaten yaptınız.",
@@ -188,6 +188,7 @@ MESSAGES: dict[str, str] = {
     "morning.explosion": "Gece kasabada bir patlama oldu.",
     "morning.witch": "Birinin evinde büyü parladı.",
     "morning.kamikaze": "Kamikaze katilini de yanında götürdü.",
+    "morning.sleepless": "Mafya Balım jalep'i düzgün emmediği için öldürdü",
     "morning.pyro_won": "Piroman tüm hedeflerini patlattı ve kazandı!",
     "morning.pyro_failed": "Piroman tüm hedeflerini yok edemedi.",
 
@@ -433,7 +434,7 @@ MESSAGES: dict[str, str] = {
     "rules.fairness": "⚖️ <b>Adalet:</b> bir oyunda en fazla bir koruma, bir oylama koruması ve bir kurşun kullanılır. Eşyalar yalnızca gerçekten gerektiğinde harcanır.",
     "rules.balance_title": "⚖️ <b>Oyuncu sayısına göre roller</b>\n<i>(kalan yerler — 👨 vatandaşlar)</i>",
     "rules.higgs_rare": "⚛️ <b>Higgs-Man</b> — {min}+ oyunculu oyunlarda her oyunda ≈%{chance} olasılıkla bir vatandaşın yerine çıkar.",
-    "rules.sleepless_rare": "<b>Uykusuz</b> — {min}+ oyunculu oyunlarda her oyunda ≈%{chance} olasılıkla bir vatandaşın yerine çıkar.",
+    "rules.sleepless_rare": "<b>Balım jalep</b> — {min}+ oyunculu oyunlarda her oyunda ≈%{chance} olasılıkla bir vatandaşın yerine çıkar.",
     "rules.rewards": "💰 <b>Zafer ödülü:</b> {rewards}. Aradaki değerler otomatik hesaplanır, ⚛️ Higgs-Man ×2 alır.",
 
     # --- Eşyalar -------------------------------------------------------------------------------

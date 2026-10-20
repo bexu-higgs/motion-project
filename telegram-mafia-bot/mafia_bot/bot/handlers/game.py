@@ -49,7 +49,7 @@ async def night_mode(callback: CallbackQuery, manager: GameManager) -> None:
 
 @router.callback_query(F.data.regexp(r"^aw:\d+:\d+$"))
 async def stay_awake(callback: CallbackQuery, manager: GameManager) -> None:
-    """Ұйқысыз: батырма бірнеше рет басылады, санағы хабарламада емес, жалқы ескертуде көрінеді."""
+    """Балым жалеп: батырма бірнеше рет басылады, санағы хабарламада емес, жалқы ескертуде көрінеді."""
     _, gid, day = callback.data.split(":")
     ok, text, done = await manager.stay_awake(callback.from_user.id, int(gid), int(day))
     if not ok or not done:

@@ -63,7 +63,7 @@ ROLE_INFO: dict[Role, RoleInfo] = {
         RoleInfo(Role.WOLF, "🐺", Faction.TOWN),
         RoleInfo(Role.MANIAC, "🪓", Faction.INDEPENDENT),
         RoleInfo(Role.HIGGS, "⚛️", Faction.INDEPENDENT),
-        RoleInfo(Role.SLEEPLESS, "🥱", Faction.TOWN),
+        RoleInfo(Role.SLEEPLESS, "💋", Faction.TOWN),   # Балым жалеп (мәні DB-да сақталады)
     )
 }
 

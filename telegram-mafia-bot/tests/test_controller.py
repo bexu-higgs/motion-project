@@ -390,7 +390,7 @@ async def test_sleepless_button_counts_presses():
     await wait_until(lambda: sleepless in s.prompts)
     prompt = next(m for m in notifier.to(sleepless) if m.keyboard)
     assert [b.data for row in prompt.keyboard for b in row] == [f"aw:{gid}:1"]
-    assert "10 рет" in prompt.text
+    assert "«Сору» батырмасын" in prompt.text and "10 рет" in prompt.text
     for i in range(1, 10):
         ok, text, done = await manager.stay_awake(sleepless, gid, 1)
         assert ok and not done and text == f"Басылды: {i}/10"

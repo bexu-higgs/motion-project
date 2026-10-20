@@ -45,7 +45,7 @@ def test_assign_roles_matches_composition(n):
     a = assign_roles(ids, [], random.Random(n))
     assert set(a.roles) == set(ids)
     counts = Counter(a.roles.values())
-    # Higgs-Man мен Ұйқысыз тұрғынның орнына шығады.
+    # Higgs-Man мен Балым жалеп тұрғынның орнына шығады.
     counts[Role.CIVILIAN] += counts.pop(Role.HIGGS, 0) + counts.pop(Role.SLEEPLESS, 0)
     assert +counts == balance.composition(n)
 
@@ -569,7 +569,7 @@ def test_candidate_leaving_ends_confirmation():
     assert res.deaths == [] and "ойыннан шықты. Бүгін ешкім асылмайды" in res.public
 
 
-# --- Ұйқысыз --------------------------------------------------------------------------------
+# --- Балым жалеп -----------------------------------------------------------------------------
 
 
 def test_sleepless_dies_unless_pressing_ten_times():
@@ -584,8 +584,9 @@ def test_sleepless_dies_unless_pressing_ten_times():
     assert 4 not in g.actions and not g.night_complete()
     report, _ = night(g, {2: (A.HEAL, 4)})                         # Дәрігер де құтқармайды
     assert report.deaths == [4] and g.players[4].death_cause == "sleepless"
-    assert "ұйықтап қалғаны үшін мафия өлтірді" in report.public
-    assert any("ұйықтап қалғаны үшін" in t for t in private_for(report, 4))
+    assert "Балым жалеп (мафиялар өлтірді)" in report.public
+    assert "\nБалым жалепті мафиялар дұрыс сормағаны үшін өлтірді\n" in report.public
+    assert any("мафиялар өлтірді" in t for t in private_for(report, 4))
 
 
 def test_sleepless_survives_after_enough_presses():
@@ -593,7 +594,7 @@ def test_sleepless_survives_after_enough_presses():
     for _ in range(AWAKE_PRESSES - 1):
         g.press_awake(4)
     ok, text, done = g.press_awake(4)
-    assert ok and done and "ояу қалдыңыз" in text
+    assert ok and done and "аман қалдыңыз" in text
     for uid, (kind, target) in {1: (A.SKIP, None), 2: (A.SKIP, None), 3: (A.CHECK, 5)}.items():
         g.submit_action(uid, kind, target)
     assert g.night_complete()                                      # түн ерте аяқтала алады
@@ -606,6 +607,13 @@ def test_sleepless_survives_after_enough_presses():
     assert g.awake == {}                                           # санақ әр түнде нөлден
     report, _ = night(g, {})
     assert report.deaths == [4]
+
+
+def test_balym_killed_by_mafia_first_gets_no_extra_line():
+    g = make_game([Role.DON, Role.DOCTOR, Role.COMMISSIONER, Role.SLEEPLESS, Role.CIVILIAN])
+    report, _ = night(g, {1: (A.MAFIA_KILL, 4)})
+    assert report.deaths == [4] and g.players[4].death_cause == "mafia"
+    assert "сормағаны" not in report.public
 
 
 def test_sleepless_replaces_a_civilian_and_cannot_be_bought():

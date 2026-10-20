@@ -36,8 +36,8 @@ MESSAGES: dict[str, str] = {
     "role.maniac.desc": "You are on nobody's side. Every night you kill one player. If you are one of the last two living players — you win.",
     "role.higgs": "Higgs-Man",
     "role.higgs.desc": "A very rare special character. The Higgs field protects you from 3 night shots — the 4th one kills. You also survive your first lynching. You decide whose side to take: if you are alive at the end of the game, you win no matter who wins, and get a double reward.",
-    "role.sleepless": "Insomniac",
-    "role.sleepless.desc": "Weaker than a civilian. At night you must stay awake and press «Stay awake» at least 10 times — otherwise the mafia kills you by morning. You have no other action.",
+    "role.sleepless": "Balym zhalep",
+    "role.sleepless.desc": "Worse than a civilian. Your goal: stay awake at night and keep pressing «Suck» nonstop. Press it fewer than 10 times and you lose automatically.",
     "role.was": "{role} <i>(formerly {old})</i>",
 
     "faction.town": "Town",
@@ -56,7 +56,7 @@ MESSAGES: dict[str, str] = {
     "action.vs": "Visit",
     "action.bm": "Plant bomb",
     "action.dt": "Detonate",
-    "action.aw": "Stay awake",
+    "action.aw": "Suck",
     "action.sk": "Skip",
 
     # --- Causes of death -----------------------------------------------------------------------
@@ -71,7 +71,7 @@ MESSAGES: dict[str, str] = {
     "cause.lynch": "lynched",
     "cause.desert": "left the game",
     "cause.afk": "removed for inactivity",
-    "cause.sleepless": "fell asleep, so the mafia killed them",
+    "cause.sleepless": "killed by the mafia",
 
     # --- Role message --------------------------------------------------------------------------
     "intro.role": "Your role: <b>{role}</b>",
@@ -118,9 +118,9 @@ MESSAGES: dict[str, str] = {
     "prompt.pyro_bombed": "<b>Bombed:</b> {names}",
     "prompt.pyro_ready": "<b>You can now detonate them all</b> (you will die too).",
     "prompt.none": "<i>You have no action tonight.</i>",
-    "prompt.sleepless": "Don't fall asleep! Press the button at least {need} times before the night ends, or the mafia will kill you by morning.",
+    "prompt.sleepless": "Don't fall asleep! Keep pressing «Suck» nonstop — at least {need} times, or you lose.",
     "awake.progress": "Pressed: {count}/{need}",
-    "awake.done": "Well done, you stayed awake tonight.",
+    "awake.done": "Well done, you survived this night.",
     "submit.not_night": "It is not night now.",
     "submit.not_alive": "You are not an alive player in this game.",
     "submit.already": "You have already made your choice tonight.",
@@ -188,6 +188,7 @@ MESSAGES: dict[str, str] = {
     "morning.explosion": "There was an explosion in town last night.",
     "morning.witch": "Magic flashed in someone's house.",
     "morning.kamikaze": "The Kamikaze took their killer with them.",
+    "morning.sleepless": "The mafia killed Balym zhalep for not sucking properly",
     "morning.pyro_won": "The Pyro blew up all targets and won!",
     "morning.pyro_failed": "The Pyro failed to destroy all targets.",
 
@@ -433,7 +434,7 @@ MESSAGES: dict[str, str] = {
     "rules.fairness": "⚖️ <b>Fairness:</b> at most one shield, one vote protection and one bullet are used per game. Items are spent only when they are really needed.",
     "rules.balance_title": "⚖️ <b>Roles by number of players</b>\n<i>(remaining seats — 👨 civilians)</i>",
     "rules.higgs_rare": "⚛️ <b>Higgs-Man</b> — with {min}+ players, appears in each game with a ≈{chance}% chance in place of one civilian.",
-    "rules.sleepless_rare": "<b>Insomniac</b> — with {min}+ players, appears in each game with a ≈{chance}% chance in place of one civilian.",
+    "rules.sleepless_rare": "<b>Balym zhalep</b> — with {min}+ players, appears in each game with a ≈{chance}% chance in place of one civilian.",
     "rules.rewards": "💰 <b>Win reward:</b> {rewards}. Values in between are calculated automatically, ⚛️ Higgs-Man gets ×2.",
 
     # --- Items ---------------------------------------------------------------------------------

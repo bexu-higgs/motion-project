@@ -679,7 +679,7 @@ async def test_sleepless_presses_through_telegram(harness):
     uid = s.game.with_role(Role.SLEEPLESS)[0].user_id
     prompt = next(c for c in tg.sent(uid) if keyboard_buttons(c))
     (button,) = keyboard_buttons(prompt)
-    assert button.text == "Ояу отыру" and button.callback_data.startswith("aw:")
+    assert button.text == "Сору" and button.callback_data.startswith("aw:")
 
     def answers():
         return [c for c in tg.calls if isinstance(c, m.AnswerCallbackQuery)]
@@ -689,6 +689,6 @@ async def test_sleepless_presses_through_telegram(harness):
     for _ in range(9):
         await h.click(uid, 1, button.callback_data)
     edit = [c for c in tg.calls if isinstance(c, m.EditMessageText) and c.chat_id == uid][-1]
-    assert "ояу қалдыңыз" in edit.text and edit.reply_markup is None
+    assert "аман қалдыңыз" in edit.text and edit.reply_markup is None
     assert s.game.awake[uid] == 10
 

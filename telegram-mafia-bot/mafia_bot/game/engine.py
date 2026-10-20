@@ -33,7 +33,7 @@ MAX_DAYS = 40          # шексіз ойынның алдын алу
 QUIET_CYCLES_DRAW = 3  # қатарынан өлімсіз өткен күн+түн саны -> тең ойын
 HIGGS_ARMOR = 3        # Higgs-Man-ның түнгі шабуылдан қорғанысы (4-оқ өлтіреді)
 AFK_NIGHTS = 3         # қатарынан әрекетсіз өткен түн саны -> ойыннан шығарылады
-AWAKE_PRESSES = 10     # Ұйқысыз әр түнде «Ояу отыру» батырмасын кемінде осынша рет басуы керек
+AWAKE_PRESSES = 10     # Балым жалеп әр түнде «Сору» батырмасын кемінде осынша рет басуы керек
 
 
 class Phase(StrEnum):
@@ -194,7 +194,7 @@ def assign_roles(
     """Рөлдерді кездейсоқ бөлу. Сатып алынған рөлдер (сатып алу ретімен) бірінші беріледі.
 
     Бір рөлдің даналары құрамда қанша болса, сонша ғана беріледі — рөлдер саны
-    ойыншылар санынан ешқашан аспайды. Сирек ⚛️ Higgs-Man мен Ұйқысыз тұрғынның орнын алады.
+    ойыншылар санынан ешқашан аспайды. Сирек ⚛️ Higgs-Man мен Балым жалеп тұрғынның орнын алады.
     """
     if len(set(user_ids)) != len(user_ids):
         raise ValueError("Ойыншылар қайталанбауы керек")
@@ -324,7 +324,7 @@ class Game:
         self.day = 0
         self.actions: dict[int, NightAction] = {}
         self.votes: dict[int, int | None] = {}
-        self.awake: dict[int, int] = {}            # Ұйқысыз: осы түнгі басу саны
+        self.awake: dict[int, int] = {}            # Балым жалеп: осы түнгі басу саны
         self.candidate: int | None = None          # растауға шыққан ойыншы
         self.confirm_votes: dict[int, bool] = {}   # user_id -> 👍 (True) / 👎 (False)
         self.bombed: set[int] = set()
@@ -592,7 +592,7 @@ class Game:
         if user_id in self.actions:
             return SubmitResult(False, self.t("submit.already"))
         option = next((o for o in self.night_options(user_id) if o.kind is kind), None)
-        if option is None or kind is ActionKind.AWAKE:  # Ұйқысыз — тек press_awake арқылы
+        if option is None or kind is ActionKind.AWAKE:  # Балым жалеп — тек press_awake арқылы
             return SubmitResult(False, self.t("submit.unavailable"))
         if option.needs_target:
             if target not in option.targets:
@@ -609,7 +609,7 @@ class Game:
         )
 
     def press_awake(self, user_id: int) -> tuple[bool, str, bool]:
-        """Ұйқысыз «Ояу отыру» батырмасын басты. ``(ok, мәтін, жеткілікті ме)`` қайтарады."""
+        """Балым жалеп «Сору» батырмасын басты. ``(ok, мәтін, жеткілікті ме)`` қайтарады."""
         if self.phase is not Phase.NIGHT:
             return False, self.t("submit.not_night"), False
         p = self.players.get(user_id)
@@ -787,10 +787,11 @@ class Game:
         if saved_by_doctor:
             public.append(self.t("morning.saved"))
 
-        # Ұйқысыз жеткілікті баспаса — таңертең мафия оны өлтіреді (Дәрігер құтқармайды).
+        # Балым жалеп жеткілікті баспаса — таңертең мафиялар оны өлтіреді (Дәрігер құтқармайды).
         for p in self.with_role(Role.SLEEPLESS):
             if self.awake.get(p.user_id, 0) < AWAKE_PRESSES:
-                deaths.setdefault(p.user_id, SRC_SLEEPLESS)
+                if deaths.setdefault(p.user_id, SRC_SLEEPLESS) == SRC_SLEEPLESS:
+                    public.append(self.t("morning.sleepless"))
 
         witch_prompt: WitchPrompt | None = None
         for witch_id, attackers in witch_attackers.items():

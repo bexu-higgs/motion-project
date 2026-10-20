@@ -31,7 +31,7 @@ def play_random_game(n: int, seed: int) -> Game:
             if rng.random() < 0.3:
                 continue  # AFK ойыншы
             opt = rng.choice(g.night_options(uid))
-            if opt.kind is ActionKind.AWAKE:  # Ұйқысыз кейде жеткілікті басады, кейде жоқ
+            if opt.kind is ActionKind.AWAKE:  # Балым жалеп кейде жеткілікті басады, кейде жоқ
                 for _ in range(rng.choice((3, 10, 11))):
                     assert g.press_awake(uid)[0]
                 continue

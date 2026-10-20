@@ -812,7 +812,7 @@ class GameManager:
         return True, result.message
 
     async def stay_awake(self, user_id: int, game_id: int, day: int) -> tuple[bool, str, bool]:
-        """Ұйқысыз «Ояу отыру» батырмасын басты. ``(ok, мәтін, жеткілікті ме)``."""
+        """Балым жалеп «Сору» батырмасын басты. ``(ok, мәтін, жеткілікті ме)``."""
         s = self._session_by_game(game_id)
         if s is None or s.game.day != day:
             return False, i18n.t(s.game.lang if s else None, "game.stale"), False
