@@ -142,6 +142,7 @@ MESSAGES: dict[str, str] = {
     "announce.visit": "The Beggar knocked on someone's door...",
     "announce.bomb": "The Pyro is planting a bomb...",
     "announce.detonate": "The Pyro picked up the detonator...",
+    "announce.sleepless": "Balym zhalep is getting ready to suck...",
 
     "night.team_vote": "{role} {name} → {target}",
     "night.hacked": "A hacker broke into your phone tonight — <b>your action failed.</b>",
@@ -434,7 +435,7 @@ MESSAGES: dict[str, str] = {
     "rules.fairness": "⚖️ <b>Fairness:</b> at most one shield, one vote protection and one bullet are used per game. Items are spent only when they are really needed.",
     "rules.balance_title": "⚖️ <b>Roles by number of players</b>\n<i>(remaining seats — 👨 civilians)</i>",
     "rules.higgs_rare": "⚛️ <b>Higgs-Man</b> — with {min}+ players, appears in each game with a ≈{chance}% chance in place of one civilian.",
-    "rules.sleepless_rare": "<b>Balym zhalep</b> — with {min}+ players, appears in each game with a ≈{chance}% chance in place of one civilian.",
+    "rules.sleepless_rare": "<b>Balym zhalep</b> — with {min}+ players, always takes one civilian's place (if the lineup has a civilian).",
     "rules.rewards": "💰 <b>Win reward:</b> {rewards}. Values in between are calculated automatically, ⚛️ Higgs-Man gets ×2.",
 
     # --- Items ---------------------------------------------------------------------------------

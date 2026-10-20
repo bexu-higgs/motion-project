@@ -115,6 +115,35 @@ def test_mafia_votes_decide_when_don_blocked():
     assert any("хакер" in t for t in private_for(report, 1))
 
 
+def test_don_is_the_shooter_even_when_mafia_votes_decide():
+    # Дон бұғатталды, мафия Камикадзеге дауыс берді — Камикадзе мафия мүшесін емес, Донды алып кетеді.
+    g = make_game([Role.DON, Role.MAFIA, Role.KAMIKAZE, Role.CIVILIAN, Role.HACKER,
+                   Role.COMMISSIONER, Role.DOCTOR])
+    report, _ = night(g, {1: (A.MAFIA_KILL, 4), 2: (A.MAFIA_KILL, 3), 5: (A.BLOCK, 1)})
+    assert set(report.deaths) == {1, 3} and g.players[1].death_cause == "kamikaze"
+    assert g.players[2].alive and g.players[2].role is Role.DON   # мафия мүшесі жаңа Дон болды
+
+
+def test_beggar_sees_only_the_don_at_mafia_target():
+    g = make_game([Role.DON, Role.MAFIA, Role.BEGGAR, Role.CIVILIAN, Role.COMMISSIONER, Role.DOCTOR,
+                   Role.CIVILIAN])
+    report, _ = night(g, {2: (A.MAFIA_KILL, 4), 3: (A.VISIT, 4)})   # Дон таңдамады, мафия шешті
+    assert report.deaths == [4]
+    text = private_for(report, 3)[0]
+    assert "P1" in text and "P2" not in text
+
+
+def test_new_don_is_a_random_mafioso():
+    new_dons = set()
+    for seed in range(20):
+        g = make_game([Role.DON, Role.MAFIA, Role.MAFIA, Role.MAFIA, Role.COMMISSIONER, Role.DOCTOR,
+                       Role.CIVILIAN, Role.CIVILIAN, Role.CIVILIAN, Role.CIVILIAN], seed=seed)
+        g.desert(1)
+        (don,) = g.with_role(Role.DON)
+        new_dons.add(don.user_id)
+    assert new_dons == {2, 3, 4}
+
+
 def test_don_skip_means_no_kill():
     g = make_game([Role.DON, Role.MAFIA, Role.CIVILIAN, Role.CIVILIAN, Role.DOCTOR, Role.COMMISSIONER])
     report, _ = night(g, {1: (A.SKIP, None), 2: (A.MAFIA_KILL, 4)})
@@ -616,10 +645,21 @@ def test_balym_killed_by_mafia_first_gets_no_extra_line():
     assert "сормағаны" not in report.public
 
 
+def test_balym_always_appears_from_seven_players_if_a_civilian_slot_exists():
+    for n in range(4, 51):
+        a = assign_roles(list(range(1, n + 1)), [], random.Random(n), higgs_chance=0)
+        civilians = balance.composition(n)[Role.CIVILIAN]
+        expected = 1 if n >= 7 and civilians > 0 else 0
+        assert Counter(a.roles.values())[Role.SLEEPLESS] == expected, n
+    assert balance.composition(8)[Role.CIVILIAN] == 0 and balance.composition(10)[Role.CIVILIAN] == 0
+
+
 def test_sleepless_replaces_a_civilian_and_cannot_be_bought():
     six = list(range(1, 7))
     seven = list(range(1, 8))
     assert Role.SLEEPLESS not in assign_roles(six, [], random.Random(1), sleepless_chance=1).roles.values()
+    five = list(range(1, 6))  # 6-дан аз ойыншыда тұрғын бар, бірақ Балым жалеп шықпайды
+    assert Role.SLEEPLESS not in assign_roles(five, [], random.Random(1), sleepless_chance=1).roles.values()
     a = assign_roles(seven, [], random.Random(1), higgs_chance=0, sleepless_chance=1)
     assert Counter(a.roles.values())[Role.SLEEPLESS] == 1
     assert Counter(a.roles.values())[Role.CIVILIAN] == balance.composition(7)[Role.CIVILIAN] - 1

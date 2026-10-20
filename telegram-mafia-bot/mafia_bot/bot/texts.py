@@ -99,8 +99,7 @@ def rules_page(page: str, lang: str) -> str:
             *rows,
             "",
             t(lang, "rules.higgs_rare", min=balance.HIGGS_MIN_PLAYERS, chance=round(balance.HIGGS_CHANCE * 100)),
-            t(lang, "rules.sleepless_rare", min=balance.SLEEPLESS_MIN_PLAYERS,
-              chance=round(balance.SLEEPLESS_CHANCE * 100)),
+            t(lang, "rules.sleepless_rare", min=balance.SLEEPLESS_MIN_PLAYERS),
             t(lang, "rules.rewards", rewards=rewards),
         ])
     return t(lang, "rules.general", min=balance.MIN_PLAYERS, max=balance.MAX_PLAYERS)

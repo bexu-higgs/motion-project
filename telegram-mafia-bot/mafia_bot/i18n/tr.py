@@ -142,6 +142,7 @@ MESSAGES: dict[str, str] = {
     "announce.visit": "Dilenci birinin kapısını çaldı...",
     "announce.bomb": "Piroman bomba yerleştiriyor...",
     "announce.detonate": "Piroman fünyeyi eline aldı...",
+    "announce.sleepless": "Balım jalep emmeye hazırlanıyor...",
 
     "night.team_vote": "{role} {name} → {target}",
     "night.hacked": "Gece bir hacker telefonunuzu hackledi — <b>eyleminiz gerçekleşmedi.</b>",
@@ -434,7 +435,7 @@ MESSAGES: dict[str, str] = {
     "rules.fairness": "⚖️ <b>Adalet:</b> bir oyunda en fazla bir koruma, bir oylama koruması ve bir kurşun kullanılır. Eşyalar yalnızca gerçekten gerektiğinde harcanır.",
     "rules.balance_title": "⚖️ <b>Oyuncu sayısına göre roller</b>\n<i>(kalan yerler — 👨 vatandaşlar)</i>",
     "rules.higgs_rare": "⚛️ <b>Higgs-Man</b> — {min}+ oyunculu oyunlarda her oyunda ≈%{chance} olasılıkla bir vatandaşın yerine çıkar.",
-    "rules.sleepless_rare": "<b>Balım jalep</b> — {min}+ oyunculu oyunlarda her oyunda ≈%{chance} olasılıkla bir vatandaşın yerine çıkar.",
+    "rules.sleepless_rare": "<b>Balım jalep</b> — {min}+ oyunculu oyunlarda her zaman bir vatandaşın yerine çıkar (kadroda vatandaş varsa).",
     "rules.rewards": "💰 <b>Zafer ödülü:</b> {rewards}. Aradaki değerler otomatik hesaplanır, ⚛️ Higgs-Man ×2 alır.",
 
     # --- Eşyalar -------------------------------------------------------------------------------

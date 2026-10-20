@@ -100,6 +100,7 @@ ANNOUNCE_KEYS: dict[ActionKind, str] = {
     ActionKind.VISIT: "visit",
     ActionKind.BOMB: "bomb",
     ActionKind.DETONATE: "detonate",
+    ActionKind.AWAKE: "sleepless",
 }
 
 
@@ -200,19 +201,19 @@ def assign_roles(
         raise ValueError("Ойыншылар қайталанбауы керек")
     pool = balance.composition(len(user_ids))
     if (
-        len(user_ids) >= balance.HIGGS_MIN_PLAYERS
-        and pool[Role.CIVILIAN] > 0
-        and rng.random() < higgs_chance
-    ):
-        pool[Role.CIVILIAN] -= 1
-        pool[Role.HIGGS] += 1
-    if (
         len(user_ids) >= balance.SLEEPLESS_MIN_PLAYERS
         and pool[Role.CIVILIAN] > 0
         and rng.random() < sleepless_chance
     ):
         pool[Role.CIVILIAN] -= 1
         pool[Role.SLEEPLESS] += 1
+    if (
+        len(user_ids) >= balance.HIGGS_MIN_PLAYERS
+        and pool[Role.CIVILIAN] > 0
+        and rng.random() < higgs_chance
+    ):
+        pool[Role.CIVILIAN] -= 1
+        pool[Role.HIGGS] += 1
     roles: dict[int, Role] = {}
     fulfilled: list[RoleRequest] = []
     unfulfilled: list[RoleRequest] = []
@@ -922,6 +923,11 @@ class Game:
         return notes
 
     def _mafia_decision(self, effective: dict[int, NightAction]) -> tuple[int | None, int | None]:
+        """Мафияның ортақ нысанасы және оны атқан адам.
+
+        Нысананы Дон таңдайды, таңдамаса (не бұғатталса) — мафия мүшелерінің көпшілік дауысы.
+        Бірақ атушы әрқашан Дон: Камикадзе Донды алып кетеді, Қайыршы тек Донды көреді.
+        """
         don = next(iter(self.with_role(Role.DON)), None)
         if don is not None:
             chosen = effective.get(don.user_id)
@@ -942,7 +948,7 @@ class Game:
         best = max(tally.values())
         tied = sorted(t for t, c in tally.items() if c == best)
         target = self.rng.choice(tied)
-        attacker = next(uid for uid, t in votes if t == target)
+        attacker = don.user_id if don is not None else next(uid for uid, t in votes if t == target)
         return target, attacker
 
     def _check_result(self, target_id: int) -> str:
@@ -976,7 +982,7 @@ class Game:
         if not self.with_role(Role.DON):
             heirs = self.with_role(Role.MAFIA)
             if heirs:
-                new_don = heirs[0]
+                new_don = self.rng.choice(heirs)  # мафиялардың кездейсоқ біреуі жаңа Дон болады
                 new_don.role = Role.DON
                 notes.append((new_don.user_id, self.t("promo.new_don")))
                 for q in self.mafia_team():

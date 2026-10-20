@@ -821,6 +821,8 @@ class GameManager:
         if s is None or s.game.day != day:
             return False, i18n.t(s.game.lang if s else None, "game.stale"), False
         ok, text, done = s.game.press_awake(user_id)
+        if ok and s.game.awake.get(user_id) == 1:  # түнде бірінші басқанда топқа бір рет жарияланады
+            self._announce(s.chat_id, s.game.action_announcement(user_id, ActionKind.AWAKE))
         if done:
             s.prompts.pop(user_id, None)
             s.wake.set()

@@ -208,7 +208,7 @@ async def test_votes_and_actions_are_announced_one_by_one():
 
 
 async def test_higgs_reward_is_doubled_and_dead_winners_get_nothing():
-    manager, notifier, storage = make_manager(higgs_chance=1, rng_factory=lambda: random.Random(4))
+    manager, notifier, storage = make_manager(higgs_chance=1, sleepless_chance=0, rng_factory=lambda: random.Random(4))
     AutoPlayers(manager, notifier, seed=4)
     gid = await open_with_players(manager, 11)  # 10 ойыншыда тұрғын жоқ — Higgs шықпайды
     await manager.force_start(CHAT)
@@ -397,5 +397,7 @@ async def test_sleepless_button_counts_presses():
     ok, text, done = await manager.stay_awake(sleepless, gid, 1)
     assert ok and done and sleepless not in s.prompts
     assert not (await manager.stay_awake(sleepless, gid, 9))[0]     # ескі батырма
+    await wait_until(lambda: any("соруға дайындалып жатыр" in m.text for m in notifier.to(CHAT)))
+    assert sum("соруға дайындалып жатыр" in m.text for m in notifier.to(CHAT)) == 1  # түнде бір рет
     await manager.abort(CHAT)
 

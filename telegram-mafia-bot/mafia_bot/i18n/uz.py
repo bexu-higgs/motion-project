@@ -142,6 +142,7 @@ MESSAGES: dict[str, str] = {
     "announce.visit": "Gado kimningdir eshigini taqillatdi...",
     "announce.bomb": "Piroman bomba qo‘ymoqda...",
     "announce.detonate": "Piroman detonatorni qo‘liga oldi...",
+    "announce.sleepless": "Balym jalep so‘rishga tayyorlanmoqda...",
 
     "night.team_vote": "{role} {name} → {target}",
     "night.hacked": "Kechasi xaker telefoningizni buzdi — <b>harakatingiz bajarilmadi.</b>",
@@ -434,7 +435,7 @@ MESSAGES: dict[str, str] = {
     "rules.fairness": "⚖️ <b>Adolat:</b> bir o‘yinda ko‘pi bilan bitta himoya, bitta ovoz berishdan himoya va bitta o‘q ishlatiladi. Buyumlar faqat haqiqatan kerak bo‘lganda sarflanadi.",
     "rules.balance_title": "⚖️ <b>O‘yinchilar soniga qarab rollar</b>\n<i>(qolgan o‘rinlar — 👨 tinch aholi)</i>",
     "rules.higgs_rare": "⚛️ <b>Higgs-Man</b> — {min}+ o‘yinchida har bir o‘yinda ≈{chance}% ehtimol bilan bitta tinch aholi o‘rniga chiqadi.",
-    "rules.sleepless_rare": "<b>Balym jalep</b> — {min}+ o‘yinchida har bir o‘yinda ≈{chance}% ehtimol bilan bitta tinch aholi o‘rniga chiqadi.",
+    "rules.sleepless_rare": "<b>Balym jalep</b> — {min}+ o‘yinchida har doim bitta tinch aholi o‘rniga chiqadi (tarkibda bo‘lsa).",
     "rules.rewards": "💰 <b>G‘alaba mukofoti:</b> {rewards}. Oraliq sonlar avtomatik hisoblanadi, ⚛️ Higgs-Man — ×2.",
 
     # --- Buyumlar ------------------------------------------------------------------------------
