@@ -37,9 +37,8 @@ MENU_KEYS: tuple[tuple[str, ...], ...] = (
     ("btn.join", "btn.room"),
     ("btn.profile", "btn.shop"),
     ("btn.diamonds", "btn.role"),
-    ("btn.rules", "btn.rating"),
-    ("btn.daily", "btn.help"),
-    ("btn.lang",),
+    ("btn.rules", "btn.rating", "btn.help"),
+    ("btn.daily", "btn.lang"),
 )
 
 RULE_PAGES: tuple[str, ...] = ("general", "roles", "night", "items", "balance")

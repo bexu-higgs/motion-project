@@ -214,6 +214,9 @@ async def test_full_game_through_telegram_handlers(harness):
     welcome = tg.sent(1)[-1]
     assert "қош келдіңіз" in welcome.text
     assert isinstance(welcome.reply_markup, t.ReplyKeyboardMarkup)
+    # Мәзір «артқа» батырмасымен жабылады және экранның жартысын алмайды (5 қатар).
+    assert not welcome.reply_markup.is_persistent and welcome.reply_markup.resize_keyboard
+    assert len(welcome.reply_markup.keyboard) == 5
 
     # Топта тіркелуді ашу.
     await h.text(1, GROUP, "/game")

@@ -20,10 +20,12 @@ REGISTRATION_CHOICES = (30, 60, 90, 120, 180, 300)
 
 
 def main_menu(lang: str) -> ReplyKeyboardMarkup:
+    # Тұрақты (is_persistent) емес: телефонның «артқа» батырмасымен жабылады, ал чаттағы
+    # мәзір белгішесімен қайта ашылады.
     return ReplyKeyboardMarkup(
         keyboard=[[KeyboardButton(text=label) for label in row] for row in texts.menu_rows(lang)],
         resize_keyboard=True,
-        is_persistent=True,
+        is_persistent=False,
     )
 
 
