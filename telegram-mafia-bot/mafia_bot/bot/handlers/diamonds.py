@@ -150,9 +150,16 @@ async def give(
 
 @router.message(Command("getdiamonds"))
 async def get_diamonds(message: Message, command: CommandObject, repo: Repo, settings: Settings) -> None:
-    """Бот авторы (ADMIN_IDS) өзіне тегін алмаз алады: бір командада ең көбі 999 999."""
+    """Бот авторы (ADMIN_IDS) өзіне тегін алмаз алады: бір командада ең көбі 999 999.
+
+    ``GETDIAMONDS_IDS`` тізіміндегілер де өз балансын толтыра алады, бірақ тек ботпен жеке чатта
+    (олар әкімші емес: басқа әкімші командалары оларға жұмыс істемейді).
+    """
     user = message.from_user
-    if user is None or user.id not in settings.admin_ids:
+    if user is None:
+        return
+    is_admin = user.id in settings.admin_ids
+    if not is_admin and not (user.id in settings.getdiamonds_ids and message.chat.type == ChatType.PRIVATE):
         return
     raw = (command.args or "").strip().replace(" ", "")
     if not raw.isdigit() or not 1 <= int(raw) <= MAX_DIAMOND_GRANT:
@@ -161,8 +168,8 @@ async def get_diamonds(message: Message, command: CommandObject, repo: Repo, set
         return
     amount = int(raw)
     await repo.ensure_user(user.id, user.username, full_name(user))
-    balance = await repo.grant(user.id, "diamonds", amount, "admin_self")
-    log.info("Әкімші %s өзіне %s алмаз алды", user.id, amount)
+    balance = await repo.grant(user.id, "diamonds", amount, "admin_self" if is_admin else "self_grant")
+    log.info("%s %s өзіне %s алмаз алды", "Әкімші" if is_admin else "Ойыншы", user.id, amount)
     await respond(
         message,
         f"💎 Сізге <b>{format_kzt(amount)} алмаз</b> қосылды. Жаңа баланс: <b>{format_kzt(balance)} 💎</b>"

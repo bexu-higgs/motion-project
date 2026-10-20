@@ -32,6 +32,8 @@ class Settings:
     bot_token: str
     database_url: str
     admin_ids: frozenset[int] = field(default_factory=frozenset)
+    # Әкімші емес, бірақ жеке чатта /getdiamonds арқылы өзіне алмаз ала алатын ойыншылар.
+    getdiamonds_ids: frozenset[int] = field(default_factory=frozenset)
     registration_seconds: float = 120
     time_scale: float = 1.0
     mute_seconds: float = 120
@@ -57,6 +59,7 @@ class Settings:
             bot_token=token,
             database_url=database_url,
             admin_ids=_ids("ADMIN_IDS"),
+            getdiamonds_ids=_ids("GETDIAMONDS_IDS"),
             registration_seconds=_float("REGISTRATION_SECONDS", 120),
             time_scale=_float("TIME_SCALE", 1.0),
             mute_seconds=_float("MUTE_SECONDS", 120),

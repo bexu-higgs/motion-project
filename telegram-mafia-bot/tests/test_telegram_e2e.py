@@ -157,7 +157,7 @@ async def harness():
 
     diamonds.refresher.delay = 0  # тарату хабары бірден жаңарсын
     repo = await Repo.connect(DSN)
-    settings = Settings(bot_token="x", database_url=DSN, admin_ids=frozenset({1}))
+    settings = Settings(bot_token="x", database_url=DSN, admin_ids=frozenset({1}), getdiamonds_ids=frozenset({6}))
     h = Harness(repo, settings)
     yield h
     await h.manager.shutdown()
@@ -388,6 +388,25 @@ async def test_author_gets_free_diamonds(harness):
         await h.text(uid, uid, "/getdiamonds 500")
         assert len(tg.sent()) == before
         assert (await h.repo.get_user(uid) or {"diamonds": 0})["diamonds"] == 0
+
+
+async def test_allowed_player_gets_diamonds_only_in_private(harness):
+    h = harness
+    tg = h.tg
+    await h.text(6, 6, "/getdiamonds 1000000")  # шектен асады
+    assert "Қолданылуы" in tg.sent(6)[-1].text
+    await h.text(6, 6, "/getdiamonds 500")
+    assert "500 алмаз" in tg.sent(6)[-1].text
+    assert (await h.repo.get_user(6))["diamonds"] == 500
+    reasons = await h.repo.pool.fetch("SELECT reason FROM ledger WHERE user_id = 6")
+    assert [r["reason"] for r in reasons] == ["self_grant"]
+    # Топта жұмыс істемейді, ал әкімші командалары оған мүлдем қолжетімсіз.
+    for chat, text in ((GROUP, "/getdiamonds 5"), (6, "/reloaddm"), (6, "/grant 3 diamonds 5")):
+        before = len(tg.sent())
+        await h.text(6, chat, text)
+        assert len(tg.sent()) == before, text
+    assert (await h.repo.get_user(6))["diamonds"] == 500
+    assert (await h.repo.get_user(3) or {"diamonds": 0})["diamonds"] == 0
 
 
 async def test_players_gift_diamonds(harness):
