@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
+import html
 import time
 from dataclasses import dataclass
-from typing import ClassVar
+from typing import Any, ClassVar
 
 from aiogram import Bot
 from aiogram.exceptions import TelegramAPIError
-from aiogram.types import ChatMemberAdministrator, ChatMemberOwner, User
+from aiogram.types import ChatMemberAdministrator, ChatMemberOwner, Message, User
 
 GROUP_TYPES = frozenset({"group", "supergroup"})
 MEMBER_STATUSES = frozenset({"creator", "administrator", "member", "restricted"})
@@ -86,3 +87,17 @@ AdminCache.shared = AdminCache()
 
 def full_name(user: User) -> str:
     return user.full_name or user.username or str(user.id)
+
+
+async def respond(message: Message, text: str, *, personal: bool = False, **kwargs: Any) -> Message:
+    """Командаға жауап.
+
+    Топта команда хабары орындалған соң өшіріледі, сондықтан жауап reply емес, жай хабар болып
+    жіберіледі; ``personal`` болса, кімге арналғаны көрінуі үшін алдына жазушының аты қойылады.
+    """
+    if message.chat.type not in GROUP_TYPES:
+        return await message.reply(text, **kwargs)
+    user = message.from_user
+    if personal and user is not None:
+        text = f'<a href="tg://user?id={user.id}">{html.escape(full_name(user))}</a>, {text}'
+    return await message.answer(text, **kwargs)

@@ -703,3 +703,29 @@ async def test_sleepless_presses_through_telegram(harness):
     assert "аман қалдыңыз" in edit.text and edit.reply_markup is None
     assert s.game.awake[uid] == 10
 
+
+async def test_group_commands_are_deleted_after_running(harness):
+    h = harness
+    tg = h.tg
+
+    def deleted(msg):
+        return any(isinstance(c, m.DeleteMessage) and c.chat_id == GROUP and c.message_id == msg.message_id
+                   for c in tg.calls)
+
+    game = await h.text(CHAT_ADMIN, GROUP, "/game")
+    assert any("тіркелу басталды" in c.text for c in tg.sent(GROUP)) and deleted(game)
+    for text in ("/extend", "/settingsmafia@mafia_test_bot", "/topmafia", "/rules", "/stop"):
+        msg = await h.text(CHAT_ADMIN, GROUP, text)
+        assert deleted(msg), text
+    denied = await h.text(5, GROUP, "/settingsmafia")       # әкімші емес: жауап беріліп, команда өшіріледі
+    answer = tg.sent(GROUP)[-1]
+    assert "әкімшілері" in answer.text and deleted(denied)
+    # Команда өшірілетіндіктен жауап reply емес, ал кімге арналғаны атымен көрсетіледі.
+    assert answer.reply_parameters is None and answer.text.startswith('<a href="tg://user?id=5">')
+    # Басқа боттың командасы, бөтен «/» хабар және қарапайым хабар өшірілмейді.
+    for text in ("/game@other_bot", "/weather", "сәлем"):
+        assert not deleted(await h.text(5, GROUP, text)), text
+    # Жеке чатта команда өшірілмейді.
+    private = await h.text(5, 5, "/start")
+    assert not any(isinstance(c, m.DeleteMessage) and c.chat_id == 5 for c in tg.calls) and private
+

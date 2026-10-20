@@ -10,8 +10,9 @@ from typing import Any
 import asyncpg
 from aiogram import BaseMiddleware, Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
+from aiogram.dispatcher.event.bases import UNHANDLED
 from aiogram.enums import ParseMode
-from aiogram.exceptions import TelegramNetworkError, TelegramUnauthorizedError
+from aiogram.exceptions import TelegramAPIError, TelegramNetworkError, TelegramUnauthorizedError
 from aiogram.types import (
     BotCommand,
     BotCommandScopeAllGroupChats,
@@ -25,7 +26,7 @@ from .. import i18n
 from ..config import Settings, StartupError
 from ..controller import GameManager
 from ..db.repo import Repo
-from .common import full_name
+from .common import GROUP_TYPES, full_name
 from .handlers import diamonds, game, group, payments, private
 from .notifier import TelegramNotifier
 
@@ -72,6 +73,48 @@ class EnsureUserMiddleware(BaseMiddleware):
         return await handler(event, data)
 
 
+# Топта бот орындайтын командалар — орындалған соң команда хабары өшіріледі.
+GROUP_HANDLED_COMMANDS = frozenset({
+    "start", "game", "newgame", "mafia", "startgame", "begin", "extend", "stop", "leave", "rules", "help",
+    "settingsmafia", "settingsmafiahiggs", "settings", "topmafia", "give", "getdiamonds", "reloaddm",
+})
+
+
+def bot_command(message: Message, bot_username: str) -> str | None:
+    """Хабар осы ботқа арналған команда болса, оның атауын қайтарады (``/game@бот`` те)."""
+    text = message.text or ""
+    if not text.startswith("/"):
+        return None
+    name, _, mention = text.split(maxsplit=1)[0][1:].partition("@")
+    if mention and mention.lower() != bot_username.lower():
+        return None  # басқа боттың командасы
+    return name.lower()
+
+
+class DeleteGroupCommandsMiddleware(BaseMiddleware):
+    """Топта ботқа арналған команда орындалғаннан кейін, команда жазылған хабарды өшіреді —
+    чат таза тұрады. Басқа боттардың командаларына және өңделмеген хабарларға тиіспейді."""
+
+    async def __call__(
+        self,
+        handler: Callable[[TelegramObject, dict[str, Any]], Awaitable[Any]],
+        event: TelegramObject,
+        data: dict[str, Any],
+    ) -> Any:
+        result = await handler(event, data)
+        if (
+            result is not UNHANDLED
+            and isinstance(event, Message)
+            and event.chat.type in GROUP_TYPES
+            and bot_command(event, data["notifier"].username) in GROUP_HANDLED_COMMANDS
+        ):
+            try:
+                await data["bot"].delete_message(event.chat.id, event.message_id)
+            except TelegramAPIError:
+                pass  # әлдеқашан өшірілген не өшіру құқығы жоқ
+        return result
+
+
 PRIVATE_COMMANDS = (
     "start", "profile", "shop", "exchange", "daily", "rating", "rules", "language", "give", "help",
     "paysupport", "terms",
@@ -98,6 +141,7 @@ def build_dispatcher(
     dp = Dispatcher(repo=repo, manager=manager, notifier=notifier, settings=settings)
     ensure_user = EnsureUserMiddleware()
     dp.message.outer_middleware(ensure_user)
+    dp.message.outer_middleware(DeleteGroupCommandsMiddleware())
     dp.callback_query.outer_middleware(ensure_user)
     dp.include_routers(
         payments.router,     # төлем хабарламалары бірінші өңделеді

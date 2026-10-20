@@ -30,7 +30,7 @@ from ...economy import (
 )
 from ...game.engine import mention
 from ...i18n import t
-from ..common import AdminCache, full_name
+from ..common import AdminCache, full_name, respond
 
 log = logging.getLogger(__name__)
 
@@ -106,39 +106,39 @@ async def give(
     args = parse_give(command.args)
     target = await _resolve_target(message, args, repo)
     if isinstance(target, str):
-        await message.reply(t(lang, "give.unknown", name=f"@{target}"))
+        await respond(message, t(lang, "give.unknown", name=f"@{target}"), personal=True)
         return
     if args.amount is None:
-        await message.reply(t(lang, "give.usage"))
+        await respond(message, t(lang, "give.usage"), personal=True)
         return
     if not 1 <= args.amount <= MAX_DIAMOND_GIFT:
-        await message.reply(t(lang, "give.bad_amount", max=format_kzt(MAX_DIAMOND_GIFT)))
+        await respond(message, t(lang, "give.bad_amount", max=format_kzt(MAX_DIAMOND_GIFT)), personal=True)
         return
     if target is None:
         # Топта алушысыз «/give 3» — 🎁 тарату: алғашқы 3 адам 1 💎-ден алады.
         if message.chat.type == ChatType.PRIVATE:
-            await message.reply(t(lang, "give.usage"))
+            await respond(message, t(lang, "give.usage"), personal=True)
         else:
             await _start_giveaway(message, bot, repo, sender, args.amount, lang)
         return
     if target.is_bot:
-        await message.reply(t(lang, "give.bot"))
+        await respond(message, t(lang, "give.bot"), personal=True)
         return
     if target.user_id == sender.id:
-        await message.reply(t(lang, "give.self"))
+        await respond(message, t(lang, "give.self"), personal=True)
         return
     result = await repo.transfer_diamonds(
         sender.id, target.user_id, args.amount, target.username, target.name
     )
     if not result.ok:
-        await message.reply(t(lang, "give.no_funds", balance=result.balance))
+        await respond(message, t(lang, "give.no_funds", balance=result.balance), personal=True)
         return
     giver = mention(sender.id, full_name(sender))
     receiver = mention(target.user_id, target.name)
     text = t(lang, "give.ok", giver=giver, receiver=receiver, n=args.amount)
     if message.chat.type == ChatType.PRIVATE:
         text += "\n" + t(lang, "give.left", balance=result.balance)
-    await message.reply(text)
+    await respond(message, text)
     try:
         await bot.send_message(
             target.user_id,
@@ -156,13 +156,15 @@ async def get_diamonds(message: Message, command: CommandObject, repo: Repo, set
         return
     raw = (command.args or "").strip().replace(" ", "")
     if not raw.isdigit() or not 1 <= int(raw) <= MAX_DIAMOND_GRANT:
-        await message.reply(f"Қолданылуы: /getdiamonds &lt;сан&gt; (1-ден {format_kzt(MAX_DIAMOND_GRANT)}-ға дейін)")
+        await respond(message, f"Қолданылуы: /getdiamonds &lt;сан&gt; (1-ден {format_kzt(MAX_DIAMOND_GRANT)}-ға дейін)",
+                      personal=True)
         return
     amount = int(raw)
     await repo.ensure_user(user.id, user.username, full_name(user))
     balance = await repo.grant(user.id, "diamonds", amount, "admin_self")
     log.info("Әкімші %s өзіне %s алмаз алды", user.id, amount)
-    await message.reply(
+    await respond(
+        message,
         f"💎 Сізге <b>{format_kzt(amount)} алмаз</b> қосылды. Жаңа баланс: <b>{format_kzt(balance)} 💎</b>"
     )
 
@@ -199,7 +201,7 @@ def giveaway_keyboard(v: GiveawayView, lang: str) -> InlineKeyboardMarkup | None
 async def _start_giveaway(message: Message, bot: Bot, repo: Repo, sender: User, amount: int, lang: str) -> None:
     giveaway_id, balance = await repo.create_giveaway(message.chat.id, sender.id, amount)
     if giveaway_id is None:
-        await message.reply(t(lang, "give.no_funds", balance=balance))
+        await respond(message, t(lang, "give.no_funds", balance=balance), personal=True)
         return
     view = await repo.giveaway_view(giveaway_id)
     # Хабар жіберілмей қалса, алмаз мерзімі біткенде иесіне қайтарылады.
@@ -298,7 +300,8 @@ async def reload_dm(message: Message, repo: Repo, settings: Settings) -> None:
     if user is None or user.id not in settings.admin_ids:
         return
     users, total = await repo.diamond_totals()
-    await message.reply(
+    await respond(
+        message,
         "⚠️ <b>Барлық алмазды нөлдеу</b>\n\n"
         f"Барлық ойыншының, соның ішінде сіздің де алмазыңыз <b>0-ге</b> түседі: "
         f"<b>{format_kzt(users)}</b> ойыншыда барлығы <b>{format_kzt(total)} 💎</b> "

@@ -20,7 +20,7 @@ from ...db.models import START_MODES, ChatSettings
 from ...db.repo import Repo
 from ...i18n import LANG_NAMES, LANGS, t
 from .. import keyboards, texts
-from ..common import GROUP_TYPES, AdminCache, bot_rights
+from ..common import GROUP_TYPES, AdminCache, bot_rights, respond
 from ..notifier import TelegramNotifier
 
 log = logging.getLogger(__name__)
@@ -64,16 +64,16 @@ async def new_game(
     await repo.upsert_chat(chat.id, chat.title or "", True, rights.is_admin)
     cfg = await repo.get_chat_settings(chat.id)
     if settings.require_admin_rights and not rights.ok:
-        await message.reply(t(cfg.lang, "need_admin"))
+        await respond(message, t(cfg.lang, "need_admin"))
         return
     if not await can_open_game(bot, settings, cfg, chat.id, message.from_user.id):
-        await message.reply(t(cfg.lang, "group.admins_only"))
+        await respond(message, t(cfg.lang, "group.admins_only"), personal=True)
         return
     error = await manager.open_lobby(
         chat.id, chat.title or str(chat.id), message.from_user.id, cfg.lang, cfg.registration_seconds
     )
     if error:
-        await message.reply(error)
+        await respond(message, error)
 
 
 @router.message(Command("startgame", "begin"))
@@ -82,11 +82,11 @@ async def start_game(
 ) -> None:
     cfg = await repo.get_chat_settings(message.chat.id)
     if not await can_open_game(bot, settings, cfg, message.chat.id, message.from_user.id):
-        await message.reply(t(lang, "group.admins_only"))
+        await respond(message, t(lang, "group.admins_only"), personal=True)
         return
     error = await manager.force_start(message.chat.id)
     if error:
-        await message.reply(error)
+        await respond(message, error)
 
 
 @router.message(Command("extend"))
@@ -94,32 +94,32 @@ async def extend(
     message: Message, bot: Bot, repo: Repo, manager: GameManager, settings: Settings, lang: str
 ) -> None:
     if message.chat.id not in manager.lobbies:
-        await message.reply(t(lang, "group.no_lobby"))
+        await respond(message, t(lang, "group.no_lobby"))
         return
     cfg = await repo.get_chat_settings(message.chat.id)
     if not await can_open_game(bot, settings, cfg, message.chat.id, message.from_user.id):
-        await message.reply(t(lang, "group.admins_only"))
+        await respond(message, t(lang, "group.admins_only"), personal=True)
         return
     text = await manager.extend(message.chat.id)
     if text:
-        await message.reply(text)
+        await respond(message, text)
 
 
 @router.message(Command("stop"))
 async def stop(message: Message, bot: Bot, manager: GameManager, settings: Settings, lang: str) -> None:
     if not await is_manager(bot, settings, message.chat.id, message.from_user.id):
-        await message.reply(t(lang, "group.stop_denied"))
+        await respond(message, t(lang, "group.stop_denied"), personal=True)
         return
     if not await manager.abort(message.chat.id, t(lang, "game.stopped_admin")):
-        await message.reply(t(lang, "group.no_game"))
+        await respond(message, t(lang, "group.no_game"))
 
 
 @router.message(Command("leave"))
 async def leave(message: Message, manager: GameManager, lang: str) -> None:
     if manager.user_chat.get(message.from_user.id) != message.chat.id:
-        await message.reply(t(lang, "group.not_in_game"))
+        await respond(message, t(lang, "group.not_in_game"), personal=True)
         return
-    await message.reply(await manager.leave(message.from_user.id))
+    await respond(message, await manager.leave(message.from_user.id), personal=True)
 
 
 @router.callback_query(F.data.regexp(r"^c:\d+:\d+:[01]$"))
@@ -132,7 +132,8 @@ async def confirm_vote(callback: CallbackQuery, manager: GameManager) -> None:
 
 @router.message(Command("rules", "help"))
 async def group_rules(message: Message, notifier: TelegramNotifier, lang: str) -> None:
-    await message.reply(
+    await respond(
+        message,
         texts.rules_page("general", lang),
         reply_markup=keyboards.url_button(t(lang, "group.open_bot_btn"), notifier.chat_link()),
     )
@@ -161,7 +162,7 @@ def _registration(cfg: ChatSettings, settings: Settings) -> int:
 @router.message(Command("settingsmafia", "settingsmafiahiggs", "settings"))
 async def chat_settings(message: Message, bot: Bot, repo: Repo, settings: Settings, lang: str) -> None:
     if not await is_manager(bot, settings, message.chat.id, message.from_user.id):
-        await message.reply(t(lang, "settings.admins_only"))
+        await respond(message, t(lang, "settings.admins_only"), personal=True)
         return
     cfg = await repo.get_chat_settings(message.chat.id)
     reg = _registration(cfg, settings)
@@ -214,7 +215,7 @@ async def chat_settings_cb(
 async def top_mafia(message: Message, bot: Bot, repo: Repo, settings: Settings, lang: str) -> None:
     """Осы чаттағы соңғы 7 күннің үздік ойыншылары (тек чат әкімшілеріне)."""
     if not await is_manager(bot, settings, message.chat.id, message.from_user.id):
-        await message.reply(t(lang, "top.admins_only"))
+        await respond(message, t(lang, "top.admins_only"), personal=True)
         return
     top = await repo.weekly_top(message.chat.id)
     await message.answer(texts.weekly_top_text(top, message.chat.title or "", lang))
