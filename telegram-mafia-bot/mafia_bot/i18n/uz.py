@@ -476,6 +476,7 @@ MESSAGES: dict[str, str] = {
     "rp.intro": "Narxi: <b>{price} 💎</b>; kuchli rollar ({roles}) — <b>{premium} 💎</b>. Rol o‘yinchilar soni yetarli bo‘lgan o‘yinda beriladi. Bir o‘yinda bitta tanlov ishlatiladi, qolganlari navbatda turadi.",
     "rp.line": "{role} — <b>{price} 💎</b> · <i>{min}+ o‘yinchi</i>",
     "rp.higgs_note": "{role} — <i>sotilmaydi, o‘yinda kamdan-kam va tasodifiy chiqadi.</i>",
+    "rp.higgs_admin": "{role} — <b>{price} 💎</b> · <i>faqat bot admini uchun: keyingi o‘yinda tinch aholi (u bo‘lmasa {beggar}) o‘rniga chiqadi.</i>",
     "rp.queue": "📋 <b>Navbatingiz:</b> {roles}",
     "rp.not_buyable": "Bu rolni sotib olib bo‘lmaydi.",
     "rp.no_funds": "Olmos yetarli emas: bu rol {price} 💎, sizda {balance} 💎. «💎 Olmos sotib olish» bo‘limini oching.",

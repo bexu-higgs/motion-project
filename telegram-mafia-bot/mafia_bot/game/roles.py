@@ -79,6 +79,14 @@ DEFENDER_COVER_ROLES = frozenset({Role.DON, Role.MAFIA})
 NOT_FOR_SALE = frozenset({Role.CIVILIAN, Role.HIGGS, Role.SLEEPLESS})
 # Сатып алуға болатын рөлдер.
 PURCHASABLE_ROLES = tuple(r for r in Role if r not in NOT_FOR_SALE)
+# Higgs-Man-ды тек бот әкімшісі (ADMIN_IDS) сатып ала алады.
+ADMIN_PURCHASABLE_ROLES = (*PURCHASABLE_ROLES, Role.HIGGS)
+# Сатып алынған Higgs-Man осы рөлдің орнына шығады (бірінші бар болғаны): тұрғын, ол жоқ болса Қайыршы.
+HIGGS_SLOTS = (Role.CIVILIAN, Role.BEGGAR)
+
+
+def purchasable_roles(admin: bool = False) -> tuple[Role, ...]:
+    return ADMIN_PURCHASABLE_ROLES if admin else PURCHASABLE_ROLES
 # Камикадзе осылардың бірін өзімен бірге алып кетсе — жеңеді.
 KAMIKAZE_PREY = frozenset({Role.DON, Role.MAFIA, Role.KILLER, Role.DEFENDER, Role.MANIAC, Role.PYRO})
 

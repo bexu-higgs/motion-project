@@ -72,7 +72,7 @@ SHOP: dict[Item, ShopItem] = {
 
 ROLE_PICK_PRICE = 1          # 💎 — келесі ойынға рөл таңдау (қарапайым рөлдер)
 PREMIUM_ROLE_PRICE = 2       # 💎 — күшті рөлдер
-PREMIUM_ROLES = frozenset({Role.DON, Role.KAMIKAZE, Role.MANIAC, Role.PYRO, Role.KILLER})
+PREMIUM_ROLES = frozenset({Role.DON, Role.KAMIKAZE, Role.MANIAC, Role.PYRO, Role.KILLER, Role.HIGGS})
 ROLE_QUEUE_LIMIT = 5         # бір ойыншының кезектегі рөлдерінің ең көп саны
 
 

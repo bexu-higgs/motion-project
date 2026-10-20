@@ -343,6 +343,20 @@ async def test_shop_daily_roles_and_payments(harness):
     await h.click(5, 1, f"rr:{queue[0]['purchase_id']}")
     assert (await h.repo.get_user(5))["diamonds"] == 40
 
+    # Higgs-Man тек бот әкімшісіне сатылады.
+    await h.click(5, 1, "rp:higgs")
+    assert "сатып алуға болмайды" in [c for c in tg.calls if isinstance(c, m.AnswerCallbackQuery)][-1].text
+    assert not await h.repo.role_queue(5)
+    await h.text(5, 5, "🎭 Рөл таңдау")
+    assert "rp:higgs" not in [b.callback_data for b in keyboard_buttons(tg.sent(5)[-1])]
+    await h.text(1, 1, "/getdiamonds 2")
+    await h.text(1, 1, "🎭 Рөл таңдау")
+    menu = tg.sent(1)[-1]
+    assert "rp:higgs" in [b.callback_data for b in keyboard_buttons(menu)] and "тек бот әкімшісіне" in menu.text
+    await h.click(1, 1, "rp:higgs")
+    assert "Higgs-Man рөлі келесі ойынға сақталды" in tg.sent(1)[-1].text
+    assert [q["role"] for q in await h.repo.role_queue(1)] == ["higgs"]
+
     # Мәзірдің басқа бөлімдері қатесіз жауап береді.
     for button in ("🛍 Дүкен", "💎 Алмаз сатып алу", "🎭 Рөл таңдау", "📜 Ережелер",
                    "🏆 Рейтинг", "❓ Көмек", "🎮 Ойынға қосылу", "🏠 Ойын бөлмесін ашу", "🌐 Тіл",

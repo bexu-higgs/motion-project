@@ -138,6 +138,15 @@ async def test_premium_role_costs_two_diamonds(repo):
     assert (await repo.get_user(1))["diamonds"] == 0
 
 
+async def test_only_bot_admin_can_buy_higgs(repo):
+    await add_user(repo, 1, diamonds=5)
+    assert not (await repo.queue_role(1, Role.HIGGS)).ok
+    assert not (await repo.queue_role(1, Role.SLEEPLESS, admin=True)).ok  # Балым жалеп ешкімге сатылмайды
+    r = await repo.queue_role(1, Role.HIGGS, admin=True)
+    assert r.ok and r.balance == 3  # 2 💎
+    assert [q["role"] for q in await repo.role_queue(1)] == ["higgs"]
+
+
 async def test_profiles_for_end_of_game_card(repo):
     await add_user(repo, 1, diamonds=5)
     await add_user(repo, 2)

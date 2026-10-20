@@ -23,7 +23,7 @@ from ..economy import (
     role_price,
 )
 from ..game.engine import RoleRequest
-from ..game.roles import NOT_FOR_SALE, Role
+from ..game.roles import Role, purchasable_roles
 from .models import (
     ChatSettings,
     ClaimResult,
@@ -196,8 +196,9 @@ class Repo:
 
     # --- Рөл сатып алу ---------------------------------------------------------------
 
-    async def queue_role(self, user_id: int, role: Role) -> PurchaseResult:
-        if role in NOT_FOR_SALE:
+    async def queue_role(self, user_id: int, role: Role, *, admin: bool = False) -> PurchaseResult:
+        """Рөлді келесі ойынға сатып алу. ``admin`` — бот әкімшісі (Higgs-Man-ды тек ол ала алады)."""
+        if role not in purchasable_roles(admin):
             return PurchaseResult(False, "unknown")
         price = role_price(role)
         async with self.pool.acquire() as conn, conn.transaction():

@@ -15,7 +15,7 @@ from ...config import Settings
 from ...controller import GameManager
 from ...db.repo import Repo
 from ...economy import ROLE_QUEUE_LIMIT, SHOP, Item, role_price
-from ...game.roles import PURCHASABLE_ROLES, Role, title
+from ...game.roles import Role, purchasable_roles, title
 from ...i18n import LANGS, t, variants
 from .. import keyboards, texts
 from ..common import bot_rights, full_name, is_chat_member
@@ -246,21 +246,23 @@ async def diamonds_cb(callback: CallbackQuery, lang: str) -> None:
 
 
 @router.message(button("btn.role"))
-async def role_menu(message: Message, repo: Repo, lang: str) -> None:
+async def role_menu(message: Message, repo: Repo, settings: Settings, lang: str) -> None:
     queue = await repo.role_queue(message.from_user.id)
-    await message.answer(texts.role_pick_text(queue, lang), reply_markup=keyboards.role_pick(lang))
+    admin = message.from_user.id in settings.admin_ids
+    await message.answer(texts.role_pick_text(queue, lang, admin), reply_markup=keyboards.role_pick(lang, admin))
 
 
 @router.callback_query(F.data.startswith("rp:"))
-async def role_buy(callback: CallbackQuery, repo: Repo, lang: str) -> None:
+async def role_buy(callback: CallbackQuery, repo: Repo, settings: Settings, lang: str) -> None:
     try:
         role = Role(callback.data[3:])
     except ValueError:
         role = None
-    if role not in PURCHASABLE_ROLES:
+    admin = callback.from_user.id in settings.admin_ids
+    if role not in purchasable_roles(admin):
         await callback.answer(t(lang, "rp.not_buyable"), show_alert=True)
         return
-    result = await repo.queue_role(callback.from_user.id, role)
+    result = await repo.queue_role(callback.from_user.id, role, admin=admin)
     if not result.ok:
         reason = {
             "funds": t(lang, "rp.no_funds", price=role_price(role), balance=result.balance),

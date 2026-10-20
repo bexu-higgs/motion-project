@@ -476,6 +476,7 @@ MESSAGES: dict[str, str] = {
     "rp.intro": "Price: <b>{price} 💎</b>; powerful roles ({roles}) — <b>{premium} 💎</b>. The role is given in a game with enough players. One choice is used per game, the rest wait in the queue.",
     "rp.line": "{role} — <b>{price} 💎</b> · <i>{min}+ players</i>",
     "rp.higgs_note": "{role} — <i>not for sale, appears rarely and at random.</i>",
+    "rp.higgs_admin": "{role} — <b>{price} 💎</b> · <i>bot admin only: replaces a civilian (or the {beggar} if there is none) in your next game.</i>",
     "rp.queue": "📋 <b>Your queue:</b> {roles}",
     "rp.not_buyable": "This role can't be bought.",
     "rp.no_funds": "Not enough diamonds: this role costs {price} 💎, you have {balance} 💎. Open «💎 Buy diamonds».",

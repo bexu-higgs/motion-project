@@ -18,6 +18,7 @@ from .. import i18n
 from . import balance
 from .roles import (
     DEFENDER_COVER_ROLES,
+    HIGGS_SLOTS,
     KAMIKAZE_PREY,
     MAFIA_POWER_ROLES,
     MAFIA_TEAM_ROLES,
@@ -196,6 +197,8 @@ def assign_roles(
 
     Бір рөлдің даналары құрамда қанша болса, сонша ғана беріледі — рөлдер саны
     ойыншылар санынан ешқашан аспайды. Сирек ⚛️ Higgs-Man бір тұрғынның орнын алады.
+    Сатып алынған Higgs-Man (оны тек бот әкімшісі сата алады) ойыншылар санына қарамай
+    тұрғынның, ол жоқ болса Қайыршының орнына шығады; бір ойында Higgs-Man біреу ғана.
     """
     if len(set(user_ids)) != len(user_ids):
         raise ValueError("Ойыншылар қайталанбауы керек")
@@ -215,7 +218,13 @@ def assign_roles(
         if req.user_id not in user_ids or req.user_id in seen:
             continue
         seen.add(req.user_id)
-        if req.role not in NOT_FOR_SALE and pool[req.role] > 0:
+        if req.role is Role.HIGGS and pool[Role.HIGGS] == 0 and Role.HIGGS not in roles.values():
+            slot = next((r for r in HIGGS_SLOTS if pool[r] > 0), None)
+            if slot is not None:
+                pool[slot] -= 1
+                pool[Role.HIGGS] += 1
+        buyable = req.role not in NOT_FOR_SALE or req.role is Role.HIGGS
+        if buyable and pool[req.role] > 0:
             pool[req.role] -= 1
             roles[req.user_id] = req.role
             fulfilled.append(req)

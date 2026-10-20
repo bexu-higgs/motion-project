@@ -476,6 +476,7 @@ MESSAGES: dict[str, str] = {
     "rp.intro": "Fiyat: <b>{price} 💎</b>; güçlü roller ({roles}) — <b>{premium} 💎</b>. Rol, oyuncu sayısı yeterli olan oyunda verilir. Bir oyunda bir seçim kullanılır, diğerleri sırada bekler.",
     "rp.line": "{role} — <b>{price} 💎</b> · <i>{min}+ oyuncu</i>",
     "rp.higgs_note": "{role} — <i>satılmaz, oyunda nadiren ve rastgele çıkar.</i>",
+    "rp.higgs_admin": "{role} — <b>{price} 💎</b> · <i>sadece bot yöneticisine: sonraki oyunda bir vatandaşın (yoksa {beggar} rolünün) yerine çıkar.</i>",
     "rp.queue": "📋 <b>Sıranız:</b> {roles}",
     "rp.not_buyable": "Bu rol satın alınamaz.",
     "rp.no_funds": "Yeterli elmas yok: bu rol {price} 💎, sizde {balance} 💎. «💎 Elmas satın al» bölümünü açın.",

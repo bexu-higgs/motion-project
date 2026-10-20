@@ -954,7 +954,7 @@ def test_dead_higgs_loses():
     assert 2 not in g.check_winner().winners
 
 
-def test_higgs_appears_rarely_and_cannot_be_bought():
+def test_higgs_appears_rarely():
     ids = list(range(1, 14))
     always = assign_roles(ids, [], random.Random(1), higgs_chance=1)
     assert Counter(always.roles.values())[Role.HIGGS] == 1
@@ -965,8 +965,33 @@ def test_higgs_appears_rarely_and_cannot_be_bought():
     assert Role.HIGGS not in never.roles.values()
     small = assign_roles(list(range(1, 8)), [], random.Random(1), higgs_chance=1)
     assert Role.HIGGS not in small.roles.values()  # 8-ден аз ойыншыда шықпайды
-    bought = assign_roles(ids, [RoleRequest(1, Role.HIGGS, 9)], random.Random(1), higgs_chance=1)
-    assert not bought.fulfilled and [r.purchase_id for r in bought.unfulfilled] == [9]
+
+
+@pytest.mark.parametrize("n,slot", [(4, Role.CIVILIAN), (8, Role.BEGGAR), (13, Role.CIVILIAN), (16, Role.BEGGAR)])
+def test_bought_higgs_takes_a_civilian_or_beggar_slot(n, slot):
+    ids = list(range(1, n + 1))
+    a = assign_roles(ids, [RoleRequest(3, Role.HIGGS, 9)], random.Random(n), higgs_chance=0)
+    assert a.roles[3] is Role.HIGGS and [r.purchase_id for r in a.fulfilled] == [9]
+    counts = Counter(a.roles.values())
+    expected = balance.composition(n)
+    expected[slot] -= 1
+    expected[Role.HIGGS] += 1
+    assert counts == +expected
+
+
+def test_only_one_higgs_per_game():
+    ids = list(range(1, 14))
+    reqs = [RoleRequest(1, Role.HIGGS, 1), RoleRequest(2, Role.HIGGS, 2)]
+    for chance in (0, 1):  # кездейсоқ Higgs шықса, сатып алған адам сол орынды алады
+        a = assign_roles(ids, reqs, random.Random(1), higgs_chance=chance)
+        assert a.roles[1] is Role.HIGGS and a.roles[2] is not Role.HIGGS
+        assert Counter(a.roles.values())[Role.HIGGS] == 1
+        assert [r.purchase_id for r in a.unfulfilled] == [2]
+    # Бір орын да жоқ (Қайыршыны басқа ойыншы сатып алды, тұрғын жоқ) — кезекте қалады.
+    taken = assign_roles(list(range(1, 9)), [RoleRequest(5, Role.BEGGAR, 3), RoleRequest(1, Role.HIGGS, 4)],
+                         random.Random(1), higgs_chance=0)
+    assert taken.roles[5] is Role.BEGGAR and Role.HIGGS not in taken.roles.values()
+    assert [r.purchase_id for r in taken.unfulfilled] == [4]
 
 
 def test_higgs_shown_to_commissioner():

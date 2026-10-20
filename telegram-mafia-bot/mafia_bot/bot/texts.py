@@ -191,13 +191,17 @@ def premium_roles(lang: str) -> str:
     return ", ".join(name(r, lang) for r in PURCHASABLE_ROLES if r in PREMIUM_ROLES)
 
 
-def role_pick_text(queue, lang: str) -> str:
+def role_pick_text(queue, lang: str, admin: bool = False) -> str:
     intro = t(lang, "rp.intro", price=ROLE_PICK_PRICE, premium=PREMIUM_ROLE_PRICE, roles=premium_roles(lang))
     lines = [t(lang, "rp.title"), intro, ""]
     for role in PURCHASABLE_ROLES:
         lines.append(t(lang, "rp.line", role=title(role, lang), price=role_price(role),
                        min=balance.min_players_for(role)))
-    lines += ["", t(lang, "rp.higgs_note", role=title(Role.HIGGS, lang))]
+    if admin:  # бот әкімшісі Higgs-Man-ды да сатып ала алады
+        lines += ["", t(lang, "rp.higgs_admin", role=title(Role.HIGGS, lang), price=role_price(Role.HIGGS),
+                             beggar=title(Role.BEGGAR, lang))]
+    else:
+        lines += ["", t(lang, "rp.higgs_note", role=title(Role.HIGGS, lang))]
     if queue:
         lines += ["", t(lang, "rp.queue", roles=", ".join(title(Role(q["role"]), lang) for q in queue))]
     return "\n".join(lines)
