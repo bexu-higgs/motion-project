@@ -49,6 +49,14 @@ async def start_join(
     await message.answer(text, reply_markup=keyboards.main_menu(lang))
 
 
+@router.message(CommandStart(deep_link=True, magic=F.args == "menu"))
+async def start_menu(message: Message, manager: GameManager, lang: str) -> None:
+    """Ескі «Ботқа өту» сілтемесі (?start=menu): ойын кезінде сәлемдесу хабарын қайта жібермейміз."""
+    if manager.in_game(message.from_user.id):
+        return
+    await message.answer(t(lang, "welcome"), reply_markup=keyboards.main_menu(lang))
+
+
 @router.message(CommandStart())
 async def start(message: Message, lang: str) -> None:
     await message.answer(t(lang, "welcome"), reply_markup=keyboards.main_menu(lang))

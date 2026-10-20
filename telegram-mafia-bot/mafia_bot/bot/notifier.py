@@ -63,6 +63,9 @@ class TelegramNotifier:
     def start_link(self, payload: str) -> str:
         return f"https://t.me/{self.username}?start={payload}"
 
+    def chat_link(self) -> str:
+        return f"https://t.me/{self.username}"
+
     def startgroup_link(self) -> str:
         return (
             f"https://t.me/{self.username}?startgroup=mafia"

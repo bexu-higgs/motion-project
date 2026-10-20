@@ -492,6 +492,14 @@ async def test_group_moderation(harness):
         await asyncio.sleep(0.002)
     s = h.manager.sessions[GROUP]
     assert s.game.phase.value == "night"
+    # «Ботқа өту» / «Дауыс беру» батырмасы — жай сілтеме: START пен сәлемдесу хабары шықпайды.
+    bot_urls = {b.url for c in tg.sent(GROUP) for b in keyboard_buttons(c) if b.url and "join_" not in b.url}
+    assert bot_urls == {"https://t.me/mafia_test_bot"}
+    before = sum("қош келдіңіз" in c.text for c in tg.sent(2))
+    await h.text(2, 2, "/start menu")   # ескі хабарлардағы сілтеме — ойын кезінде үндемейміз
+    assert sum("қош келдіңіз" in c.text for c in tg.sent(2)) == before
+    await h.text(99, 99, "/start menu")  # ойында жоқ адамға — әдеттегі мәзір
+    assert "қош келдіңіз" in tg.sent(99)[-1].text
 
     def deleted(msg):
         return any(isinstance(c, m.DeleteMessage) and c.message_id == msg.message_id for c in tg.calls)

@@ -70,6 +70,9 @@ class Notifier(Protocol):
 
     def start_link(self, payload: str) -> str: ...
 
+    def chat_link(self) -> str:
+        """Ботпен жеке чатқа жай сілтеме (/start жіберілмейді)."""
+
 
 class Storage(Protocol):
     async def ensure_user(self, user_id: int, username: str | None, full_name: str) -> str: ...
@@ -543,7 +546,8 @@ class GameManager:
             session.task = asyncio.create_task(self._run(session))
 
     def _bot_button(self, lang: str, key: str = "game.bot_btn") -> Keyboard:
-        return [[Button(i18n.t(lang, key), url=self.notifier.start_link("menu"))]]
+        # Жай сілтеме: жеке чат ашылады, «START» батырмасы мен сәлемдесу хабары шықпайды.
+        return [[Button(i18n.t(lang, key), url=self.notifier.chat_link())]]
 
     # --- Ойын циклі ----------------------------------------------------------------------------
 

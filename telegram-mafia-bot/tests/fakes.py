@@ -63,6 +63,9 @@ class FakeNotifier:
     def start_link(self, payload):
         return f"https://t.me/test_bot?start={payload}"
 
+    def chat_link(self):
+        return "https://t.me/test_bot"
+
     def to(self, chat_id) -> list[Sent]:
         return [m for m in self.sent if m.chat_id == chat_id]
 

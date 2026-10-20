@@ -134,7 +134,7 @@ async def confirm_vote(callback: CallbackQuery, manager: GameManager) -> None:
 async def group_rules(message: Message, notifier: TelegramNotifier, lang: str) -> None:
     await message.reply(
         texts.rules_page("general", lang),
-        reply_markup=keyboards.url_button(t(lang, "group.open_bot_btn"), notifier.start_link("menu")),
+        reply_markup=keyboards.url_button(t(lang, "group.open_bot_btn"), notifier.chat_link()),
     )
 
 
