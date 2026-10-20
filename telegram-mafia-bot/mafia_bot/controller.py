@@ -165,6 +165,7 @@ class GameManager:
         silence_night: bool = True,
         mute_non_players: bool = True,
         higgs_chance: float = balance.HIGGS_CHANCE,
+        sleepless_chance: float = balance.SLEEPLESS_CHANCE,
         rng_factory: Callable[[], random.Random] = random.SystemRandom,
         lobby_edit_delay: float = 1.5,
         confirm_edit_delay: float = 3.0,
@@ -177,6 +178,7 @@ class GameManager:
         self.silence_night = silence_night
         self.mute_non_players = mute_non_players
         self.higgs_chance = higgs_chance
+        self.sleepless_chance = sleepless_chance
         self.rng_factory = rng_factory
         self.lobby_edit_delay = lobby_edit_delay
         # 👍/👎 санағын жаңарту жиілігі: топта минутына ≈20 хабар/өңдеу шегі бар.
@@ -496,7 +498,8 @@ class GameManager:
         inventories = await self.storage.inventories(user_ids)
         requests = await self.storage.queue_heads(user_ids)
         rng = self.rng_factory()
-        assignment = assign_roles(user_ids, requests, rng, higgs_chance=self.higgs_chance)
+        assignment = assign_roles(user_ids, requests, rng, higgs_chance=self.higgs_chance,
+                                  sleepless_chance=self.sleepless_chance)
         purchases = {r.user_id: r.purchase_id for r in assignment.fulfilled}
         players: list[Player] = []
         for order, uid in enumerate(user_ids):
@@ -712,7 +715,8 @@ class GameManager:
             if mode is not None and len(targeted) > 1:
                 rows.append([Button(s.t("game.back"), data=f"m:{gid}:{day}:back")])
         for o in plain:
-            rows.append([Button(g.action_label(o.kind), data=f"n:{gid}:{day}:{o.kind.value}:0")])
+            data = f"aw:{gid}:{day}" if o.kind is ActionKind.AWAKE else f"n:{gid}:{day}:{o.kind.value}:0"
+            rows.append([Button(g.action_label(o.kind), data=data)])
         return rows
 
     async def _send_night_prompt(self, s: Session, user_id: int) -> None:
@@ -806,6 +810,17 @@ class GameManager:
                 await self.notifier.send(mate.user_id, s.t("game.defender_note", target=g.players[target].mention))
         s.wake.set()
         return True, result.message
+
+    async def stay_awake(self, user_id: int, game_id: int, day: int) -> tuple[bool, str, bool]:
+        """Ұйқысыз «Ояу отыру» батырмасын басты. ``(ok, мәтін, жеткілікті ме)``."""
+        s = self._session_by_game(game_id)
+        if s is None or s.game.day != day:
+            return False, i18n.t(s.game.lang if s else None, "game.stale"), False
+        ok, text, done = s.game.press_awake(user_id)
+        if done:
+            s.prompts.pop(user_id, None)
+            s.wake.set()
+        return ok, text, done
 
     async def vote(self, user_id: int, game_id: int, day: int, target: int) -> tuple[bool, str]:
         s = self._session_by_game(game_id)

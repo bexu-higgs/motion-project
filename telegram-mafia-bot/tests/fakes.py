@@ -172,6 +172,11 @@ class AutoPlayers:
                 if not keyboard:
                     return
                 continue
+            if kind == "aw":  # Ұйқысыз кейде жеткілікті басады, кейде жоқ
+                _, gid, day = parts
+                for _ in range(self.rng.choice((4, 10, 12))):
+                    await self.manager.stay_awake(user_id, int(gid), int(day))
+                return
             if kind == "n":
                 _, gid, day, action, target = parts
                 await self.manager.night_action(user_id, int(gid), int(day), action, int(target))

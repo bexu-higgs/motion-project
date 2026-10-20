@@ -4,7 +4,7 @@ from collections import Counter
 import pytest
 
 from mafia_bot.game import balance
-from mafia_bot.game.engine import AFK_NIGHTS, Game, Phase, Player, RoleRequest, assign_roles
+from mafia_bot.game.engine import AFK_NIGHTS, AWAKE_PRESSES, Game, Phase, Player, RoleRequest, assign_roles
 from mafia_bot.game.engine import ActionKind as A
 from mafia_bot.game.roles import Faction, Role
 from mafia_bot.game.roles import name as title  # ойын мәтіндерінде рөл атауы смайликсіз
@@ -44,7 +44,10 @@ def test_assign_roles_matches_composition(n):
     ids = list(range(100, 100 + n))
     a = assign_roles(ids, [], random.Random(n))
     assert set(a.roles) == set(ids)
-    assert Counter(a.roles.values()) == balance.composition(n)
+    counts = Counter(a.roles.values())
+    # Higgs-Man мен Ұйқысыз тұрғынның орнына шығады.
+    counts[Role.CIVILIAN] += counts.pop(Role.HIGGS, 0) + counts.pop(Role.SLEEPLESS, 0)
+    assert +counts == balance.composition(n)
 
 
 def test_purchased_role_is_honoured_in_purchase_order():
@@ -566,6 +569,64 @@ def test_candidate_leaving_ends_confirmation():
     assert res.deaths == [] and "ойыннан шықты. Бүгін ешкім асылмайды" in res.public
 
 
+# --- Ұйқысыз --------------------------------------------------------------------------------
+
+
+def test_sleepless_dies_unless_pressing_ten_times():
+    g = make_game([Role.DON, Role.DOCTOR, Role.COMMISSIONER, Role.SLEEPLESS, Role.CIVILIAN])
+    assert [o.kind for o in g.night_options(4)] == [A.AWAKE]       # «Өткізу» жоқ
+    assert 4 in g.expected_actors()
+    assert not g.submit_action(4, A.AWAKE).ok                      # тек press_awake арқылы
+    assert not g.press_awake(5)[0]                                 # тұрғын баса алмайды
+    for i in range(1, AWAKE_PRESSES):
+        ok, text, done = g.press_awake(4)
+        assert ok and not done and f"{i}/{AWAKE_PRESSES}" in text
+    assert 4 not in g.actions and not g.night_complete()
+    report, _ = night(g, {2: (A.HEAL, 4)})                         # Дәрігер де құтқармайды
+    assert report.deaths == [4] and g.players[4].death_cause == "sleepless"
+    assert "ұйықтап қалғаны үшін мафия өлтірді" in report.public
+    assert any("ұйықтап қалғаны үшін" in t for t in private_for(report, 4))
+
+
+def test_sleepless_survives_after_enough_presses():
+    g = make_game([Role.DON, Role.DOCTOR, Role.COMMISSIONER, Role.SLEEPLESS, Role.CIVILIAN, Role.CIVILIAN])
+    for _ in range(AWAKE_PRESSES - 1):
+        g.press_awake(4)
+    ok, text, done = g.press_awake(4)
+    assert ok and done and "ояу қалдыңыз" in text
+    for uid, (kind, target) in {1: (A.SKIP, None), 2: (A.SKIP, None), 3: (A.CHECK, 5)}.items():
+        g.submit_action(uid, kind, target)
+    assert g.night_complete()                                      # түн ерте аяқтала алады
+    report, _ = night(g, {})
+    assert report.deaths == [] and g.players[4].alive and g.note_idle([4]) == []
+    g.start_vote()
+    finish_vote(g)
+    g.end_cycle()
+    g.start_night()
+    assert g.awake == {}                                           # санақ әр түнде нөлден
+    report, _ = night(g, {})
+    assert report.deaths == [4]
+
+
+def test_sleepless_replaces_a_civilian_and_cannot_be_bought():
+    six = list(range(1, 7))
+    seven = list(range(1, 8))
+    assert Role.SLEEPLESS not in assign_roles(six, [], random.Random(1), sleepless_chance=1).roles.values()
+    a = assign_roles(seven, [], random.Random(1), higgs_chance=0, sleepless_chance=1)
+    assert Counter(a.roles.values())[Role.SLEEPLESS] == 1
+    assert Counter(a.roles.values())[Role.CIVILIAN] == balance.composition(7)[Role.CIVILIAN] - 1
+    assert Role.SLEEPLESS not in assign_roles(seven, [], random.Random(1), sleepless_chance=0).roles.values()
+    bought = assign_roles(seven, [RoleRequest(1, Role.SLEEPLESS, 5)], random.Random(1), sleepless_chance=1)
+    assert [r.purchase_id for r in bought.unfulfilled] == [5]
+    assert g_faction(Role.SLEEPLESS) is Faction.TOWN
+
+
+def g_faction(role):
+    from mafia_bot.game.roles import faction_of
+
+    return faction_of(role)
+
+
 # --- AFK ------------------------------------------------------------------------------------
 
 
@@ -783,7 +844,7 @@ def test_dead_higgs_loses():
 
 def test_higgs_appears_rarely_and_cannot_be_bought():
     ids = list(range(1, 12))
-    always = assign_roles(ids, [], random.Random(1), higgs_chance=1)
+    always = assign_roles(ids, [], random.Random(1), higgs_chance=1, sleepless_chance=0)
     assert Counter(always.roles.values())[Role.HIGGS] == 1
     assert sum(always.roles[u] is Role.CIVILIAN for u in ids) == balance.composition(11)[Role.CIVILIAN] - 1
     no_civilians = assign_roles(list(range(1, 11)), [], random.Random(1), higgs_chance=1)

@@ -23,7 +23,7 @@ from ..economy import (
     role_price,
 )
 from ..game.engine import RoleRequest
-from ..game.roles import Role
+from ..game.roles import SUBSTITUTE_ROLES, Role
 from .models import (
     ChatSettings,
     ClaimResult,
@@ -197,7 +197,7 @@ class Repo:
     # --- Рөл сатып алу ---------------------------------------------------------------
 
     async def queue_role(self, user_id: int, role: Role) -> PurchaseResult:
-        if role in (Role.CIVILIAN, Role.HIGGS):
+        if role is Role.CIVILIAN or role in SUBSTITUTE_ROLES:
             return PurchaseResult(False, "unknown")
         price = role_price(role)
         async with self.pool.acquire() as conn, conn.transaction():

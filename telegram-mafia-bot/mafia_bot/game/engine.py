@@ -20,6 +20,7 @@ from .roles import (
     DEFENDER_COVER_ROLES,
     MAFIA_POWER_ROLES,
     MAFIA_TEAM_ROLES,
+    SUBSTITUTE_ROLES,
     Faction,
     Role,
     description,
@@ -32,6 +33,7 @@ MAX_DAYS = 40          # шексіз ойынның алдын алу
 QUIET_CYCLES_DRAW = 3  # қатарынан өлімсіз өткен күн+түн саны -> тең ойын
 HIGGS_ARMOR = 3        # Higgs-Man-ның түнгі шабуылдан қорғанысы (4-оқ өлтіреді)
 AFK_NIGHTS = 3         # қатарынан әрекетсіз өткен түн саны -> ойыннан шығарылады
+AWAKE_PRESSES = 10     # Ұйқысыз әр түнде «Ояу отыру» батырмасын кемінде осынша рет басуы керек
 
 
 class Phase(StrEnum):
@@ -55,6 +57,7 @@ class ActionKind(StrEnum):
     VISIT = "vs"
     BOMB = "bm"
     DETONATE = "dt"
+    AWAKE = "aw"
     SKIP = "sk"
 
 
@@ -70,9 +73,10 @@ SRC_KAMIKAZE = "kamikaze"
 SRC_LYNCH = "lynch"
 SRC_DESERT = "desert"
 SRC_AFK = "afk"
+SRC_SLEEPLESS = "sleepless"
 CAUSES = (
     SRC_MAFIA, SRC_KILLER, SRC_MANIAC, SRC_COMMISSIONER, SRC_BOMB, SRC_PYRO_SELF,
-    SRC_WITCH, SRC_KAMIKAZE, SRC_LYNCH, SRC_DESERT, SRC_AFK,
+    SRC_WITCH, SRC_KAMIKAZE, SRC_LYNCH, SRC_DESERT, SRC_AFK, SRC_SLEEPLESS,
 )
 
 # Түнгі әрекет нысанасына таңертең жеке чатта келетін хабар: (кілт, әрекет иесінің рөлі).
@@ -185,11 +189,12 @@ def assign_roles(
     requests: list[RoleRequest],
     rng: random.Random,
     higgs_chance: float = balance.HIGGS_CHANCE,
+    sleepless_chance: float = balance.SLEEPLESS_CHANCE,
 ) -> Assignment:
     """Рөлдерді кездейсоқ бөлу. Сатып алынған рөлдер (сатып алу ретімен) бірінші беріледі.
 
     Бір рөлдің даналары құрамда қанша болса, сонша ғана беріледі — рөлдер саны
-    ойыншылар санынан ешқашан аспайды. Сирек ⚛️ Higgs-Man бір тұрғынның орнын алады.
+    ойыншылар санынан ешқашан аспайды. Сирек ⚛️ Higgs-Man мен Ұйқысыз тұрғынның орнын алады.
     """
     if len(set(user_ids)) != len(user_ids):
         raise ValueError("Ойыншылар қайталанбауы керек")
@@ -201,6 +206,13 @@ def assign_roles(
     ):
         pool[Role.CIVILIAN] -= 1
         pool[Role.HIGGS] += 1
+    if (
+        len(user_ids) >= balance.SLEEPLESS_MIN_PLAYERS
+        and pool[Role.CIVILIAN] > 0
+        and rng.random() < sleepless_chance
+    ):
+        pool[Role.CIVILIAN] -= 1
+        pool[Role.SLEEPLESS] += 1
     roles: dict[int, Role] = {}
     fulfilled: list[RoleRequest] = []
     unfulfilled: list[RoleRequest] = []
@@ -209,7 +221,7 @@ def assign_roles(
         if req.user_id not in user_ids or req.user_id in seen:
             continue
         seen.add(req.user_id)
-        if req.role not in (Role.CIVILIAN, Role.HIGGS) and pool[req.role] > 0:
+        if req.role is not Role.CIVILIAN and req.role not in SUBSTITUTE_ROLES and pool[req.role] > 0:
             pool[req.role] -= 1
             roles[req.user_id] = req.role
             fulfilled.append(req)
@@ -232,7 +244,7 @@ class ActionOption:
 
     @property
     def needs_target(self) -> bool:
-        return self.kind not in (ActionKind.DETONATE, ActionKind.SKIP)
+        return self.kind not in (ActionKind.DETONATE, ActionKind.AWAKE, ActionKind.SKIP)
 
 
 @dataclass(frozen=True)
@@ -312,6 +324,7 @@ class Game:
         self.day = 0
         self.actions: dict[int, NightAction] = {}
         self.votes: dict[int, int | None] = {}
+        self.awake: dict[int, int] = {}            # Ұйқысыз: осы түнгі басу саны
         self.candidate: int | None = None          # растауға шыққан ойыншы
         self.confirm_votes: dict[int, bool] = {}   # user_id -> 👍 (True) / 👎 (False)
         self.bombed: set[int] = set()
@@ -464,6 +477,7 @@ class Game:
         self.day += 1
         self.phase = Phase.NIGHT
         self.actions = {}
+        self.awake = {}
         self.defender_cover = None
         return "\n".join([self.t("night.title", day=self.day), self.t("night.body")])
 
@@ -480,6 +494,8 @@ class Game:
                 opts.append(ActionOption(kind, tuple(targets)))
 
         role = p.role
+        if role is Role.SLEEPLESS:
+            return [ActionOption(ActionKind.AWAKE)]  # «Өткізу» жоқ — ұйықтауға болмайды
         if role in (Role.DON, Role.MAFIA):
             add(ActionKind.MAFIA_KILL, [t for t in others if t not in mafia_ids])
         elif role is Role.KILLER:
@@ -545,7 +561,9 @@ class Game:
         p = self.players[user_id]
         role = p.role
         head = self.t("prompt.head", day=self.day, role=self.title(role))
-        if role is Role.COMMISSIONER and self.day <= 1:
+        if role is Role.SLEEPLESS:
+            body = self.t("prompt.sleepless", need=AWAKE_PRESSES)
+        elif role is Role.COMMISSIONER and self.day <= 1:
             body = self.t("prompt.commissioner_first")
         elif role is Role.PYRO:
             bombed = [self._name(b) for b in self._alive_bombed(exclude=user_id)]
@@ -574,7 +592,7 @@ class Game:
         if user_id in self.actions:
             return SubmitResult(False, self.t("submit.already"))
         option = next((o for o in self.night_options(user_id) if o.kind is kind), None)
-        if option is None:
+        if option is None or kind is ActionKind.AWAKE:  # Ұйқысыз — тек press_awake арқылы
             return SubmitResult(False, self.t("submit.unavailable"))
         if option.needs_target:
             if target not in option.targets:
@@ -589,6 +607,21 @@ class Game:
         return SubmitResult(
             True, self.t("submit.ok", action=self.action_label(kind), target=self._name(target))
         )
+
+    def press_awake(self, user_id: int) -> tuple[bool, str, bool]:
+        """Ұйқысыз «Ояу отыру» батырмасын басты. ``(ok, мәтін, жеткілікті ме)`` қайтарады."""
+        if self.phase is not Phase.NIGHT:
+            return False, self.t("submit.not_night"), False
+        p = self.players.get(user_id)
+        if p is None or not p.alive or p.role is not Role.SLEEPLESS:
+            return False, self.t("submit.unavailable"), False
+        count = self.awake.get(user_id, 0) + 1
+        self.awake[user_id] = count
+        if count < AWAKE_PRESSES:
+            return True, self.t("awake.progress", count=count, need=AWAKE_PRESSES), False
+        # Жеткілікті басылды: түн «әрекет жасалды» деп есептеледі (түн ерте аяқтала алады).
+        self.actions.setdefault(user_id, NightAction(ActionKind.AWAKE))
+        return True, self.t("awake.done"), True
 
     def action_announcement(self, user_id: int, kind: ActionKind) -> str | None:
         """Әрекет таңдалғанда ортақ чатқа шығатын хабар (нысанасы айтылмайды)."""
@@ -753,6 +786,11 @@ class Game:
                 deaths.setdefault(b, SRC_BOMB)
         if saved_by_doctor:
             public.append(self.t("morning.saved"))
+
+        # Ұйқысыз жеткілікті баспаса — таңертең мафия оны өлтіреді (Дәрігер құтқармайды).
+        for p in self.with_role(Role.SLEEPLESS):
+            if self.awake.get(p.user_id, 0) < AWAKE_PRESSES:
+                deaths.setdefault(p.user_id, SRC_SLEEPLESS)
 
         witch_prompt: WitchPrompt | None = None
         for witch_id, attackers in witch_attackers.items():

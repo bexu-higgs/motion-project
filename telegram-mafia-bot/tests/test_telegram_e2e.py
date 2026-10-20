@@ -18,6 +18,7 @@ from aiogram.client.session.base import BaseSession
 
 from mafia_bot.config import Settings
 from mafia_bot.economy import PACKAGES_BY_ID
+from mafia_bot.game.roles import Role
 
 DSN = os.getenv("TEST_DATABASE_URL")
 pytestmark = pytest.mark.skipif(not DSN, reason="TEST_DATABASE_URL көрсетілмеген")
@@ -657,4 +658,37 @@ async def test_exchange_diamonds_for_tenge(harness):
     await h.text(4, 4, "/exchange")
     assert "Бағам: <b>1 💎 = 250 ₸</b>" in tg.sent(4)[-1].text
     assert (await h.repo.get_user(4))["diamonds"] == 4
+
+
+async def test_sleepless_presses_through_telegram(harness):
+    h = harness
+    tg = h.tg
+    h.manager.time_scale = 50
+    h.manager.sleepless_chance = 1
+    h.manager.higgs_chance = 0
+    await h.text(CHAT_ADMIN, GROUP, "/game")
+    payload = keyboard_buttons(next(c for c in tg.sent(GROUP) if "тіркелу басталды" in c.text))[0].url.split("start=")[1]
+    for uid in range(1, 8):
+        await h.text(uid, uid, f"/start {payload}")
+    await h.text(CHAT_ADMIN, GROUP, "/startgame")
+    for _ in range(500):
+        if GROUP in h.manager.sessions and h.manager.sessions[GROUP].prompts:
+            break
+        await asyncio.sleep(0.002)
+    s = h.manager.sessions[GROUP]
+    uid = s.game.with_role(Role.SLEEPLESS)[0].user_id
+    prompt = next(c for c in tg.sent(uid) if keyboard_buttons(c))
+    (button,) = keyboard_buttons(prompt)
+    assert button.text == "Ояу отыру" and button.callback_data.startswith("aw:")
+
+    def answers():
+        return [c for c in tg.calls if isinstance(c, m.AnswerCallbackQuery)]
+
+    await h.click(uid, 1, button.callback_data)
+    assert answers()[-1].text == "Басылды: 1/10" and not answers()[-1].show_alert
+    for _ in range(9):
+        await h.click(uid, 1, button.callback_data)
+    edit = [c for c in tg.calls if isinstance(c, m.EditMessageText) and c.chat_id == uid][-1]
+    assert "ояу қалдыңыз" in edit.text and edit.reply_markup is None
+    assert s.game.awake[uid] == 10
 

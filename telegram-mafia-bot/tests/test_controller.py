@@ -379,3 +379,23 @@ async def test_buttons_show_fixed_player_numbers():
         assert g.players[uid].number == int(number)
     await manager.abort(CHAT)
 
+
+async def test_sleepless_button_counts_presses():
+    manager, notifier, storage = make_manager(time_scale=50, sleepless_chance=1, higgs_chance=0)
+    gid = await open_with_players(manager, 7)
+    await manager.force_start(CHAT)
+    await wait_until(lambda: CHAT in manager.sessions)
+    s = manager.sessions[CHAT]
+    sleepless = s.game.with_role(Role.SLEEPLESS)[0].user_id
+    await wait_until(lambda: sleepless in s.prompts)
+    prompt = next(m for m in notifier.to(sleepless) if m.keyboard)
+    assert [b.data for row in prompt.keyboard for b in row] == [f"aw:{gid}:1"]
+    assert "10 рет" in prompt.text
+    for i in range(1, 10):
+        ok, text, done = await manager.stay_awake(sleepless, gid, 1)
+        assert ok and not done and text == f"Басылды: {i}/10"
+    ok, text, done = await manager.stay_awake(sleepless, gid, 1)
+    assert ok and done and sleepless not in s.prompts
+    assert not (await manager.stay_awake(sleepless, gid, 9))[0]     # ескі батырма
+    await manager.abort(CHAT)
+

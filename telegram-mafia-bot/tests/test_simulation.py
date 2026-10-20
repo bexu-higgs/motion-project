@@ -5,7 +5,7 @@ import random
 import pytest
 
 from mafia_bot.game import balance
-from mafia_bot.game.engine import AFK_NIGHTS, MAX_DAYS, Game, Phase, Player, assign_roles
+from mafia_bot.game.engine import AFK_NIGHTS, MAX_DAYS, ActionKind, Game, Phase, Player, assign_roles
 from mafia_bot.game.roles import Faction, Role
 
 
@@ -31,6 +31,10 @@ def play_random_game(n: int, seed: int) -> Game:
             if rng.random() < 0.3:
                 continue  # AFK ойыншы
             opt = rng.choice(g.night_options(uid))
+            if opt.kind is ActionKind.AWAKE:  # Ұйқысыз кейде жеткілікті басады, кейде жоқ
+                for _ in range(rng.choice((3, 10, 11))):
+                    assert g.press_awake(uid)[0]
+                continue
             target = rng.choice(opt.targets) if opt.needs_target else None
             assert g.submit_action(uid, opt.kind, target).ok
         idle = g.note_idle(actors)

@@ -36,6 +36,8 @@ MESSAGES: dict[str, str] = {
     "role.maniac.desc": "Hech kimning tomonida emassiz. Har kecha bir o‘yinchini o‘ldirasiz. Tirik qolgan oxirgi ikki o‘yinchidan biri bo‘lsangiz — g‘alaba qozonasiz.",
     "role.higgs": "Higgs-Man",
     "role.higgs.desc": "Juda kam uchraydigan alohida qahramon. Higgs maydoni sizni kechasi 3 ta o‘qdan saqlaydi — 4-o‘q o‘ldiradi. Birinchi marta osilganingizda ham tirik qolasiz. Kimning tomonini olishni o‘zingiz hal qilasiz: o‘yin oxirida tirik bo‘lsangiz, kim yutmasin, siz ham yutasiz va ikki baravar mukofot olasiz.",
+    "role.sleepless": "Uyqusiz",
+    "role.sleepless.desc": "Tinch aholidan ham zaif. Kechasi uxlamay, «Uyg‘oq turish» tugmasini kamida 10 marta bosishingiz kerak — aks holda ertalabgacha mafiya sizni o‘ldiradi. Boshqa harakatingiz yo‘q.",
     "role.was": "{role} <i>(avval {old})</i>",
 
     "faction.town": "Tinch aholi",
@@ -54,6 +56,7 @@ MESSAGES: dict[str, str] = {
     "action.vs": "Uyiga borish",
     "action.bm": "Bomba qo‘yish",
     "action.dt": "Portlatish",
+    "action.aw": "Uyg‘oq turish",
     "action.sk": "O‘tkazib yuborish",
 
     # --- O‘lim sabablari -----------------------------------------------------------------------
@@ -68,6 +71,7 @@ MESSAGES: dict[str, str] = {
     "cause.lynch": "osildi",
     "cause.desert": "o‘z xohishi bilan o‘yindan chiqdi",
     "cause.afk": "faol bo‘lmagani uchun chiqarildi",
+    "cause.sleepless": "uxlab qolgani uchun mafiya o‘ldirdi",
 
     # --- Rol haqida xabar ----------------------------------------------------------------------
     "intro.role": "Sizning rolingiz: <b>{role}</b>",
@@ -114,6 +118,9 @@ MESSAGES: dict[str, str] = {
     "prompt.pyro_bombed": "<b>Bomba qo‘yilganlar:</b> {names}",
     "prompt.pyro_ready": "<b>Endi hammasini portlatish mumkin</b> (o‘zingiz ham o‘lasiz).",
     "prompt.none": "<i>Bugun kechasi sizda harakat yo‘q.</i>",
+    "prompt.sleepless": "Uxlamang! Kecha tugaguncha tugmani kamida {need} marta bosing, aks holda ertalabgacha mafiya sizni o‘ldiradi.",
+    "awake.progress": "Bosildi: {count}/{need}",
+    "awake.done": "Barakalla, bu kecha uyg‘oq qoldingiz.",
     "submit.not_night": "Hozir kecha emas.",
     "submit.not_alive": "Siz bu o‘yinda tirik o‘yinchi emassiz.",
     "submit.already": "Siz bu kecha tanlovingizni qilib bo‘ldingiz.",
@@ -426,6 +433,7 @@ MESSAGES: dict[str, str] = {
     "rules.fairness": "⚖️ <b>Adolat:</b> bir o‘yinda ko‘pi bilan bitta himoya, bitta ovoz berishdan himoya va bitta o‘q ishlatiladi. Buyumlar faqat haqiqatan kerak bo‘lganda sarflanadi.",
     "rules.balance_title": "⚖️ <b>O‘yinchilar soniga qarab rollar</b>\n<i>(qolgan o‘rinlar — 👨 tinch aholi)</i>",
     "rules.higgs_rare": "⚛️ <b>Higgs-Man</b> — {min}+ o‘yinchida har bir o‘yinda ≈{chance}% ehtimol bilan bitta tinch aholi o‘rniga chiqadi.",
+    "rules.sleepless_rare": "<b>Uyqusiz</b> — {min}+ o‘yinchida har bir o‘yinda ≈{chance}% ehtimol bilan bitta tinch aholi o‘rniga chiqadi.",
     "rules.rewards": "💰 <b>G‘alaba mukofoti:</b> {rewards}. Oraliq sonlar avtomatik hisoblanadi, ⚛️ Higgs-Man — ×2.",
 
     # --- Buyumlar ------------------------------------------------------------------------------

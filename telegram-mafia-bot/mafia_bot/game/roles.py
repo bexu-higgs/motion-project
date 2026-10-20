@@ -33,6 +33,7 @@ class Role(StrEnum):
     WOLF = "wolf"
     MANIAC = "maniac"
     HIGGS = "higgs"
+    SLEEPLESS = "sleepless"
 
 
 @dataclass(frozen=True)
@@ -62,6 +63,7 @@ ROLE_INFO: dict[Role, RoleInfo] = {
         RoleInfo(Role.WOLF, "🐺", Faction.TOWN),
         RoleInfo(Role.MANIAC, "🪓", Faction.INDEPENDENT),
         RoleInfo(Role.HIGGS, "⚛️", Faction.INDEPENDENT),
+        RoleInfo(Role.SLEEPLESS, "🥱", Faction.TOWN),
     )
 }
 
@@ -73,8 +75,10 @@ MAFIA_TEAM_ROLES = MAFIA_POWER_ROLES
 FAKE_DOC_ROLES = frozenset({Role.DON, Role.MAFIA, Role.PYRO, Role.MANIAC})
 # Қорғаушылардың жасыру әсері жұмыс істейтін рөлдер.
 DEFENDER_COVER_ROLES = frozenset({Role.DON, Role.MAFIA})
-# Сатып алуға болатын рөлдер (қарапайым тұрғын мен сирек Higgs-Man-нан басқасы).
-PURCHASABLE_ROLES = tuple(r for r in Role if r not in (Role.CIVILIAN, Role.HIGGS))
+# Ойын басында кездейсоқ бір тұрғынның орнына шығатын рөлдер — оларды сатып алуға болмайды.
+SUBSTITUTE_ROLES = frozenset({Role.HIGGS, Role.SLEEPLESS})
+# Сатып алуға болатын рөлдер.
+PURCHASABLE_ROLES = tuple(r for r in Role if r is not Role.CIVILIAN and r not in SUBSTITUTE_ROLES)
 
 
 def info(role: Role) -> RoleInfo:
