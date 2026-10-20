@@ -29,7 +29,7 @@ def test_fifty_players_matches_spec():
         Role.DON: 1, Role.MAFIA: 8, Role.KILLER: 1, Role.DEFENDER: 2, Role.COMMISSIONER: 1,
         Role.SERGEANT: 3, Role.DOCTOR: 1, Role.HACKER: 1, Role.BEGGAR: 1, Role.KAMIKAZE: 3,
         Role.SUICIDE: 1, Role.WITCH: 1, Role.PYRO: 1, Role.WOLF: 3, Role.MANIAC: 1,
-        Role.CIVILIAN: 21,
+        Role.SLEEPLESS: 1, Role.CIVILIAN: 20,
     }
     assert balance.composition(50) == Counter(expected)
 
@@ -61,14 +61,16 @@ def test_composition_rejects_bad_sizes(n):
 
 def test_min_players_for():
     assert balance.min_players_for(Role.DON) == 4
-    assert balance.min_players_for(Role.SERGEANT) == 10
+    assert balance.min_players_for(Role.SERGEANT) == 11
+    assert balance.min_players_for(Role.SLEEPLESS) == 7
     assert balance.min_players_for(Role.MANIAC) == 44
     assert balance.role_available(Role.HACKER, 6)
     assert not balance.role_available(Role.HACKER, 5)
 
 
 @pytest.mark.parametrize(
-    "role,first", [(Role.HACKER, 6), (Role.BEGGAR, 6), (Role.WOLF, 8), (Role.KAMIKAZE, 8)]
+    "role,first",
+    [(Role.HACKER, 6), (Role.BEGGAR, 6), (Role.SLEEPLESS, 7), (Role.KAMIKAZE, 8), (Role.WOLF, 9)],
 )
 def test_requested_role_thresholds(role, first):
     assert balance.min_players_for(role) == first

@@ -23,7 +23,7 @@ from ..economy import (
     role_price,
 )
 from ..game.engine import RoleRequest
-from ..game.roles import SUBSTITUTE_ROLES, Role
+from ..game.roles import NOT_FOR_SALE, Role
 from .models import (
     ChatSettings,
     ClaimResult,
@@ -197,7 +197,7 @@ class Repo:
     # --- Рөл сатып алу ---------------------------------------------------------------
 
     async def queue_role(self, user_id: int, role: Role) -> PurchaseResult:
-        if role is Role.CIVILIAN or role in SUBSTITUTE_ROLES:
+        if role in NOT_FOR_SALE:
             return PurchaseResult(False, "unknown")
         price = role_price(role)
         async with self.pool.acquire() as conn, conn.transaction():
@@ -317,6 +317,21 @@ class Repo:
                 game_id,
             )
             return [r["user_id"] for r in rows]
+
+    async def profiles(self, user_ids: list[int]) -> dict[int, dict[str, Any]]:
+        """Ойын соңындағы карточка: баланс, заттар, кезектегі келесі рөл, жеңістер."""
+        rows = await self.pool.fetch(
+            """
+            SELECT u.user_id, u.username, u.full_name, u.tenge, u.diamonds, u.shields, u.vote_shields,
+                   u.piercing_bullets, u.fake_docs, u.wins, u.games_played,
+                   (SELECT rp.role FROM role_purchases rp
+                     WHERE rp.user_id = u.user_id AND rp.status = 'queued'
+                     ORDER BY rp.purchase_id LIMIT 1) AS next_role
+            FROM users u WHERE u.user_id = ANY($1::bigint[])
+            """,
+            user_ids,
+        )
+        return {r["user_id"]: dict(r) for r in rows}
 
     async def stale_games(self) -> list[dict[str, Any]]:
         """Бот тоқтаған кезде аяқталмай қалған ойындар (қайта іске қосылғанда тазалау үшін)."""

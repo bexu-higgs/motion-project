@@ -72,6 +72,14 @@ async def witch(callback: CallbackQuery, manager: GameManager) -> None:
     await _finish_prompt(callback, ok, text)
 
 
+@router.callback_query(F.data.regexp(r"^kz:\d+:\d+:\d+$"))
+async def kamikaze(callback: CallbackQuery, manager: GameManager) -> None:
+    """Дарға асылған Камикадзе кімді өзімен бірге алып кететінін таңдады."""
+    _, gid, day, target = callback.data.split(":")
+    ok, text = await manager.kamikaze_choose(callback.from_user.id, int(gid), int(day), int(target))
+    await _finish_prompt(callback, ok, text)
+
+
 # Ең соңында тіркеледі: жеке чаттағы кез келген басқа мәтін.
 fallback = Router(name="private_fallback")
 fallback.message.filter(F.chat.type == ChatType.PRIVATE)

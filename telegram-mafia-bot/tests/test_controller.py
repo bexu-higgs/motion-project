@@ -96,6 +96,11 @@ async def test_full_game_runs_to_the_end(n, seed):
     # Рөлдер тек жеке чатта айтылады: топқа «Сіздің рөліңіз» хабары жіберілмейді.
     assert not any("Сіздің рөліңіз" in m.text for m in notifier.to(CHAT))
     assert all(any("Сіздің рөліңіз" in m.text for m in notifier.to(uid)) for uid in range(1, n + 1))
+    # Ойын соңында әр ойыншыға қысқа нәтиже және профиль карточкасы.
+    for r in rows:
+        end = notifier.to(r.user_id)[-1].text
+        head = f"Сіз жеңдіңіз!\nҰтыс 💵 {r.reward}, 💎 0 !" if r.won else "Ойын аяқталды!"
+        assert end.startswith(head + "\n\n") and f"🆔 ID: <code>{r.user_id}</code>" in end, end
     for t in players.tasks:
         t.cancel()
 
@@ -208,19 +213,22 @@ async def test_votes_and_actions_are_announced_one_by_one():
 
 
 async def test_higgs_reward_is_doubled_and_dead_winners_get_nothing():
-    manager, notifier, storage = make_manager(higgs_chance=1, sleepless_chance=0, rng_factory=lambda: random.Random(4))
+    manager, notifier, storage = make_manager(higgs_chance=1, rng_factory=lambda: random.Random(4))
     AutoPlayers(manager, notifier, seed=4)
-    gid = await open_with_players(manager, 11)  # 10 ойыншыда тұрғын жоқ — Higgs шықпайды
+    gid = await open_with_players(manager, 13)  # 6–12 ойыншыда тұрғын жоқ — Higgs шықпайды
     await manager.force_start(CHAT)
     await wait_until(lambda: CHAT in manager.sessions)
     roles = dict(storage.started[gid])
     higgs = next(uid for uid, role in roles.items() if role == "higgs")
     await wait_until(lambda: storage.games.get(gid) == "finished", timeout=60)
     rows = {r.user_id: r for r in storage.finalized[gid]}
-    base = win_reward(11)
+    group = [m.text for m in notifier.to(CHAT)]
+    arrived = group.index("Higgs-Man көкелерің оралды, ол қазір бәрінің көтін айырады...")
+    assert arrived < next(i for i, t in enumerate(group) if "Ойын басталды" in t)
+    base = win_reward(13)
     for r in rows.values():
         if r.won and not r.alive:
-            assert r.final_role in ("suicide", "pyro")
+            assert r.final_role in ("suicide", "pyro", "kamikaze")
         if r.won:
             assert r.reward == (base * 2 if r.user_id == higgs else base)
         else:
@@ -235,7 +243,7 @@ async def test_english_game():
     gid = next(iter(manager.lobby_by_game))
     for uid in range(1, 6):
         assert "You joined" in await manager.join(gid, uid, f"Player {uid}")
-    assert "Registration is open" in notifier.to(CHAT)[0].text
+    assert "Mafia game registration is open in Test chat." in notifier.to(CHAT)[0].text
     await manager.force_start(CHAT)
     await wait_until(lambda: storage.games.get(gid) == "finished", timeout=60)
     group = "\n".join(m.text for m in notifier.to(CHAT))
@@ -270,8 +278,16 @@ async def test_team_chat_relay_and_last_words():
     don = g.with_role(Role.DON)[0].user_id
     mafia = g.with_role(Role.MAFIA)[0].user_id
     doctor = g.with_role(Role.DOCTOR)[0].user_id
+    await wait_until(lambda: mafia in manager.sessions[CHAT].prompts)
     assert await manager.private_text(don, "<b>салем</b>")
-    assert any("&lt;b&gt;салем" in m.text for m in notifier.to(mafia))
+    assert notifier.to(mafia)[-1].text == f"{g.players[don].mention}: &lt;b&gt;салем&lt;/b&gt;"
+    intro = next(m.text for m in notifier.to(mafia) if "Сіздің рөліңіз" in m.text)
+    assert "Сіздің одақтастарыңыз:" in intro and f"{g.players[don].mention} - Дон" in intro
+    assert notifier.to(mafia)[-2].text == "Мафия дауыс беруде:"  # түнгі батырмалар бөлек хабарда
+    victim = g.with_role(Role.DOCTOR)[0]
+    ok, text = await manager.night_action(don, g.game_id, 1, "mk", victim.user_id)
+    assert ok and text == f"Сіздің таңдауыңыз: {victim.mention}"
+    assert notifier.to(mafia)[-1].text == f"{g.players[don].mention}: таңдады {victim.mention}"
     assert not await manager.private_text(doctor, "сәлем")  # дәрігердің командасы жоқ
     await manager.abort(CHAT)
 
@@ -344,6 +360,56 @@ async def test_lynch_needs_group_confirmation():
     await manager.abort(CHAT)
 
 
+async def test_lobby_text_is_short():
+    manager, notifier, storage = make_manager()
+    await open_with_players(manager, 2)
+    await wait_until(lambda: any("Жалпы саны: 2" in text for _, _, text in notifier.edits))
+    text = next(text for _, _, text in notifier.edits if "Жалпы саны: 2" in text)
+    lines = text.split("\n")
+    assert lines[0] == "Тест чат чатында мафия ойынына тіркелу ашық."
+    assert lines[1] == 'Тіркелгендер: <a href="tg://user?id=1">Ойыншы 1</a>, <a href="tg://user?id=2">Ойыншы 2</a>'
+    assert lines[2] == "Жалпы саны: 2"
+    assert re.fullmatch(r"Ойын басталуына \d+ секунд қалды\.", lines[3])
+    await manager.abort(CHAT)
+
+
+async def test_lynched_kamikaze_takes_someone_with_him():
+    manager, notifier, storage = make_manager(time_scale=50)
+    gid = await open_with_players(manager, 8)
+    await manager.force_start(CHAT)
+    await wait_until(lambda: CHAT in manager.sessions)
+    s = manager.sessions[CHAT]
+    g = s.game
+    s.timings = balance.Timings(night=1, day=0.01, vote=5, witch=5, confirm=5)
+    for uid in list(g.expected_actors()):
+        if g.players[uid].role is Role.SLEEPLESS:
+            for _ in range(10):
+                await manager.stay_awake(uid, gid, 1)
+        else:
+            assert (await manager.night_action(uid, gid, 1, "sk", 0))[0]
+    await wait_until(lambda: g.phase is Phase.VOTE)
+    kamikaze = g.with_role(Role.KAMIKAZE)[0].user_id
+    don = g.with_role(Role.DON)[0].user_id
+    for p in g.alive():
+        await manager.vote(p.user_id, gid, 1, kamikaze if p.user_id != kamikaze else don)
+    await wait_until(lambda: g.phase is Phase.CONFIRM)
+    for uid in sorted(g.confirm_voters()):
+        await manager.confirm_vote(uid, gid, 1, True)
+    ask = "Кімді өзіңізбен бірге алып кетесіз?"
+    await wait_until(lambda: any(m.text == ask for m in notifier.to(kamikaze)))
+    prompt = next(m for m in notifier.to(kamikaze) if m.text == ask)
+    assert all(b.data.startswith(f"kz:{gid}:1:") for row in prompt.keyboard for b in row)
+    assert f"kz:{gid}:1:{kamikaze}" not in [b.data for row in prompt.keyboard for b in row]
+    assert not (await manager.kamikaze_choose(don, gid, 1, kamikaze))[0]  # тек Камикадзе таңдайды
+    ok, text = await manager.kamikaze_choose(kamikaze, gid, 1, don)
+    assert ok and text == f"Сіздің таңдауыңыз: {g.players[don].mention}"
+    line = f"Камикадзе өзімен бірге {g.players[don].mention} - Дон алып кетті."
+    await wait_until(lambda: any(line in m.text for m in notifier.to(CHAT)))
+    assert not g.players[don].alive and g.players[kamikaze].personal_win
+    assert not (await manager.kamikaze_choose(kamikaze, gid, 1, don))[0]  # екінші рет болмайды
+    await manager.abort(CHAT)
+
+
 async def test_afk_players_are_removed_after_three_nights():
     manager, notifier, storage = make_manager(rng_factory=lambda: random.Random(2))
     AutoPlayers(manager, notifier, seed=2, idle={1, 2, 3, 4})  # ешкім ештеңе баспайды
@@ -381,7 +447,7 @@ async def test_buttons_show_fixed_player_numbers():
 
 
 async def test_sleepless_button_counts_presses():
-    manager, notifier, storage = make_manager(time_scale=50, sleepless_chance=1, higgs_chance=0)
+    manager, notifier, storage = make_manager(time_scale=50, higgs_chance=0)
     gid = await open_with_players(manager, 7)
     await manager.force_start(CHAT)
     await wait_until(lambda: CHAT in manager.sessions)

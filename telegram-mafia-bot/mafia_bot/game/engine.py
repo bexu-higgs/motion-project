@@ -18,9 +18,10 @@ from .. import i18n
 from . import balance
 from .roles import (
     DEFENDER_COVER_ROLES,
+    KAMIKAZE_PREY,
     MAFIA_POWER_ROLES,
     MAFIA_TEAM_ROLES,
-    SUBSTITUTE_ROLES,
+    NOT_FOR_SALE,
     Faction,
     Role,
     description,
@@ -190,23 +191,15 @@ def assign_roles(
     requests: list[RoleRequest],
     rng: random.Random,
     higgs_chance: float = balance.HIGGS_CHANCE,
-    sleepless_chance: float = balance.SLEEPLESS_CHANCE,
 ) -> Assignment:
     """Рөлдерді кездейсоқ бөлу. Сатып алынған рөлдер (сатып алу ретімен) бірінші беріледі.
 
     Бір рөлдің даналары құрамда қанша болса, сонша ғана беріледі — рөлдер саны
-    ойыншылар санынан ешқашан аспайды. Сирек ⚛️ Higgs-Man мен Балым жалеп тұрғынның орнын алады.
+    ойыншылар санынан ешқашан аспайды. Сирек ⚛️ Higgs-Man бір тұрғынның орнын алады.
     """
     if len(set(user_ids)) != len(user_ids):
         raise ValueError("Ойыншылар қайталанбауы керек")
     pool = balance.composition(len(user_ids))
-    if (
-        len(user_ids) >= balance.SLEEPLESS_MIN_PLAYERS
-        and pool[Role.CIVILIAN] > 0
-        and rng.random() < sleepless_chance
-    ):
-        pool[Role.CIVILIAN] -= 1
-        pool[Role.SLEEPLESS] += 1
     if (
         len(user_ids) >= balance.HIGGS_MIN_PLAYERS
         and pool[Role.CIVILIAN] > 0
@@ -222,7 +215,7 @@ def assign_roles(
         if req.user_id not in user_ids or req.user_id in seen:
             continue
         seen.add(req.user_id)
-        if req.role is not Role.CIVILIAN and req.role not in SUBSTITUTE_ROLES and pool[req.role] > 0:
+        if req.role not in NOT_FOR_SALE and pool[req.role] > 0:
             pool[req.role] -= 1
             roles[req.user_id] = req.role
             fulfilled.append(req)
@@ -280,7 +273,7 @@ class _PendingNight:
     private: list[tuple[int, str]]
     witch: WitchPrompt | None
     blocked: set[int]
-    saved_by_doctor: set[int]
+    saved_by_doctor: dict[int, list[str]]   # нысана -> Дәрігер тоқтатқан шабуылдаушылардың рөлдері
 
 
 @dataclass
@@ -327,6 +320,7 @@ class Game:
         self.votes: dict[int, int | None] = {}
         self.awake: dict[int, int] = {}            # Балым жалеп: осы түнгі басу саны
         self.candidate: int | None = None          # растауға шыққан ойыншы
+        self.kamikaze_pending: int | None = None   # дарға асылған Камикадзе (кімді алып кететінін таңдайды)
         self.confirm_votes: dict[int, bool] = {}   # user_id -> 👍 (True) / 👎 (False)
         self.bombed: set[int] = set()
         self.defender_cover: int | None = None
@@ -426,47 +420,43 @@ class Game:
 
     # --- Ойын басы --------------------------------------------------------------
 
-    def _goal_key(self, p: Player) -> str:
-        if p.role in (Role.SUICIDE, Role.PYRO, Role.MANIAC, Role.HIGGS):
-            return f"goal.{p.role.value}"
-        return f"goal.{p.faction.value}"
+    def allies(self, user_id: int) -> list[Player]:
+        """Ойыншының одақтастары, өзімен бірге (командалық рөлдер үшін, әйтпесе бос)."""
+        p = self.players[user_id]
+        if p.role in MAFIA_TEAM_ROLES:
+            return self.mafia_team()
+        if p.role is Role.DEFENDER:
+            return self.with_role(Role.DEFENDER)
+        if p.role in (Role.COMMISSIONER, Role.SERGEANT):
+            return self.with_role(Role.COMMISSIONER, Role.SERGEANT)
+        return []
 
     def role_intro(self, user_id: int) -> str:
+        """Ойын басындағы қысқа хабар: рөл, не істейтіні, одақтастары, заттары."""
         p = self.players[user_id]
-        lines = [
-            self.t("intro.role", role=self.title(p.role)),
-            self.t("intro.faction", faction=faction_title(p.faction, self.lang)),
-            "",
-            f"<blockquote>{description(p.role, self.lang)}</blockquote>",
-            self.t("intro.goal", goal=self.t(self._goal_key(p))),
-        ]
-        if p.role in MAFIA_TEAM_ROLES:
-            mates = [f"• {q.mention} — {self.title(q.role)}" for q in self.team_of(user_id)]
-            lines += ["", self.t("intro.team"), *(mates or [self.t("intro.alone")])]
+        lines = [self.t("intro.role", role=self.title(p.role)), description(p.role, self.lang)]
+        if p.role is Role.HIGGS:
+            lines.append(self.t("intro.higgs", armor=p.higgs_armor))
+        allies = self.allies(user_id)
+        if len(allies) > 1:
+            lines += ["", self.t("intro.allies")]
+            lines += [f"{q.mention} - {self.title(q.role)}" for q in allies]
+            if p.role is Role.DEFENDER:
+                head = next((q for q in allies if q.head_defender), None)
+                if head is not None:
+                    lines.append(self.t("intro.head_defender", name=head.mention))
             lines.append(self.t("intro.team_chat"))
-        elif p.role is Role.DEFENDER:
-            mates = [f"• {q.mention}" for q in self.team_of(user_id)]
-            lines += ["", self.t("intro.partner"), *mates]
-            lines.append(self.t("intro.head_defender" if p.head_defender else "intro.second_defender"))
-        elif p.role in (Role.COMMISSIONER, Role.SERGEANT):
-            mates = [f"• {q.mention} — {self.title(q.role)}" for q in self.team_of(user_id)]
-            if mates:
-                lines += ["", self.t("intro.team"), *mates, self.t("intro.team_chat")]
-        elif p.role is Role.HIGGS:
-            lines += ["", self.t("intro.higgs", armor=p.higgs_armor)]
         items = []
         if p.shield_available:
-            items.append(self.t("intro.item.shield"))
+            items.append(self.t("item.shields.name"))
         if p.vote_shield_available:
-            items.append(self.t("intro.item.vote_shield"))
+            items.append(self.t("item.vote_shields.name"))
         if p.bullet_available:
-            items.append(self.t("intro.item.bullet"))
+            items.append(self.t("item.piercing_bullets.name"))
         if p.fake_doc:
-            items.append(self.t("intro.item.fake_doc"))
+            items.append(self.t("item.fake_docs.name"))
         if items:
-            lines += ["", self.t("intro.items"), *(f"• {i}" for i in items)]
-        if p.role not in (Role.SUICIDE, Role.PYRO):
-            lines += ["", self.t("intro.survive_note")]
+            lines += ["", self.t("intro.items", items=", ".join(items))]
         return "\n".join(lines)
 
     # --- Түн --------------------------------------------------------------------
@@ -559,9 +549,9 @@ class Game:
         return sorted(idle, key=lambda u: self.players[u].order)
 
     def night_prompt(self, user_id: int) -> str:
+        """Түнгі әрекет сұрағы — қысқа, тек не істеу керектігі (батырмалар астында)."""
         p = self.players[user_id]
         role = p.role
-        head = self.t("prompt.head", day=self.day, role=self.title(role))
         if role is Role.SLEEPLESS:
             body = self.t("prompt.sleepless", need=AWAKE_PRESSES)
         elif role is Role.COMMISSIONER and self.day <= 1:
@@ -579,8 +569,8 @@ class Game:
         ):
             body = self.t(f"prompt.{role.value}")
         else:
-            return f"{head}\n{self.t('prompt.none')}"
-        return f"{head}\n{body}"
+            return self.t("prompt.none")
+        return body
 
     def submit_action(
         self, user_id: int, kind: ActionKind, target: int | None = None
@@ -605,9 +595,7 @@ class Game:
             return SubmitResult(True, self.t("submit.skip"))
         if kind is ActionKind.DETONATE:
             return SubmitResult(True, self.t("submit.detonate"))
-        return SubmitResult(
-            True, self.t("submit.ok", action=self.action_label(kind), target=self._name(target))
-        )
+        return SubmitResult(True, self.t("submit.ok", target=self._name(target)))
 
     def press_awake(self, user_id: int) -> tuple[bool, str, bool]:
         """Балым жалеп «Сору» батырмасын басты. ``(ok, мәтін, жеткілікті ме)`` қайтарады."""
@@ -634,11 +622,9 @@ class Game:
                 return None
         return self.t(f"announce.{key}")
 
-    def team_vote_note(self, user_id: int, target: int) -> str:
-        actor = self.players[user_id]
-        return self.t(
-            "night.team_vote", role=self.title(actor.role), name=actor.mention, target=self._name(target)
-        )
+    def team_choice_note(self, user_id: int, target: int) -> str:
+        """Одақтастарға: «Бека: таңдады Айжан»."""
+        return self.t("night.team_choice", name=self._name(user_id), target=self._name(target))
 
     # --- Түнгі нәтижелерді есептеу ------------------------------------------------
 
@@ -747,7 +733,7 @@ class Game:
         lethal_by: dict[int, list[Attack]] = defaultdict(list)
         witch_attackers: dict[int, list[int]] = defaultdict(list)
         wolf_hits: dict[int, str] = {}
-        saved_by_doctor: set[int] = set()
+        saved_by_doctor: dict[int, list[str]] = defaultdict(list)
         for atk in attacks:
             t = self.players[atk.target]
             if t.role is Role.WITCH and not t.witch_magic_used:
@@ -757,8 +743,12 @@ class Game:
             if t.role is Role.WOLF and atk.source in (SRC_MAFIA, SRC_KILLER, SRC_COMMISSIONER):
                 wolf_hits.setdefault(t.user_id, atk.source)
                 continue
+            if t.role is Role.KAMIKAZE:  # Камикадзеге ешқандай қорғаныс жұмыс істемейді
+                lethal_by[t.user_id].append(atk)
+                deaths.setdefault(t.user_id, atk.source)
+                continue
             if t.user_id in healed:
-                saved_by_doctor.add(t.user_id)
+                saved_by_doctor[t.user_id].append(self.title(self.players[atk.attacker].role))
                 continue
             if self._higgs_absorbs(t, private):
                 continue
@@ -780,7 +770,7 @@ class Game:
             deaths[pyro_id] = SRC_PYRO_SELF
             for b in targets:
                 if b in healed:
-                    saved_by_doctor.add(b)
+                    saved_by_doctor[b].append(self.title(Role.PYRO))
                     continue
                 if self._higgs_absorbs(self.players[b], private):
                     continue
@@ -813,7 +803,7 @@ class Game:
             private=private,
             witch=witch_prompt,
             blocked=blocked,
-            saved_by_doctor=saved_by_doctor,
+            saved_by_doctor=dict(saved_by_doctor),
         )
         return witch_prompt
 
@@ -847,18 +837,26 @@ class Game:
             else:
                 private.append((w.witch_id, self.t("night.witch_forgave")))
 
-        # 12. Камикадзенің арнайы өлім әсері (Дәрігер мен қорғаныстан басым).
+        # 12. Камикадзені атқандар онымен бірге өледі (Дәрігер мен қорғаныстан басым).
+        #     Оны Комиссардан басқа біреу атса — Камикадзе жеңеді.
         for target_id, atks in pending.lethal_by.items():
-            if self.players[target_id].role is Role.KAMIKAZE and target_id in deaths:
-                for atk in atks:
-                    if atk.attacker != target_id:
-                        deaths.setdefault(atk.attacker, SRC_KAMIKAZE)
-                public.append(self.t("morning.kamikaze"))
+            kamikaze = self.players[target_id]
+            if kamikaze.role is not Role.KAMIKAZE or target_id not in deaths:
+                continue
+            for atk in atks:
+                if atk.attacker != target_id and atk.attacker not in deaths:
+                    deaths[atk.attacker] = SRC_KAMIKAZE
+                    shooter = self.players[atk.attacker]
+                    public.append(self.t("kamikaze.took", name=shooter.mention, role=self.reveal(shooter)))
+            if any(atk.source in (SRC_MAFIA, SRC_KILLER, SRC_MANIAC) for atk in atks):
+                kamikaze.personal_win = True
 
         # 13. Қасқырлардың фракция ауысуы.
         for wolf_id, source in pending.wolf_hits.items():
             if wolf_id not in deaths:
                 private.extend(self._convert_wolf(wolf_id, source))
+                key = "morning.wolf_mafia" if source in (SRC_MAFIA, SRC_KILLER) else "morning.wolf_sergeant"
+                public.append(self.t(key))
 
         # 14. Өлімдерді бекіту.
         dead_order = [p.user_id for p in self.ordered() if p.user_id in deaths]
@@ -920,6 +918,16 @@ class Game:
             if a.kind is ActionKind.HEAL and a.target in pending.saved_by_doctor:
                 key = "night.healed_saved"
             notes.append((a.target, self.t(key, role=self.title(role))))
+        # Дәрігерге: емделді ме (кімнен — тек рөлі) әлде емдеудің керегі болмады ма.
+        for uid, a in pending.effective.items():
+            if a.kind is not ActionKind.HEAL or not self.players[a.target].alive:
+                continue
+            guests = list(dict.fromkeys(pending.saved_by_doctor.get(a.target, [])))
+            if guests:
+                text = self.t("night.doctor_saved", target=self._name(a.target), roles=", ".join(guests))
+            else:
+                text = self.t("night.doctor_idle", target=self._name(a.target))
+            notes.append((uid, text))
         return notes
 
     def _mafia_decision(self, effective: dict[int, NightAction]) -> tuple[int | None, int | None]:
@@ -1134,6 +1142,11 @@ class Game:
             lines.append(self.t("confirm.spared", name=target.mention))
         elif self.defender_cover == target.user_id and target.role in DEFENDER_COVER_ROLES:
             lines.append(self.t("vote.saved", name=target.mention))
+        elif target.role is Role.KAMIKAZE:
+            self._kill(target.user_id, SRC_LYNCH)
+            deaths.append(target.user_id)
+            lines.append(self.t("vote.lynched", name=target.mention, role=self.reveal(target)))
+            self.kamikaze_pending = target.user_id  # енді кімді алып кететінін таңдайды
         elif target.role is Role.SUICIDE:
             self._kill(target.user_id, SRC_LYNCH)
             target.personal_win = True
@@ -1153,6 +1166,38 @@ class Game:
             lines.append(self.t("vote.lynched", name=target.mention, role=self.reveal(target)))
             private.append((target.user_id, self.t("vote.you_lynched")))
         return self._end_vote(lines, private, deaths)
+
+    def kamikaze_targets(self) -> list[int]:
+        """Дарға асылған Камикадзе алып кете алатындар: тірілер (басқа Камикадзелерсіз)."""
+        if self.kamikaze_pending is None:
+            return []
+        return [p.user_id for p in self.alive() if p.role is not Role.KAMIKAZE]
+
+    def kamikaze_take(self, target: int | None) -> Report | None:
+        """Камикадзенің таңдауы (``None`` — уақыт бітті). Нысана бірден өледі.
+
+        Мафияны, Донды, Киллерді, Қорғаушыны, Қанішерді не Пироны алып кетсе — Камикадзе жеңеді.
+        """
+        kamikaze_id = self.kamikaze_pending
+        if kamikaze_id is None or self.result is not None:
+            self.kamikaze_pending = None
+            return None
+        if target is not None and target not in self.kamikaze_targets():
+            return None
+        self.kamikaze_pending = None
+        if target is None:
+            return Report(public=self.t("kamikaze.none"))
+        victim = self.players[target]
+        self._kill(target, SRC_KAMIKAZE)
+        if victim.role in KAMIKAZE_PREY:
+            self.players[kamikaze_id].personal_win = True
+        private = [(target, self.t("night.you_died", cause=self.cause(SRC_KAMIKAZE)))]
+        private.extend(self._promotions())
+        return Report(
+            public=self.t("kamikaze.took", name=victim.mention, role=self.reveal(victim)),
+            private=private,
+            deaths=[target],
+        )
 
     def _end_vote(self, lines: list[str], private: list[tuple[int, str]], deaths: list[int]) -> Report:
         private.extend(self._promotions())
@@ -1225,7 +1270,8 @@ class Game:
         if winner is Faction.INDEPENDENT:
             winners = {p.user_id for p in alive if p.role is Role.MANIAC}
         elif winner is not None:
-            winners = {p.user_id for p in alive if p.faction is winner}
+            # Камикадзенің мақсаты — тірі қалу емес: ол тек өзін құрбан етіп жеңеді.
+            winners = {p.user_id for p in alive if p.faction is winner and p.role is not Role.KAMIKAZE}
         else:
             winners = set()
         winners |= {p.user_id for p in alive if p.role is Role.HIGGS}

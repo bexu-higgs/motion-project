@@ -93,6 +93,9 @@ class Storage(Protocol):
 
     async def stale_games(self) -> list[dict]: ...
 
+    # Ойын соңындағы карточка: баланс, заттар, келесі рөл, жеңістер.
+    async def profiles(self, user_ids: list[int]) -> dict[int, dict]: ...
+
 
 # --- Күй ------------------------------------------------------------------------------
 
@@ -129,6 +132,8 @@ class Session:
     witch_event: asyncio.Event = field(default_factory=asyncio.Event)
     witch_choice: bool | None = None
     witch_id: int | None = None
+    kamikaze_event: asyncio.Event = field(default_factory=asyncio.Event)
+    kamikaze_choice: int | None = None
     last_words: dict[int, float] = field(default_factory=dict)  # user_id -> мерзімі
     # 👍/👎 растау хабары (топта) және оның батырмаларын жаңарту.
     confirm_mid: int | None = None
@@ -168,7 +173,6 @@ class GameManager:
         silence_night: bool = True,
         mute_non_players: bool = True,
         higgs_chance: float = balance.HIGGS_CHANCE,
-        sleepless_chance: float = balance.SLEEPLESS_CHANCE,
         rng_factory: Callable[[], random.Random] = random.SystemRandom,
         lobby_edit_delay: float = 1.5,
         confirm_edit_delay: float = 3.0,
@@ -181,7 +185,6 @@ class GameManager:
         self.silence_night = silence_night
         self.mute_non_players = mute_non_players
         self.higgs_chance = higgs_chance
-        self.sleepless_chance = sleepless_chance
         self.rng_factory = rng_factory
         self.lobby_edit_delay = lobby_edit_delay
         # 👍/👎 санағын жаңарту жиілігі: топта минутына ≈20 хабар/өңдеу шегі бар.
@@ -319,19 +322,14 @@ class GameManager:
 
     def _lobby_text(self, lobby: Lobby) -> str:
         left = max(0, int(lobby.deadline - time.monotonic()))
-        names = [
-            f"{i}. <a href=\"tg://user?id={uid}\">{html.escape(name)}</a>"
-            for i, (uid, name) in enumerate(lobby.players.items(), 1)
-        ]
+        names = ", ".join(
+            f"<a href=\"tg://user?id={uid}\">{html.escape(name)}</a>" for uid, name in lobby.players.items()
+        )
         return "\n".join([
-            lobby.t("lobby.title"),
+            lobby.t("lobby.title", chat=html.escape(lobby.chat_title)),
+            lobby.t("lobby.players", names=names or "—"),
+            lobby.t("lobby.count", count=len(lobby.players)),
             lobby.t("lobby.time", seconds=left),
-            "",
-            lobby.t("lobby.players", count=len(lobby.players), max=balance.MAX_PLAYERS),
-            "\n".join(names) if names else lobby.t("lobby.empty"),
-            "",
-            lobby.t("lobby.min", min=balance.MIN_PLAYERS),
-            lobby.t("lobby.how"),
         ])
 
     def _lobby_keyboard(self, lobby: Lobby) -> Keyboard:
@@ -410,7 +408,8 @@ class GameManager:
             await self.notifier.send(user_id, s.t("afk.dm", nights=AFK_NIGHTS))
         await self._deliver(report.private)
         if s.game.check_winner() is not None:
-            s.witch_event.set()  # Сиқыршының шешімін күтпеу
+            s.witch_event.set()  # Сиқыршы мен Камикадзенің шешімін күтпеу
+            s.kamikaze_event.set()
         s.wake.set()
         return True
 
@@ -501,8 +500,7 @@ class GameManager:
         inventories = await self.storage.inventories(user_ids)
         requests = await self.storage.queue_heads(user_ids)
         rng = self.rng_factory()
-        assignment = assign_roles(user_ids, requests, rng, higgs_chance=self.higgs_chance,
-                                  sleepless_chance=self.sleepless_chance)
+        assignment = assign_roles(user_ids, requests, rng, higgs_chance=self.higgs_chance)
         purchases = {r.user_id: r.purchase_id for r in assignment.fulfilled}
         players: list[Player] = []
         for order, uid in enumerate(user_ids):
@@ -538,6 +536,8 @@ class GameManager:
                 game.t("game.unfulfilled", role=game.title(req.role), count=len(players)),
                 [[Button(game.t("game.refund_btn"), data=f"rr:{req.purchase_id}")]],
             )
+        if any(p.role is Role.HIGGS for p in players):  # сирек рөл — бірінші болып ерекше хабар
+            await self._say(lobby.chat_id, game.t("game.higgs_arrived"))
         lines = [game.t("game.started", count=len(players))]
         if failed:
             lines += ["", game.t("game.dm_failed", names=", ".join(p.mention for p in failed))]
@@ -632,8 +632,41 @@ class GameManager:
             report = confirmed
             await self._say(s.chat_id, report.public)
         await self._deliver(report.private)
-        await self._after_deaths(s, report.deaths, last_words=True)
+        deaths = list(report.deaths)
+        if g.kamikaze_pending is not None:  # дарға асылған Камикадзе біреуді алып кетеді
+            taken = await self._ask_kamikaze(s)
+            if taken is not None:
+                await self._say(s.chat_id, taken.public)
+                await self._deliver(taken.private)
+                deaths += taken.deaths
+        await self._after_deaths(s, deaths, last_words=True)
         g.end_cycle()
+
+    async def _ask_kamikaze(self, s: Session) -> Report | None:
+        g = s.game
+        kamikaze_id = g.kamikaze_pending
+        s.kamikaze_choice = None
+        s.kamikaze_event.clear()
+        rows = [[Button(target_button_text(g.players[t]), data=f"kz:{s.game_id}:{g.day}:{t}")]
+                for t in g.kamikaze_targets()]
+        mid = await self.notifier.send(kamikaze_id, s.t("kamikaze.prompt"), rows)
+        if mid is not None:
+            try:
+                await asyncio.wait_for(s.kamikaze_event.wait(), timeout=s.timings.witch)
+            except TimeoutError:
+                await self.notifier.edit(kamikaze_id, mid, s.t("kamikaze.timeout"))
+        return g.kamikaze_take(s.kamikaze_choice)
+
+    async def kamikaze_choose(self, user_id: int, game_id: int, day: int, target: int) -> tuple[bool, str]:
+        """Дарға асылған Камикадзе кімді алып кететінін таңдады."""
+        s = self._session_by_game(game_id)
+        g = s.game if s else None
+        if (s is None or g.day != day or g.kamikaze_pending != user_id or s.kamikaze_event.is_set()
+                or target not in g.kamikaze_targets()):
+            return False, i18n.t(g.lang if g else None, "game.stale")
+        s.kamikaze_choice = target
+        s.kamikaze_event.set()
+        return True, s.t("kamikaze.ok", target=g.players[target].mention)
 
     # --- 👍/👎 растау ---------------------------------------------------------------------------
 
@@ -805,13 +838,10 @@ class GameManager:
             return False, result.message
         s.prompts.pop(user_id, None)
         self._announce(s.chat_id, g.action_announcement(user_id, action))
-        if action is ActionKind.MAFIA_KILL:
-            note = g.team_vote_note(user_id, target)
+        if target:  # одақтастар бір-бірінің таңдауын көреді: «Бека: таңдады Айжан»
+            note = g.team_choice_note(user_id, target)
             for mate in g.team_of(user_id):
                 await self.notifier.send(mate.user_id, note)
-        elif action is ActionKind.PROTECT:
-            for mate in g.team_of(user_id):
-                await self.notifier.send(mate.user_id, s.t("game.defender_note", target=g.players[target].mention))
         s.wake.set()
         return True, result.message
 
@@ -878,7 +908,7 @@ class GameManager:
             return False
         for mate in mates:
             await self.notifier.send(
-                mate.user_id, s.t("game.team_msg", role=g.title(p.role), name=p.mention, text=body)
+                mate.user_id, s.t("game.team_msg", name=p.mention, text=body)
             )
         return True
 
@@ -926,14 +956,37 @@ class GameManager:
         minutes = max(1, round((time.monotonic() - s.started_at) / 60))
         await self._say(s.chat_id, g.final_text(minutes))
         await self._release(s)
+        try:
+            profiles = await self.storage.profiles([p.user_id for p in g.ordered()])
+        except Exception:
+            log.exception("Профильдерді алу мүмкін болмады (game_id=%s)", g.game_id)
+            profiles = {}
         for p in g.ordered():
             if p.user_id in result.winners:
-                bonus = s.t("game.win_bonus", reward=rewards[p.user_id]) if p.user_id in rewards else ""
-                await self.notifier.send(p.user_id, s.t("game.win_dm", bonus=bonus))
-            elif not p.alive and result.winner is not None and p.faction is result.winner:
-                await self.notifier.send(p.user_id, s.t("game.lose_dead_dm"))
+                head = s.t("end.win", reward=rewards.get(p.user_id, 0))
             else:
-                await self.notifier.send(p.user_id, s.t("game.lose_dm"))
+                head = s.t("end.lose")
+            card = self._profile_card(g, profiles.get(p.user_id))
+            await self.notifier.send(p.user_id, f"{head}\n\n{card}" if card else head)
+
+    def _profile_card(self, g: Game, profile: dict | None) -> str:
+        if not profile:
+            return ""
+        next_role = profile.get("next_role")
+        return g.t(
+            "end.card",
+            id=profile["user_id"],
+            name=html.escape(profile.get("full_name") or profile.get("username") or str(profile["user_id"])),
+            tenge=profile["tenge"],
+            diamonds=profile["diamonds"],
+            shields=profile["shields"],
+            vote_shields=profile["vote_shields"],
+            bullets=profile["piercing_bullets"],
+            fake_docs=profile["fake_docs"],
+            next_role=g.title(Role(next_role)) if next_role else "-",
+            wins=profile["wins"],
+            games=profile["games_played"],
+        )
 
     async def _release(self, s: Session) -> None:
         now = time.monotonic()

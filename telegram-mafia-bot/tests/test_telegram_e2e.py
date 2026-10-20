@@ -191,7 +191,7 @@ async def autoplay(h: Harness, rng: random.Random, stop: asyncio.Event):
             if call.chat_id == 0:
                 continue
             game_buttons = [b for b in keyboard_buttons(call)
-                            if b.callback_data and b.callback_data[:2] in ("n:", "m:", "v:", "w:")]
+                            if b.callback_data and b.callback_data[:2] in ("n:", "m:", "v:", "w:", "kz")]
             if game_buttons:
                 mid = call.message_id if isinstance(call, m.EditMessageText) else 0
                 await h.click(call.chat_id, mid, rng.choice(game_buttons).callback_data)
@@ -220,7 +220,7 @@ async def test_full_game_through_telegram_handlers(harness):
 
     # Топта тіркелуді ашу.
     await h.text(1, GROUP, "/game")
-    lobby_msg = next(c for c in tg.sent(GROUP) if "тіркелу басталды" in c.text)
+    lobby_msg = next(c for c in tg.sent(GROUP) if "тіркелу ашық" in c.text)
     join_url = keyboard_buttons(lobby_msg)[0].url
     assert join_url.startswith("https://t.me/mafia_test_bot?start=join_")
     payload = join_url.split("start=")[1]
@@ -269,6 +269,10 @@ async def test_full_game_through_telegram_handlers(harness):
     assert all("Сіздің рөліңіз" not in c.text for c in tg.sent(GROUP))
     assert all(any("Сіздің рөліңіз" in c.text for c in tg.sent(uid)) for uid in range(1, 8))
     assert any("Ойын аяқталды" in c.text for c in tg.sent(GROUP))
+    # Ойын соңында әр ойыншыға профиль карточкасы (дерекқордан).
+    for uid in range(1, 8):
+        card = next(c.text for c in tg.sent(uid) if "🆔 ID:" in c.text)
+        assert card.startswith(("Ойын аяқталды!", "Сіз жеңдіңіз!")) and f"<code>{uid}</code>" in card
     # 👍/👎 растау батырмалары топта басылды.
     group_text = "\n".join(c.text for c in tg.sent(GROUP))
     if "асылсын ба" in group_text:
@@ -463,8 +467,8 @@ async def test_chat_language_and_registration_time(harness):
     cfg = await h.repo.get_chat_settings(GROUP)
     assert cfg.lang == "tr" and cfg.registration_seconds == 30
     await h.text(4, GROUP, "/game")
-    lobby = next(c for c in tg.sent(GROUP) if "kaydı başladı" in c.text)
-    assert "Kayda 30 saniye" in lobby.text or "Kayda 29 saniye" in lobby.text
+    lobby = next(c for c in tg.sent(GROUP) if "mafya oyunu kaydı açık" in c.text)
+    assert "başlamasına 30 saniye" in lobby.text or "başlamasına 29 saniye" in lobby.text
     await h.text(4, GROUP, "/stop")
     assert "yöneticileri" in tg.sent(GROUP)[-1].text  # әкімші емес — тоқтата алмайды
     await h.text(CHAT_ADMIN, GROUP, "/stop")
@@ -482,7 +486,7 @@ async def test_group_moderation(harness):
     tg = h.tg
     h.manager.time_scale = 50  # түн ұзақ болсын — ешкім әрекет жасамайды
     await h.text(CHAT_ADMIN, GROUP, "/game")
-    payload = keyboard_buttons(next(c for c in tg.sent(GROUP) if "тіркелу басталды" in c.text))[0].url.split("start=")[1]
+    payload = keyboard_buttons(next(c for c in tg.sent(GROUP) if "тіркелу ашық" in c.text))[0].url.split("start=")[1]
     for uid in range(1, 6):
         await h.text(uid, uid, f"/start {payload}")
     await h.text(CHAT_ADMIN, GROUP, "/startgame")
@@ -675,10 +679,9 @@ async def test_sleepless_presses_through_telegram(harness):
     h = harness
     tg = h.tg
     h.manager.time_scale = 50
-    h.manager.sleepless_chance = 1
     h.manager.higgs_chance = 0
     await h.text(CHAT_ADMIN, GROUP, "/game")
-    payload = keyboard_buttons(next(c for c in tg.sent(GROUP) if "тіркелу басталды" in c.text))[0].url.split("start=")[1]
+    payload = keyboard_buttons(next(c for c in tg.sent(GROUP) if "тіркелу ашық" in c.text))[0].url.split("start=")[1]
     for uid in range(1, 8):
         await h.text(uid, uid, f"/start {payload}")
     await h.text(CHAT_ADMIN, GROUP, "/startgame")
@@ -713,7 +716,7 @@ async def test_group_commands_are_deleted_after_running(harness):
                    for c in tg.calls)
 
     game = await h.text(CHAT_ADMIN, GROUP, "/game")
-    assert any("тіркелу басталды" in c.text for c in tg.sent(GROUP)) and deleted(game)
+    assert any("тіркелу ашық" in c.text for c in tg.sent(GROUP)) and deleted(game)
     for text in ("/extend", "/settingsmafia@mafia_test_bot", "/topmafia", "/rules", "/stop"):
         msg = await h.text(CHAT_ADMIN, GROUP, text)
         assert deleted(msg), text

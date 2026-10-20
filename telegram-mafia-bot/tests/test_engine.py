@@ -45,8 +45,8 @@ def test_assign_roles_matches_composition(n):
     a = assign_roles(ids, [], random.Random(n))
     assert set(a.roles) == set(ids)
     counts = Counter(a.roles.values())
-    # Higgs-Man мен Балым жалеп тұрғынның орнына шығады.
-    counts[Role.CIVILIAN] += counts.pop(Role.HIGGS, 0) + counts.pop(Role.SLEEPLESS, 0)
+    # Higgs-Man тұрғынның орнына шығады (кездейсоқ жалғыз рөл).
+    counts[Role.CIVILIAN] += counts.pop(Role.HIGGS, 0)
     assert +counts == balance.composition(n)
 
 
@@ -286,10 +286,67 @@ def test_kamikaze_takes_don_even_if_healed():
     assert g.players[5].role is Role.DON  # мафия мүшесі жаңа Дон болды
 
 
-def test_kamikaze_healed_no_counter():
-    g = make_game([Role.DON, Role.KAMIKAZE, Role.DOCTOR, Role.COMMISSIONER])
+def test_kamikaze_ignores_heal_and_wins_when_mafia_shoots():
+    g = make_game([Role.DON, Role.KAMIKAZE, Role.DOCTOR, Role.COMMISSIONER, Role.MAFIA, Role.CIVILIAN])
     report, _ = night(g, {1: (A.MAFIA_KILL, 2), 3: (A.HEAL, 2)})
-    assert report.deaths == []
+    assert set(report.deaths) == {1, 2}  # Дәрігер Камикадзені құтқара алмайды
+    assert "Камикадзе өзімен бірге" in report.public and title(Role.DON) in report.public
+    assert g.players[2].personal_win
+
+
+def test_kamikaze_loses_when_commissioner_shoots():
+    g = make_game([Role.DON, Role.KAMIKAZE, Role.DOCTOR, Role.COMMISSIONER, Role.MAFIA, Role.CIVILIAN])
+    night(g, {})
+    g.start_vote()
+    finish_vote(g)
+    g.end_cycle()
+    g.start_night()
+    report, _ = night(g, {4: (A.SHOOT, 2)})
+    assert set(report.deaths) == {2, 4}
+    assert not g.players[2].personal_win
+
+
+def lynch_kamikaze(roles):
+    g = make_game(roles)
+    kamikaze = next(p.user_id for p in g.players.values() if p.role is Role.KAMIKAZE)
+    to_vote(g)
+    for voter in g.alive_ids():
+        if voter != kamikaze:
+            assert g.submit_vote(voter, kamikaze).ok
+    res = finish_vote(g)
+    assert res.deaths == [kamikaze] and g.kamikaze_pending == kamikaze
+    return g, kamikaze
+
+
+KAMIKAZE_GAME = [Role.DON, Role.MAFIA, Role.KAMIKAZE, Role.KAMIKAZE, Role.COMMISSIONER, Role.DOCTOR,
+                 Role.CIVILIAN, Role.CIVILIAN, Role.CIVILIAN, Role.CIVILIAN]
+
+
+def test_lynched_kamikaze_takes_the_don_and_wins():
+    g, kamikaze = lynch_kamikaze(KAMIKAZE_GAME)
+    targets = g.kamikaze_targets()
+    assert 1 in targets and all(g.players[t].role is not Role.KAMIKAZE for t in targets)
+    report = g.kamikaze_take(1)
+    assert report.deaths == [1] and not g.players[1].alive
+    assert report.public == f"Камикадзе өзімен бірге {g.players[1].mention} - {title(Role.DON)} алып кетті."
+    assert g.players[kamikaze].personal_win and g.kamikaze_pending is None
+    assert g.players[2].role is Role.DON  # жаңа Дон
+
+
+def test_lynched_kamikaze_loses_if_he_takes_the_town():
+    g, kamikaze = lynch_kamikaze(KAMIKAZE_GAME)
+    report = g.kamikaze_take(5)
+    assert report.deaths == [5] and g.players[5].role is Role.COMMISSIONER
+    assert not g.players[kamikaze].personal_win
+
+
+def test_lynched_kamikaze_timeout_and_bad_target():
+    g, kamikaze = lynch_kamikaze(KAMIKAZE_GAME)
+    other = next(p.user_id for p in g.alive() if p.role is Role.KAMIKAZE)
+    assert g.kamikaze_take(other) is None and g.kamikaze_pending == kamikaze  # басқа Камикадзені алуға болмайды
+    report = g.kamikaze_take(None)
+    assert report.deaths == [] and "ешкімді" in report.public
+    assert g.kamikaze_pending is None and g.kamikaze_take(1) is None
 
 
 def pyro_bombs(g, pyro, targets):
@@ -378,6 +435,22 @@ def test_wolf_conversions():
     assert not g.players[7].alive
     assert report.deaths == [7]
     assert any("мафияға қосылды" in t for t in private_for(report, 1))
+    assert "Қасқыр адам мафияға айналды" in report.public
+    assert "Қасқыр адам сержантқа айналды" in report.public
+
+
+def test_doctor_learns_whether_the_heal_mattered():
+    g = make_game([Role.DON, Role.DOCTOR, Role.COMMISSIONER, Role.CIVILIAN, Role.CIVILIAN])
+    report, _ = night(g, {1: (A.MAFIA_KILL, 4), 2: (A.HEAL, 4)})
+    assert report.deaths == []
+    name = g.players[4].mention
+    assert private_for(report, 2) == [f"{name} түнде емделді! Қонақтары: {title(Role.DON)}"]
+    g.start_vote()
+    finish_vote(g)
+    g.end_cycle()
+    g.start_night()
+    report, _ = night(g, {2: (A.HEAL, 5)})
+    assert private_for(report, 2) == [f"{g.players[5].mention} емдеуді қажет етпеді."]
 
 
 def test_beggar_sees_visitors():
@@ -645,27 +718,18 @@ def test_balym_killed_by_mafia_first_gets_no_extra_line():
     assert "сормағаны" not in report.public
 
 
-def test_balym_always_appears_from_seven_players_if_a_civilian_slot_exists():
+def test_balym_is_in_every_game_from_seven_players():
     for n in range(4, 51):
-        a = assign_roles(list(range(1, n + 1)), [], random.Random(n), higgs_chance=0)
-        civilians = balance.composition(n)[Role.CIVILIAN]
-        expected = 1 if n >= 7 and civilians > 0 else 0
-        assert Counter(a.roles.values())[Role.SLEEPLESS] == expected, n
-    assert balance.composition(8)[Role.CIVILIAN] == 0 and balance.composition(10)[Role.CIVILIAN] == 0
+        for seed in (1, 2):
+            a = assign_roles(list(range(1, n + 1)), [], random.Random(seed), higgs_chance=1)
+            assert Counter(a.roles.values())[Role.SLEEPLESS] == (1 if n >= 7 else 0), n
 
 
-def test_sleepless_replaces_a_civilian_and_cannot_be_bought():
-    six = list(range(1, 7))
+def test_sleepless_cannot_be_bought():
     seven = list(range(1, 8))
-    assert Role.SLEEPLESS not in assign_roles(six, [], random.Random(1), sleepless_chance=1).roles.values()
-    five = list(range(1, 6))  # 6-дан аз ойыншыда тұрғын бар, бірақ Балым жалеп шықпайды
-    assert Role.SLEEPLESS not in assign_roles(five, [], random.Random(1), sleepless_chance=1).roles.values()
-    a = assign_roles(seven, [], random.Random(1), higgs_chance=0, sleepless_chance=1)
-    assert Counter(a.roles.values())[Role.SLEEPLESS] == 1
-    assert Counter(a.roles.values())[Role.CIVILIAN] == balance.composition(7)[Role.CIVILIAN] - 1
-    assert Role.SLEEPLESS not in assign_roles(seven, [], random.Random(1), sleepless_chance=0).roles.values()
-    bought = assign_roles(seven, [RoleRequest(1, Role.SLEEPLESS, 5)], random.Random(1), sleepless_chance=1)
+    bought = assign_roles(seven, [RoleRequest(1, Role.SLEEPLESS, 5)], random.Random(1))
     assert [r.purchase_id for r in bought.unfulfilled] == [5]
+    assert Counter(bought.roles.values())[Role.SLEEPLESS] == 1
     assert g_faction(Role.SLEEPLESS) is Faction.TOWN
 
 
@@ -891,10 +955,10 @@ def test_dead_higgs_loses():
 
 
 def test_higgs_appears_rarely_and_cannot_be_bought():
-    ids = list(range(1, 12))
-    always = assign_roles(ids, [], random.Random(1), higgs_chance=1, sleepless_chance=0)
+    ids = list(range(1, 14))
+    always = assign_roles(ids, [], random.Random(1), higgs_chance=1)
     assert Counter(always.roles.values())[Role.HIGGS] == 1
-    assert sum(always.roles[u] is Role.CIVILIAN for u in ids) == balance.composition(11)[Role.CIVILIAN] - 1
+    assert sum(always.roles[u] is Role.CIVILIAN for u in ids) == balance.composition(13)[Role.CIVILIAN] - 1
     no_civilians = assign_roles(list(range(1, 11)), [], random.Random(1), higgs_chance=1)
     assert Role.HIGGS not in no_civilians.roles.values()  # тұрғын жоқ болса, Higgs та шықпайды
     never = assign_roles(ids, [], random.Random(1), higgs_chance=0)

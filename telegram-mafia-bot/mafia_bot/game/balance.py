@@ -15,21 +15,20 @@ MAX_PLAYERS = 50
 HIGGS_MIN_PLAYERS = 8
 HIGGS_CHANCE = 0.10
 
-# Балым жалеп — тұрғыннан да жаман рөл: осынша ойыншыдан бастап бір қарапайым тұрғынның орнына
-# шығады (1.0 — әрдайым). Құрамда тұрғын болмаса (8 және 10 ойыншы), шықпайды.
-SLEEPLESS_MIN_PLAYERS = 7
-SLEEPLESS_CHANCE = 1.0
 
 # Әр шек — сол ойыншылар санынан бастап қолданылатын рөлдер саны.
 # Шектер жинақталады: жаңа шекте рөл қосылады немесе бұрынғы рөлдің саны өседі.
 # Бос орындар қарапайым тұрғындармен толтырылады.
-# Хакер мен Қайыршы 6+, Қасқыр мен Камикадзе 8+ ойыншыда шығады. 8–9 ойыншыда орын
-# жетпейтіндіктен екінші мафия мен Сержант 10 ойыншыдан бастап қосылады.
+# Хакер мен Қайыршы 6+, Балым жалеп 7+ (әр ойында міндетті), Камикадзе 8+, Қасқыр 9+ ойыншыда
+# шығады. Кіші ойындарда орын жетпейтіндіктен екінші мафия 10, Сержант 11 ойыншыдан бастап қосылады.
 THRESHOLDS: tuple[tuple[int, dict[Role, int]], ...] = (
     (4, {Role.DON: 1, Role.COMMISSIONER: 1, Role.DOCTOR: 1}),
     (6, {Role.MAFIA: 1, Role.HACKER: 1, Role.BEGGAR: 1}),
-    (8, {Role.WOLF: 1, Role.KAMIKAZE: 1}),
-    (10, {Role.MAFIA: 2, Role.SERGEANT: 1}),
+    (7, {Role.SLEEPLESS: 1}),
+    (8, {Role.KAMIKAZE: 1}),
+    (9, {Role.WOLF: 1}),
+    (10, {Role.MAFIA: 2}),
+    (11, {Role.SERGEANT: 1}),
     (12, {Role.MAFIA: 3}),
     (14, {Role.DEFENDER: 2}),
     (16, {Role.MAFIA: 4, Role.SERGEANT: 2}),
@@ -67,8 +66,6 @@ def role_available(role: Role, players: int) -> bool:
 def min_players_for(role: Role) -> int:
     if role is Role.HIGGS:
         return HIGGS_MIN_PLAYERS
-    if role is Role.SLEEPLESS:
-        return SLEEPLESS_MIN_PLAYERS
     for threshold, roles in THRESHOLDS:
         if roles.get(role, 0) > 0:
             return threshold

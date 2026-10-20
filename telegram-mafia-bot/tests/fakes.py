@@ -119,6 +119,14 @@ class FakeStorage:
     async def queue_heads(self, user_ids):
         return [r for r in self.requests if r.user_id in user_ids]
 
+    async def profiles(self, user_ids):
+        return {
+            u: {"user_id": u, "username": None, "full_name": f"Player {u}", "tenge": 0, "diamonds": 0,
+                "shields": 0, "vote_shields": 0, "piercing_bullets": 0, "fake_docs": 0, "wins": 0,
+                "games_played": 0, "next_role": None}
+            for u in user_ids if u in self.users
+        }
+
     async def stale_games(self):
         return [
             {"game_id": g, "chat_id": -1, "status": s, "restricted": []}
@@ -189,4 +197,7 @@ class AutoPlayers:
             elif kind == "w":
                 _, gid, day, punish = parts
                 await self.manager.witch_decision(user_id, int(gid), int(day), punish == "1")
+            elif kind == "kz":
+                _, gid, day, target = parts
+                await self.manager.kamikaze_choose(user_id, int(gid), int(day), int(target))
             return

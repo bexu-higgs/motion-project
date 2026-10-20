@@ -138,6 +138,18 @@ async def test_premium_role_costs_two_diamonds(repo):
     assert (await repo.get_user(1))["diamonds"] == 0
 
 
+async def test_profiles_for_end_of_game_card(repo):
+    await add_user(repo, 1, diamonds=5)
+    await add_user(repo, 2)
+    await repo.queue_role(1, Role.DOCTOR)
+    await repo.queue_role(1, Role.DON)
+    assert not (await repo.queue_role(1, Role.SLEEPLESS)).ok  # Балым жалеп сатылмайды
+    cards = await repo.profiles([1, 2, 3])
+    assert set(cards) == {1, 2}
+    assert cards[1]["next_role"] == "doctor" and cards[1]["diamonds"] == 2
+    assert cards[2]["next_role"] is None and cards[2]["wins"] == 0 and cards[2]["games_played"] == 0
+
+
 async def test_queue_heads_in_purchase_order(repo):
     for uid in (1, 2, 3):
         await add_user(repo, uid, diamonds=5)
