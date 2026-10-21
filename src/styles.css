@@ -1,0 +1,111 @@
+@font-face { font-family: 'Inter'; src: url('../assets/fonts/Inter-Regular.otf'); font-weight: 400; }
+@font-face { font-family: 'Inter'; src: url('../assets/fonts/Inter-Medium.otf'); font-weight: 500; }
+@font-face { font-family: 'Inter'; src: url('../assets/fonts/Inter-SemiBold.otf'); font-weight: 600; }
+@font-face { font-family: 'Inter'; src: url('../assets/fonts/Inter-Bold.otf'); font-weight: 700; }
+@font-face { font-family: 'Inter Display'; src: url('../assets/fonts/InterDisplay-Light.otf'); font-weight: 300; }
+@font-face { font-family: 'Inter Display'; src: url('../assets/fonts/InterDisplay-Medium.otf'); font-weight: 500; }
+@font-face { font-family: 'Inter Display'; src: url('../assets/fonts/InterDisplay-SemiBold.otf'); font-weight: 600; }
+@font-face { font-family: 'Inter Display'; src: url('../assets/fonts/InterDisplay-Bold.otf'); font-weight: 700; }
+@font-face { font-family: 'Inter Display'; src: url('../assets/fonts/InterDisplay-ExtraBold.otf'); font-weight: 800; }
+
+:root {
+  --bg0: #040507;
+  --bg1: #0a0d12;
+  --graphite: #12161d;
+  --cyan: #3ee6ff;
+  --cyan2: #8ff3ff;
+  --cyan-dim: rgba(62, 230, 255, 0.35);
+  --white: #eef6fb;
+  --text: #d9e4ee;
+  --muted: #8b98a8;
+  --line: rgba(255, 255, 255, 0.12);
+  --glass: linear-gradient(160deg, rgba(255, 255, 255, 0.085), rgba(255, 255, 255, 0.018) 60%);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 1080px; height: 1920px; overflow: hidden; background: var(--bg0); }
+body { font-family: 'Inter', sans-serif; color: var(--white); -webkit-font-smoothing: antialiased; text-rendering: geometricPrecision; }
+
+#stage { position: absolute; inset: 0; width: 1080px; height: 1920px; overflow: hidden; background: var(--bg0); }
+.layer, .abs { position: absolute; left: 0; top: 0; }
+.fill { position: absolute; inset: 0; }
+.scene { position: absolute; inset: 0; transform-origin: 50% 45%; display: none; }
+
+/* ---------------------------------------------------------------- background */
+#bg { position: absolute; inset: 0; background: radial-gradient(120% 70% at 50% 38%, #101620 0%, #080b10 48%, #040507 100%); }
+#grid { position: absolute; inset: -60px; opacity: 0.06;
+  background-image: linear-gradient(rgba(143, 243, 255, 0.7) 1px, transparent 1px), linear-gradient(90deg, rgba(143, 243, 255, 0.7) 1px, transparent 1px);
+  background-size: 72px 72px;
+  -webkit-mask-image: radial-gradient(70% 55% at 50% 45%, #000 0%, transparent 100%); }
+.orb { position: absolute; border-radius: 50%; }
+#particles { position: absolute; inset: 0; }
+#vignette { position: absolute; inset: 0; background: radial-gradient(110% 80% at 50% 45%, transparent 55%, rgba(0, 0, 0, 0.65) 100%); pointer-events: none; }
+#grain { position: absolute; left: -256px; top: -256px; width: 1592px; height: 2432px; opacity: 0.07; mix-blend-mode: overlay; pointer-events: none; }
+#fadeBlack { position: absolute; inset: 0; background: #000; opacity: 0; pointer-events: none; }
+
+/* top progress */
+#progress { position: absolute; left: 90px; right: 90px; top: 104px; height: 4px; display: flex; gap: 10px; }
+#progress .seg { flex: 1; height: 4px; border-radius: 4px; background: rgba(255, 255, 255, 0.1); overflow: hidden; position: relative; }
+#progress .seg i { position: absolute; inset: 0; background: linear-gradient(90deg, #3ee6ff, #8ff3ff); transform-origin: 0 50%; box-shadow: 0 0 12px rgba(62, 230, 255, 0.8); }
+
+/* ---------------------------------------------------------------- typography */
+.w { display: inline-block; overflow: visible; }
+.wi { display: inline-block; will-change: transform; }
+.ch { display: inline-block; }
+.h1 { font-family: 'Inter Display'; font-weight: 700; font-size: 70px; line-height: 1.1; letter-spacing: -0.015em; color: var(--white); text-align: center; }
+.h1 .num { color: var(--cyan); }
+.sub { font-family: 'Inter'; font-weight: 500; font-size: 40px; line-height: 1.25; color: var(--cyan2); text-align: center; letter-spacing: -0.005em; }
+.title-xl { font-family: 'Inter Display'; font-weight: 800; letter-spacing: 0.02em; text-align: center; line-height: 1.02; }
+.grad { background: linear-gradient(180deg, #ffffff 10%, #bff7ff 60%, #3ee6ff 120%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.heading { position: absolute; left: 70px; right: 70px; text-align: center; }
+
+/* ---------------------------------------------------------------- glass UI */
+.glass { position: absolute; border-radius: 30px; background: var(--glass); border: 1.5px solid rgba(255, 255, 255, 0.11);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 40px 90px rgba(0, 0, 0, 0.55); }
+.glass.dark { background: linear-gradient(160deg, rgba(20, 28, 38, 0.92), rgba(9, 13, 19, 0.92)); }
+.card { position: absolute; border-radius: 26px; overflow: visible; }
+.card .frame { position: absolute; inset: 0; border-radius: 26px; overflow: hidden; background: #0b1016;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6), 0 0 0 1.5px rgba(255, 255, 255, 0.12); }
+.card .ring { position: absolute; inset: -7px; border-radius: 32px; border: 2.5px solid var(--cyan); box-shadow: 0 0 28px rgba(62, 230, 255, 0.55), inset 0 0 18px rgba(62, 230, 255, 0.25); opacity: 0; }
+.shot { position: absolute; left: 0; top: 0; overflow: hidden; }
+.shot img, .shot .lyr { position: absolute; left: 0; top: 0; max-width: none; user-select: none; }
+
+.chip { position: absolute; display: inline-flex; align-items: center; gap: 10px; height: 50px; padding: 0 22px; border-radius: 25px;
+  font: 600 24px 'Inter'; letter-spacing: 0.08em; color: var(--white); white-space: nowrap;
+  background: rgba(10, 16, 22, 0.72); border: 1.5px solid rgba(255, 255, 255, 0.16); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4); }
+.chip.cyan { color: #021014; background: linear-gradient(180deg, #8ff3ff, #3ee6ff); border-color: rgba(255, 255, 255, 0.5); box-shadow: 0 0 26px rgba(62, 230, 255, 0.55); }
+.chip.out { color: var(--cyan2); border-color: rgba(62, 230, 255, 0.55); }
+.chip .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--cyan); box-shadow: 0 0 10px var(--cyan); }
+.chip svg { width: 26px; height: 26px; }
+
+.pill { position: absolute; display: inline-flex; align-items: center; justify-content: center; height: 76px; padding: 0 34px; border-radius: 38px;
+  font: 600 36px 'Inter'; color: var(--white); white-space: nowrap; background: rgba(255, 255, 255, 0.06); border: 1.5px solid rgba(255, 255, 255, 0.16); }
+.pill.cyan { color: #031217; background: linear-gradient(180deg, #a6f6ff, #3ee6ff); border-color: rgba(255, 255, 255, 0.6); box-shadow: 0 0 34px rgba(62, 230, 255, 0.5); }
+.op { position: absolute; font: 500 44px 'Inter Display'; color: var(--cyan); text-align: center; width: 60px; }
+
+.label { font: 600 22px 'Inter'; letter-spacing: 0.16em; color: var(--muted); text-transform: uppercase; }
+.lines { position: absolute; inset: 0; overflow: visible; pointer-events: none; }
+.icon-badge { position: absolute; width: 96px; height: 96px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  background: radial-gradient(circle at 30% 25%, rgba(143, 243, 255, 0.25), rgba(10, 16, 22, 0.85) 70%); border: 1.5px solid rgba(62, 230, 255, 0.5);
+  box-shadow: 0 0 30px rgba(62, 230, 255, 0.3); }
+.icon-badge svg { width: 46px; height: 46px; }
+
+.slot { position: absolute; border-radius: 22px; border: 2.5px dashed rgba(143, 243, 255, 0.35); background: rgba(62, 230, 255, 0.04); }
+.field { position: absolute; border-radius: 22px; background: rgba(4, 8, 12, 0.6); border: 1.5px solid rgba(255, 255, 255, 0.12); }
+.prompt-text { position: absolute; font: 500 31px 'Inter'; line-height: 1.42; color: var(--text); }
+.caret { display: inline-block; width: 3px; height: 1.05em; background: var(--cyan); vertical-align: -0.15em; margin-left: 2px; box-shadow: 0 0 8px var(--cyan); }
+.btn { position: absolute; display: flex; align-items: center; justify-content: center; gap: 14px; border-radius: 22px;
+  font: 700 30px 'Inter'; letter-spacing: 0.1em; color: #021216; background: linear-gradient(180deg, #a6f6ff, #3ee6ff);
+  box-shadow: 0 0 40px rgba(62, 230, 255, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.7); }
+.btn svg { width: 32px; height: 32px; }
+.bar { position: absolute; height: 10px; border-radius: 6px; background: rgba(255, 255, 255, 0.08); overflow: hidden; }
+.bar i { position: absolute; inset: 0; transform-origin: 0 50%; background: linear-gradient(90deg, #3ee6ff, #a6f6ff); box-shadow: 0 0 14px var(--cyan); }
+.cursor { position: absolute; width: 64px; height: 64px; left: 0; top: 0; z-index: 50; }
+.ripple { position: absolute; width: 120px; height: 120px; margin: -60px 0 0 -60px; border-radius: 50%; border: 3px solid var(--cyan); }
+
+.step { position: absolute; left: 110px; right: 110px; height: 72px; display: flex; align-items: center; gap: 22px; font: 600 40px 'Inter'; color: var(--white); white-space: nowrap; }
+.step .n { color: var(--cyan); }
+.step .st { margin-left: auto; width: 46px; height: 46px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, 0.2); display: flex; align-items: center; justify-content: center; }
+.step .st svg { width: 26px; height: 26px; }
+.step .hl { position: absolute; left: -26px; right: -26px; top: -8px; bottom: -8px; border-radius: 20px; background: linear-gradient(90deg, rgba(62, 230, 255, 0.14), rgba(62, 230, 255, 0.02)); border: 1.5px solid rgba(62, 230, 255, 0.3); }
+.mono { font-family: 'Inter'; font-variant-numeric: tabular-nums; }

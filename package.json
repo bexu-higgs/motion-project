@@ -1,0 +1,16 @@
+{
+  "name": "references-motion-lesson",
+  "private": true,
+  "type": "module",
+  "description": "Kazakh educational motion-design video: working with references in AI video generation (9:16, 1080x1920).",
+  "scripts": {
+    "preview": "node scripts/snap.mjs build/preview 3 10 20 30 45 56 68 80",
+    "render": "node scripts/render.mjs --workers 4",
+    "audio": "python3 scripts/audio.py",
+    "mux": "ffmpeg -y -i build/video.mp4 -i build/mix.wav -map 0:v -map 1:a -c:v libx264 -preset slow -crf 21 -pix_fmt yuv420p -profile:v high -c:a aac -b:a 256k -ar 48000 -movflags +faststart -shortest output/referencetermen-zhumys.mp4",
+    "build": "npm run render && npm run audio && mkdir -p output && npm run mux"
+  },
+  "devDependencies": {
+    "playwright": "1.56.1"
+  }
+}
