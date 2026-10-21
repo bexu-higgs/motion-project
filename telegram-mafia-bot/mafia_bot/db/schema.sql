@@ -130,3 +130,10 @@ CREATE TABLE IF NOT EXISTS giveaway_claims (
     claimed_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
     PRIMARY KEY (giveaway_id, user_id)
 );
+
+-- v6: бот бойынша баптаулар (мысалы, /sleeplesson, /sleeplessoff — Балым жалеп рөлі қосулы ма).
+CREATE TABLE IF NOT EXISTS bot_settings (
+    key        TEXT PRIMARY KEY,
+    value      TEXT NOT NULL,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);

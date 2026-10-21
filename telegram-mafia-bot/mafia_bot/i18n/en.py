@@ -18,8 +18,8 @@ MESSAGES: dict[str, str] = {
     "role.sergeant.desc": "The Commissioner's assistant. You know the Commissioner and receive their check results. If the Commissioner dies, you become the new Commissioner.",
     "role.doctor": "Doctor",
     "role.doctor.desc": "Every night you heal one player — they won't die that night. You can't heal the same person two nights in a row, and you can heal yourself only once per game.",
-    "role.hacker": "Hacker",
-    "role.hacker.desc": "At night you hack one player's phone — their night action fails. You can't block the same person two nights in a row.",
+    "role.hacker": "Lover",
+    "role.hacker.desc": "You are a civilian. At night you visit one player: their night action fails, and the next day they can't write in the group or vote. If the Doctor heals them, your visit has no effect. You can't visit the same person two nights in a row.",
     "role.beggar": "Beggar",
     "role.beggar.desc": "At night you visit one player's house asking for a bottle. In the morning you learn who visited that house during the night.",
     "role.kamikaze": "Kamikaze",
@@ -51,7 +51,7 @@ MESSAGES: dict[str, str] = {
     "action.ck": "Check",
     "action.sh": "Shoot",
     "action.hl": "Heal",
-    "action.bl": "Block",
+    "action.bl": "Visit",
     "action.pr": "Protect",
     "action.vs": "Visit",
     "action.bm": "Plant bomb",
@@ -94,7 +94,7 @@ MESSAGES: dict[str, str] = {
     "prompt.commissioner": "Check or shoot?",
     "prompt.commissioner_first": "Who will you check?",
     "prompt.doctor": "Who will you heal?",
-    "prompt.hacker": "Whose phone will you hack?",
+    "prompt.hacker": "Who will you spend the night with?",
     "prompt.defender": "Who will you protect?",
     "prompt.beggar": "Who will you visit?",
     "prompt.pyro": "Where will you plant a bomb?",
@@ -120,14 +120,14 @@ MESSAGES: dict[str, str] = {
     "announce.check": "The Commissioner is investigating...",
     "announce.shoot": "The Commissioner raised his pistol...",
     "announce.heal": "The Doctor went on duty...",
-    "announce.block": "The Hacker is hacking someone's phone...",
+    "announce.block": "The Lover is getting cozy with someone...",
     "announce.protect": "The Defenders took someone under protection...",
     "announce.visit": "The Beggar knocked on someone's door...",
     "announce.bomb": "The Pyro is planting a bomb...",
     "announce.detonate": "The Pyro picked up the detonator...",
     "announce.sleepless": "Balym zhalep is getting ready to suck...",
 
-    "night.hacked": "A hacker broke into your phone tonight — <b>your action failed.</b>",
+    "night.hacked": "The {role} came to you.",
     "night.team_choice": "{name}: chose {target}",
     "night.check_result": "<b>Check result:</b> {target} — <b>{role}</b>",
     "night.sergeant_relay": "<b>Message from the Commissioner:</b>\n{text}",
@@ -145,7 +145,6 @@ MESSAGES: dict[str, str] = {
     "night.healed_saved": "You were attacked last night, but {role} <b>saved your life!</b>",
     "night.doctor_saved": "{target} was healed tonight! Guests: {roles}",
     "night.doctor_idle": "{target} didn't need healing.",
-    "night.hacked_idle": "{role} <b>hacked your phone</b> last night.",
     "night.protected_you": "{role} <b>guarded you</b> last night.",
     "night.visited_you": "{role} knocked on your door last night and <b>asked for a bottle</b>.",
     "night.bombed_you": "{role} <b>planted a bomb at your door</b> last night!",
@@ -193,6 +192,7 @@ MESSAGES: dict[str, str] = {
     "vote.cast_abstain": "{voter} abstained",
     "vote.not_now": "There is no vote right now.",
     "vote.not_alive": "Only alive players can vote.",
+    "vote.silenced": "The {role} was with you: today you can't write in the group or vote.",
     "vote.already": "You have already voted.",
     "vote.bad_target": "You can't vote for this player.",
     "vote.ok_abstain": "You abstained.",
@@ -402,9 +402,9 @@ MESSAGES: dict[str, str] = {
     "rules.night": (
         "🌙 <b>Order of night actions</b>\n\n"
         "1. All night choices are collected (at the same time).\n"
-        "2. 💻 A player blocked by the Hacker does not act.\n"
-        "3. 🛡 The head defender's target is set.\n"
-        "4. 👨‍⚕️ The Doctor heals — the healed player survives attacks and bombs that night.\n"
+        "2. 💃 The player the Lover visits does not act, and the next day can't write in the group or vote.\n"
+        "3. 👨‍⚕️ The Doctor heals — the healed player survives attacks and bombs that night.\n"
+        "4. 🛡 The head defender's target is set.\n"
         "5. 🤵 The mafia's shared attack (the Don's decision, otherwise the mafia vote).\n"
         "6. 🔪 The Killer and 7. 🪓 the Maniac attack.\n"
         "8. 🕵️ The Commissioner checks or shoots.\n"

@@ -27,7 +27,7 @@ from ..config import Settings, StartupError
 from ..controller import GameManager
 from ..db.repo import Repo
 from .common import GROUP_TYPES, full_name
-from .handlers import diamonds, game, group, payments, private
+from .handlers import admin, diamonds, game, group, payments, private
 from .notifier import TelegramNotifier
 
 log = logging.getLogger(__name__)
@@ -145,6 +145,7 @@ def build_dispatcher(
     dp.callback_query.outer_middleware(ensure_user)
     dp.include_routers(
         payments.router,     # төлем хабарламалары бірінші өңделеді
+        admin.router,        # /sleeplesson, /sleeplessoff — бот әкімшісіне, жеке чатта
         diamonds.router,     # /give, /getdiamonds — топта да, жеке чатта да
         private.router,
         game.router,
@@ -180,6 +181,7 @@ async def run(settings: Settings) -> None:
             mute_seconds=settings.mute_seconds,
             silence_night=settings.silence_night,
             mute_non_players=settings.mute_non_players,
+            sleepless_enabled=await repo.get_flag(admin.SLEEPLESS_FLAG, True),
         )
         dp = build_dispatcher(repo, manager, notifier, settings)
         sweeper = asyncio.create_task(diamonds.giveaway_sweeper(bot, repo))

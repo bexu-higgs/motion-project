@@ -60,7 +60,7 @@ def format_timedelta(delta: timedelta, lang: str) -> str:
 # --- Ережелер ----------------------------------------------------------------------------------
 
 
-def rules_page(page: str, lang: str) -> str:
+def rules_page(page: str, lang: str, sleepless: bool = True) -> str:
     if page == "roles":
         lines = [t(lang, "rules.roles_title")]
         for faction in Faction:
@@ -85,7 +85,7 @@ def rules_page(page: str, lang: str) -> str:
         rows = []
         prev = None
         for n in range(balance.MIN_PLAYERS, balance.MAX_PLAYERS + 1):
-            special = {r: c for r, c in balance.composition(n).items() if r is not Role.CIVILIAN}
+            special = {r: c for r, c in balance.composition(n, sleepless).items() if r is not Role.CIVILIAN}
             if special != prev:
                 parts = ", ".join(
                     f"{ROLE_INFO[r].emoji}{'×' + str(c) if c > 1 else ''}" for r, c in special.items()
@@ -93,13 +93,15 @@ def rules_page(page: str, lang: str) -> str:
                 rows.append(f"<b>{n}+</b>: {parts}")
                 prev = special
         rewards = ", ".join(f"{n} → {r} ₸" for n, r in REWARD_POINTS)
+        notes = [t(lang, "rules.higgs_rare", min=balance.HIGGS_MIN_PLAYERS, chance=round(balance.HIGGS_CHANCE * 100))]
+        if sleepless:
+            notes.append(t(lang, "rules.sleepless_rare", min=balance.min_players_for(Role.SLEEPLESS)))
         return "\n".join([
             t(lang, "rules.balance_title"),
             "",
             *rows,
             "",
-            t(lang, "rules.higgs_rare", min=balance.HIGGS_MIN_PLAYERS, chance=round(balance.HIGGS_CHANCE * 100)),
-            t(lang, "rules.sleepless_rare", min=balance.min_players_for(Role.SLEEPLESS)),
+            *notes,
             t(lang, "rules.rewards", rewards=rewards),
         ])
     return t(lang, "rules.general", min=balance.MIN_PLAYERS, max=balance.MAX_PLAYERS)

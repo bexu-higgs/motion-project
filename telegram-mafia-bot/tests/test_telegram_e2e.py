@@ -26,7 +26,9 @@ pytestmark = pytest.mark.skipif(not DSN, reason="TEST_DATABASE_URL көрсет�
 BOT_ID = 4242
 GROUP = -1009000
 CHAT_ADMIN = 7  # топ иесі (бот әкімшісі емес)
-TABLES = "giveaway_claims, giveaways, ledger, payments, role_purchases, game_players, games, chats, users"
+TABLES = (
+    "bot_settings, giveaway_claims, giveaways, ledger, payments, role_purchases, game_players, games, chats, users"
+)
 
 
 def now():
@@ -421,6 +423,29 @@ async def test_allowed_player_gets_diamonds_only_in_private(harness):
         assert len(tg.sent()) == before, text
     assert (await h.repo.get_user(6))["diamonds"] == 500
     assert (await h.repo.get_user(3) or {"diamonds": 0})["diamonds"] == 0
+
+
+async def test_admin_switches_balym_on_and_off(harness):
+    h = harness
+    tg = h.tg
+    # Әкімші емес — жауап жоқ, баптау өзгермейді; топта да жұмыс істемейді.
+    for uid, chat_id in ((3, 3), (1, GROUP)):
+        before = len(tg.sent())
+        await h.text(uid, chat_id, "/sleeplessoff")
+        assert len(tg.sent()) == before
+    assert h.manager.sleepless_enabled and await h.repo.get_flag("sleepless", True)
+    await h.text(1, 1, "/sleeplessoff")
+    assert "өшірілді" in tg.sent(1)[-1].text and "/sleeplesson" in tg.sent(1)[-1].text
+    assert not h.manager.sleepless_enabled and not await h.repo.get_flag("sleepless", True)
+    await h.click(1, 1, "rules:balance")
+    page = [c for c in tg.calls if isinstance(c, m.EditMessageText)][-1].text
+    assert "💋" not in page and "Балым жалеп" not in page
+    await h.text(1, 1, "/sleeplesson")
+    assert "қосылды" in tg.sent(1)[-1].text
+    assert h.manager.sleepless_enabled and await h.repo.get_flag("sleepless", False)
+    await h.click(1, 1, "rules:balance")
+    page = [c for c in tg.calls if isinstance(c, m.EditMessageText)][-1].text
+    assert "💋" in page and "Балым жалеп" in page
 
 
 async def test_players_gift_diamonds(harness):

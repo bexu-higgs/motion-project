@@ -173,6 +173,7 @@ class GameManager:
         silence_night: bool = True,
         mute_non_players: bool = True,
         higgs_chance: float = balance.HIGGS_CHANCE,
+        sleepless_enabled: bool = True,
         rng_factory: Callable[[], random.Random] = random.SystemRandom,
         lobby_edit_delay: float = 1.5,
         confirm_edit_delay: float = 3.0,
@@ -185,6 +186,8 @@ class GameManager:
         self.silence_night = silence_night
         self.mute_non_players = mute_non_players
         self.higgs_chance = higgs_chance
+        # Балым жалеп рөлі (бот әкімшісі /sleeplesson, /sleeplessoff арқылы ауыстырады).
+        self.sleepless_enabled = sleepless_enabled
         self.rng_factory = rng_factory
         self.lobby_edit_delay = lobby_edit_delay
         # 👍/👎 санағын жаңарту жиілігі: топта минутына ≈20 хабар/өңдеу шегі бар.
@@ -252,6 +255,8 @@ class GameManager:
             return self.mute_non_players, self.mute_non_players
         if not p.alive:
             return True, True
+        if user_id in s.game.silenced:  # Көңілдес барған ойыншы осы күні топта жаза алмайды
+            return True, False
         return self.silence_night and s.game.phase is Phase.NIGHT, False
 
     async def moderate(
@@ -500,7 +505,8 @@ class GameManager:
         inventories = await self.storage.inventories(user_ids)
         requests = await self.storage.queue_heads(user_ids)
         rng = self.rng_factory()
-        assignment = assign_roles(user_ids, requests, rng, higgs_chance=self.higgs_chance)
+        assignment = assign_roles(user_ids, requests, rng, higgs_chance=self.higgs_chance,
+                                  sleepless=self.sleepless_enabled)
         purchases = {r.user_id: r.purchase_id for r in assignment.fulfilled}
         players: list[Player] = []
         for order, uid in enumerate(user_ids):
@@ -619,6 +625,9 @@ class GameManager:
         await self._say(s.chat_id, g.start_vote(int(s.timings.vote)), self._bot_button(g.lang, "game.vote_btn"))
         s.prompts = {}
         for p in g.alive():
+            if p.user_id in g.silenced:  # Көңілдес барған ойыншы дауыс бере алмайды
+                await self.notifier.send(p.user_id, s.t("vote.silenced", role=g.title(Role.HACKER)))
+                continue
             await self._send_vote_prompt(s, p.user_id)
         await self._wait(s, s.timings.vote, g.vote_complete)
         await self._close_prompts(s, s.t("game.vote_over"))

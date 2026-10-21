@@ -54,7 +54,7 @@ ROLE_INFO: dict[Role, RoleInfo] = {
         RoleInfo(Role.COMMISSIONER, "🕵️", Faction.TOWN),
         RoleInfo(Role.SERGEANT, "👮", Faction.TOWN),
         RoleInfo(Role.DOCTOR, "👨‍⚕️", Faction.TOWN),
-        RoleInfo(Role.HACKER, "💻", Faction.TOWN),
+        RoleInfo(Role.HACKER, "💃", Faction.TOWN),
         RoleInfo(Role.BEGGAR, "🍾", Faction.TOWN),
         RoleInfo(Role.KAMIKAZE, "💣", Faction.TOWN),
         RoleInfo(Role.SUICIDE, "🤡", Faction.INDEPENDENT),
@@ -81,7 +81,7 @@ NOT_FOR_SALE = frozenset({Role.CIVILIAN, Role.HIGGS, Role.SLEEPLESS})
 PURCHASABLE_ROLES = tuple(r for r in Role if r not in NOT_FOR_SALE)
 # Higgs-Man-ды тек бот әкімшісі (ADMIN_IDS) сатып ала алады.
 ADMIN_PURCHASABLE_ROLES = (*PURCHASABLE_ROLES, Role.HIGGS)
-# Сатып алынған Higgs-Man осы рөлдің орнына шығады (бірінші бар болғаны): тұрғын, ол жоқ болса Қайыршы.
+# Сатып алынған Higgs-Man осы рөлдің орнына шығады (бірінші бар болғаны): тұрғын, ол жоқ болса Қаңғыбас.
 HIGGS_SLOTS = (Role.CIVILIAN, Role.BEGGAR)
 
 

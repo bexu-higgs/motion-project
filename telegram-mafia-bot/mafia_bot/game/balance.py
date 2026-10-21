@@ -19,7 +19,7 @@ HIGGS_CHANCE = 0.10
 # Әр шек — сол ойыншылар санынан бастап қолданылатын рөлдер саны.
 # Шектер жинақталады: жаңа шекте рөл қосылады немесе бұрынғы рөлдің саны өседі.
 # Бос орындар қарапайым тұрғындармен толтырылады.
-# Хакер мен Қайыршы 6+, Балым жалеп 7+ (әр ойында міндетті), Камикадзе 8+, Қасқыр 9+ ойыншыда
+# Көңілдес (Role.HACKER) мен Қаңғыбас (Role.BEGGAR) 6+, Балым жалеп 7+ (әр ойында міндетті), Камикадзе 8+, Қасқыр 9+ ойыншыда
 # шығады. Кіші ойындарда орын жетпейтіндіктен екінші мафия 10, Сержант 11 ойыншыдан бастап қосылады.
 THRESHOLDS: tuple[tuple[int, dict[Role, int]], ...] = (
     (4, {Role.DON: 1, Role.COMMISSIONER: 1, Role.DOCTOR: 1}),
@@ -43,14 +43,19 @@ THRESHOLDS: tuple[tuple[int, dict[Role, int]], ...] = (
 )
 
 
-def composition(players: int) -> Counter[Role]:
-    """Ойыншылар санына сәйкес рөлдер жиынтығы (қосындысы әрдайым ``players``)."""
+def composition(players: int, sleepless: bool = True) -> Counter[Role]:
+    """Ойыншылар санына сәйкес рөлдер жиынтығы (қосындысы әрдайым ``players``).
+
+    ``sleepless=False`` — бот әкімшісі Балым жалепті өшірген (/sleeplessoff): оның орнына тұрғын.
+    """
     if not MIN_PLAYERS <= players <= MAX_PLAYERS:
         raise ValueError(f"Ойыншылар саны {MIN_PLAYERS}–{MAX_PLAYERS} аралығында болуы керек")
     counts: dict[Role, int] = {}
     for threshold, roles in THRESHOLDS:
         if players >= threshold:
             counts.update(roles)
+    if not sleepless:
+        counts.pop(Role.SLEEPLESS, None)
     special = sum(counts.values())
     if special > players:  # кесте дұрыс болса, бұл ешқашан болмайды
         raise AssertionError("Арнайы рөлдер ойыншылардан көп")

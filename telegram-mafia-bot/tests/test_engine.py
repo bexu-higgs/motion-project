@@ -112,7 +112,7 @@ def test_mafia_votes_decide_when_don_blocked():
                    Role.COMMISSIONER, Role.DOCTOR])
     report, _ = night(g, {1: (A.MAFIA_KILL, 3), 2: (A.MAFIA_KILL, 4), 5: (A.BLOCK, 1)})
     assert report.deaths == [4]
-    assert any("хакер" in t for t in private_for(report, 1))
+    assert "Көңілдес сізге келді." in private_for(report, 1)
 
 
 def test_don_is_the_shooter_even_when_mafia_votes_decide():
@@ -453,6 +453,63 @@ def test_doctor_learns_whether_the_heal_mattered():
     assert private_for(report, 2) == [f"{g.players[5].mention} емдеуді қажет етпеді."]
 
 
+LOVER_GAME = [Role.DON, Role.HACKER, Role.DOCTOR, Role.COMMISSIONER, Role.CIVILIAN, Role.CIVILIAN]
+
+
+def test_lover_blocks_and_silences_her_guest_for_one_day():
+    g = make_game(LOVER_GAME)
+    report, _ = night(g, {2: (A.BLOCK, 4), 4: (A.CHECK, 1)})
+    assert "Көңілдес сізге келді." in private_for(report, 4)
+    assert not any("Тексеру" in t for t in private_for(report, 4))  # тексеру орындалмады
+    assert g.silenced == {4}
+    g.start_vote()
+    res = g.submit_vote(4, 1)
+    assert not res.ok and "Көңілдес сізбен болды" in res.message
+    for voter in (1, 2, 3, 5, 6):
+        assert g.submit_vote(voter, 5 if voter != 5 else 1).ok
+    assert g.vote_complete()  # Көңілдес барған ойыншыны күтпейді
+    g.resolve_vote()
+    assert 4 not in g.confirm_voters()
+    assert not g.submit_confirm(4, True).ok
+    g.resolve_confirm()
+    g.end_cycle()
+    g.start_night()
+    assert g.silenced == set()  # келесі түннен бастап қайтадан еркін
+
+
+def test_doctor_saves_the_lovers_guest():
+    g = make_game(LOVER_GAME)
+    report, _ = night(g, {2: (A.BLOCK, 4), 3: (A.HEAL, 4), 4: (A.CHECK, 1)})
+    assert g.silenced == set()
+    assert any("Тексеру" in t for t in private_for(report, 4))  # тексеру орындалды
+    assert "Көңілдес сізге келді." not in private_for(report, 4)
+    assert private_for(report, 3) == [f"{g.players[4].mention} түнде емделді! Қонақтары: Көңілдес"]
+    assert "құтқарып қалды" not in report.public  # бұл шабуыл емес
+
+
+def test_doctor_lists_lover_and_attacker_as_guests():
+    g = make_game(LOVER_GAME)
+    report, _ = night(g, {1: (A.MAFIA_KILL, 5), 2: (A.BLOCK, 5), 3: (A.HEAL, 5)})
+    assert report.deaths == [] and g.silenced == set()
+    assert private_for(report, 3) == [f"{g.players[5].mention} түнде емделді! Қонақтары: Көңілдес, Дон"]
+
+
+def test_lover_visiting_the_doctor_stops_the_heal():
+    g = make_game(LOVER_GAME)
+    report, _ = night(g, {1: (A.MAFIA_KILL, 5), 2: (A.BLOCK, 3), 3: (A.HEAL, 5)})
+    assert report.deaths == [5] and g.silenced == {3}
+    assert private_for(report, 3) == ["Көңілдес сізге келді."]
+
+
+def test_sleepless_can_be_switched_off():
+    for n in (7, 13, 50):
+        a = assign_roles(list(range(1, n + 1)), [], random.Random(n), higgs_chance=0, sleepless=False)
+        counts = Counter(a.roles.values())
+        assert counts[Role.SLEEPLESS] == 0
+        assert counts[Role.CIVILIAN] == balance.composition(n)[Role.CIVILIAN] + 1
+    assert balance.composition(7, sleepless=False)[Role.CIVILIAN] == 1
+
+
 def test_beggar_sees_visitors():
     roles = [Role.DON, Role.BEGGAR, Role.DOCTOR, Role.COMMISSIONER, Role.CIVILIAN, Role.CIVILIAN]
     g = make_game(roles)
@@ -469,15 +526,15 @@ def test_targets_learn_about_night_actions_privately():
         1: (A.MAFIA_KILL, 6),    # мафия 6-ға шабуылдады, бірақ Дәрігер құтқарды
         3: (A.HEAL, 6),
         4: (A.CHECK, 7),         # Комиссар 7-ні тексерді
-        2: (A.VISIT, 4),         # Қайыршы Комиссарға барды
-        5: (A.BLOCK, 7),         # Хакер әрекеті жоқ 7-ні бұғаттады
-        8: (A.BOMB, 2),          # Пиро Қайыршыға бомба қойды
+        2: (A.VISIT, 4),         # Қаңғыбас Комиссарға барды
+        5: (A.BLOCK, 7),         # Көңілдес әрекеті жоқ 7-ге барды
+        8: (A.BOMB, 2),          # Пиро Қаңғыбасқа бомба қойды
     })
     assert report.deaths == []
     assert any("Дәрігер" in t and "құтқарып" in t for t in private_for(report, 6))
     assert any("Комиссар" in t and "тексерді" in t for t in private_for(report, 7))
-    assert any("Хакер" in t and "телефоныңызды бұзды" in t for t in private_for(report, 7))
-    assert any("Қайыршы" in t and "бөтелке" in t for t in private_for(report, 4))
+    assert "Көңілдес сізге келді." in private_for(report, 7)
+    assert any("Қаңғыбас" in t and "бөтелке" in t for t in private_for(report, 4))
     assert any("Пиро" in t and "бомба" in t for t in private_for(report, 2))
     # Хабарда кім екені емес, тек рөлі айтылады; топқа ештеңе жарияланбайды.
     for uid in (2, 4, 6, 7):
@@ -490,7 +547,7 @@ def test_only_effective_actions_reach_alive_targets():
     report, _ = night(g, {1: (A.MAFIA_KILL, 5), 2: (A.HEAL, 6), 3: (A.BLOCK, 2), 4: (A.CHECK, 5)})
     assert report.deaths == [5]
     assert private_for(report, 6) == []                 # бұғатталған Дәрігердің емі болмады
-    assert any("әрекетіңіз орындалмады" in t for t in private_for(report, 2))
+    assert "Көңілдес сізге келді." in private_for(report, 2)
     assert not any("тексерді" in t for t in private_for(report, 5))  # өлгенге хабар жоқ
     healed = make_game([Role.DON, Role.DOCTOR, Role.COMMISSIONER, Role.CIVILIAN])
     report, _ = night(healed, {2: (A.HEAL, 4)})
@@ -987,7 +1044,7 @@ def test_only_one_higgs_per_game():
         assert a.roles[1] is Role.HIGGS and a.roles[2] is not Role.HIGGS
         assert Counter(a.roles.values())[Role.HIGGS] == 1
         assert [r.purchase_id for r in a.unfulfilled] == [2]
-    # Бір орын да жоқ (Қайыршыны басқа ойыншы сатып алды, тұрғын жоқ) — кезекте қалады.
+    # Бір орын да жоқ (Қаңғыбасты басқа ойыншы сатып алды, тұрғын жоқ) — кезекте қалады.
     taken = assign_roles(list(range(1, 9)), [RoleRequest(5, Role.BEGGAR, 3), RoleRequest(1, Role.HIGGS, 4)],
                          random.Random(1), higgs_chance=0)
     assert taken.roles[5] is Role.BEGGAR and Role.HIGGS not in taken.roles.values()

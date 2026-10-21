@@ -319,6 +319,19 @@ class Repo:
             )
             return [r["user_id"] for r in rows]
 
+    # --- Бот баптаулары ------------------------------------------------------------------
+
+    async def get_flag(self, key: str, default: bool) -> bool:
+        value = await self.pool.fetchval("SELECT value FROM bot_settings WHERE key = $1", key)
+        return default if value is None else value == "on"
+
+    async def set_flag(self, key: str, enabled: bool) -> None:
+        await self.pool.execute(
+            "INSERT INTO bot_settings (key, value) VALUES ($1, $2) "
+            "ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now()",
+            key, "on" if enabled else "off",
+        )
+
     async def profiles(self, user_ids: list[int]) -> dict[int, dict[str, Any]]:
         """Ойын соңындағы карточка: баланс, заттар, кезектегі келесі рөл, жеңістер."""
         rows = await self.pool.fetch(

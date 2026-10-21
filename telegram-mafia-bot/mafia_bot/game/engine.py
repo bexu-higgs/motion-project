@@ -134,7 +134,7 @@ class Player:
     # Рөлге қатысты күй.
     head_defender: bool = False
     self_heal_used: bool = False
-    last_target: int | None = None     # Дәрігер/Хакер: өткен түндегі нысана
+    last_target: int | None = None     # Дәрігер/Көңілдес: өткен түндегі нысана
     witch_magic_used: bool = False
     personal_win: bool = False
     higgs_armor: int = 0               # Higgs-Man: қалған оқтан қорғаныс саны
@@ -192,17 +192,18 @@ def assign_roles(
     requests: list[RoleRequest],
     rng: random.Random,
     higgs_chance: float = balance.HIGGS_CHANCE,
+    sleepless: bool = True,
 ) -> Assignment:
     """Рөлдерді кездейсоқ бөлу. Сатып алынған рөлдер (сатып алу ретімен) бірінші беріледі.
 
     Бір рөлдің даналары құрамда қанша болса, сонша ғана беріледі — рөлдер саны
     ойыншылар санынан ешқашан аспайды. Сирек ⚛️ Higgs-Man бір тұрғынның орнын алады.
     Сатып алынған Higgs-Man (оны тек бот әкімшісі сата алады) ойыншылар санына қарамай
-    тұрғынның, ол жоқ болса Қайыршының орнына шығады; бір ойында Higgs-Man біреу ғана.
+    тұрғынның, ол жоқ болса Қаңғыбастың орнына шығады; бір ойында Higgs-Man біреу ғана.
     """
     if len(set(user_ids)) != len(user_ids):
         raise ValueError("Ойыншылар қайталанбауы керек")
-    pool = balance.composition(len(user_ids))
+    pool = balance.composition(len(user_ids), sleepless)
     if (
         len(user_ids) >= balance.HIGGS_MIN_PLAYERS
         and pool[Role.CIVILIAN] > 0
@@ -283,6 +284,7 @@ class _PendingNight:
     witch: WitchPrompt | None
     blocked: set[int]
     saved_by_doctor: dict[int, list[str]]   # нысана -> Дәрігер тоқтатқан шабуылдаушылардың рөлдері
+    lover_saved: set[int]                   # Дәрігер емдеп, Көңілдестің әсерінен құтқарғандар
 
 
 @dataclass
@@ -328,6 +330,7 @@ class Game:
         self.actions: dict[int, NightAction] = {}
         self.votes: dict[int, int | None] = {}
         self.awake: dict[int, int] = {}            # Балым жалеп: осы түнгі басу саны
+        self.silenced: set[int] = set()            # Көңілдес барғандар: осы күні жаза да, дауыс бере де алмайды
         self.candidate: int | None = None          # растауға шыққан ойыншы
         self.kamikaze_pending: int | None = None   # дарға асылған Камикадзе (кімді алып кететінін таңдайды)
         self.confirm_votes: dict[int, bool] = {}   # user_id -> 👍 (True) / 👎 (False)
@@ -478,6 +481,7 @@ class Game:
         self.phase = Phase.NIGHT
         self.actions = {}
         self.awake = {}
+        self.silenced = set()
         self.defender_cover = None
         return "\n".join([self.t("night.title", day=self.day), self.t("night.body")])
 
@@ -655,7 +659,8 @@ class Game:
             if target is not None and visitor not in visits[target]:
                 visits[target].append(visitor)
 
-        # 2. Хакердің бұғаттауы.
+        # 2. Көңілдес (кодта — HACKER) барған адамның түнгі әрекеті орындалмайды,
+        #    келесі күні ол топта жаза да, дауыс бере де алмайды.
         blocked: set[int] = set()
         for hacker in self.with_role(Role.HACKER):
             a = acts.get(hacker.user_id)
@@ -665,26 +670,14 @@ class Game:
                 hacker.last_target = a.target
             else:
                 hacker.last_target = None
-        effective = {
-            uid: a
-            for uid, a in acts.items()
-            if a.kind is not ActionKind.SKIP
-            and (uid not in blocked or self.players[uid].role is Role.HACKER)
-        }
 
-        # 3. Қорғаушылар.
-        for uid, a in effective.items():
-            if a.kind is ActionKind.PROTECT:
-                visit(a.target, uid)
-                if self.players[a.target].role in DEFENDER_COVER_ROLES:
-                    self.defender_cover = a.target
-
-        # 4. Дәрігердің емдеуі.
+        # 3. Дәрігердің емдеуі (Дәрігердің өзіне Көңілдес барса — емдей алмайды).
+        #    Көңілдес барған адамды емдесе, ол Көңілдестің әсерінен құтылады.
         healed: set[int] = set()
         for doctor in self.with_role(Role.DOCTOR):
             uid = doctor.user_id
-            a = effective.get(uid)
-            if a is not None and a.kind is ActionKind.HEAL:
+            a = acts.get(uid)
+            if a is not None and a.kind is ActionKind.HEAL and uid not in blocked:
                 healed.add(a.target)
                 visit(a.target, uid)
                 doctor.last_target = a.target
@@ -692,6 +685,21 @@ class Game:
                     doctor.self_heal_used = True
             else:
                 doctor.last_target = None
+        lover_saved = healed & blocked
+        blocked -= lover_saved
+        effective = {
+            uid: a
+            for uid, a in acts.items()
+            if a.kind is not ActionKind.SKIP
+            and (uid not in blocked or self.players[uid].role is Role.HACKER)
+        }
+
+        # 4. Қорғаушылар.
+        for uid, a in effective.items():
+            if a.kind is ActionKind.PROTECT:
+                visit(a.target, uid)
+                if self.players[a.target].role in DEFENDER_COVER_ROLES:
+                    self.defender_cover = a.target
 
         attacks: list[Attack] = []
         # 5. Дон мен мафияның ортақ шабуылы.
@@ -723,7 +731,7 @@ class Game:
                     Attack(SRC_COMMISSIONER, uid, a.target, pierce=self.players[uid].has_bullet)
                 )
                 visit(a.target, uid)
-        # 9. Қайыршының сапары (ақпарат төменде, барлық сапарлар белгілі болғанда).
+        # 9. Қаңғыбастың сапары (ақпарат төменде, барлық сапарлар белгілі болғанда).
         for uid, a in effective.items():
             if a.kind is ActionKind.VISIT:
                 visit(a.target, uid)
@@ -813,6 +821,7 @@ class Game:
             witch=witch_prompt,
             blocked=blocked,
             saved_by_doctor=dict(saved_by_doctor),
+            lover_saved=lover_saved,
         )
         return witch_prompt
 
@@ -882,7 +891,7 @@ class Game:
                 public.append(self.t("morning.pyro_failed"))
             self.bombed.clear()
 
-        # Қайыршыға ақпарат.
+        # Қаңғыбасқа ақпарат.
         for uid, a in pending.effective.items():
             if a.kind is ActionKind.VISIT:
                 guests = [v for v in pending.visits.get(a.target, []) if v != uid]
@@ -893,6 +902,8 @@ class Game:
 
         private.extend(self._target_notes(pending))
         private.extend(self._promotions())
+        # Көңілдес барғандар осы күні топта жаза да, дауыс бере де алмайды.
+        self.silenced = {uid for uid in pending.blocked if self.players[uid].alive}
         self._pending = None
         if self.result is None:
             self.phase = Phase.DAY
@@ -915,10 +926,7 @@ class Game:
         notes: list[tuple[int, str]] = []
         for uid in sorted(pending.blocked, key=lambda u: self.players[u].order):
             if self.players[uid].alive:
-                own = self.actions.get(uid)
-                acted = own is not None and own.kind is not ActionKind.SKIP
-                key = "night.hacked" if acted else "night.hacked_idle"
-                notes.append((uid, self.t(key, role=self.title(Role.HACKER))))
+                notes.append((uid, self.t("night.hacked", role=self.title(Role.HACKER))))
         for uid, a in pending.effective.items():
             note = TARGET_NOTES.get(a.kind)
             if note is None or a.target is None or a.target == uid or not self.players[a.target].alive:
@@ -931,7 +939,8 @@ class Game:
         for uid, a in pending.effective.items():
             if a.kind is not ActionKind.HEAL or not self.players[a.target].alive:
                 continue
-            guests = list(dict.fromkeys(pending.saved_by_doctor.get(a.target, [])))
+            guests = [self.title(Role.HACKER)] if a.target in pending.lover_saved else []
+            guests = list(dict.fromkeys(guests + pending.saved_by_doctor.get(a.target, [])))
             if guests:
                 text = self.t("night.doctor_saved", target=self._name(a.target), roles=", ".join(guests))
             else:
@@ -943,7 +952,7 @@ class Game:
         """Мафияның ортақ нысанасы және оны атқан адам.
 
         Нысананы Дон таңдайды, таңдамаса (не бұғатталса) — мафия мүшелерінің көпшілік дауысы.
-        Бірақ атушы әрқашан Дон: Камикадзе Донды алып кетеді, Қайыршы тек Донды көреді.
+        Бірақ атушы әрқашан Дон: Камикадзе Донды алып кетеді, Қаңғыбас тек Донды көреді.
         """
         don = next(iter(self.with_role(Role.DON)), None)
         if don is not None:
@@ -1057,6 +1066,8 @@ class Game:
         p = self.players.get(user_id)
         if p is None or not p.alive:
             return SubmitResult(False, self.t("vote.not_alive"))
+        if user_id in self.silenced:
+            return SubmitResult(False, self.t("vote.silenced", role=self.title(Role.HACKER)))
         if user_id in self.votes:
             return SubmitResult(False, self.t("vote.already"))
         if target is not None and target not in self.vote_candidates(user_id):
@@ -1075,7 +1086,7 @@ class Game:
         return self.t("vote.cast", voter=voter, target=self._name(target))
 
     def vote_complete(self) -> bool:
-        return self.alive_ids() <= set(self.votes)
+        return self.alive_ids() - self.silenced <= set(self.votes)
 
     def resolve_vote(self) -> Report:
         """Дауыстарды санау.
@@ -1103,8 +1114,8 @@ class Game:
     # --- 👍/👎 растау ------------------------------------------------------------------
 
     def confirm_voters(self) -> set[int]:
-        """Растауға дауыс бере алатындар: үміткерден басқа тірі ойыншылар."""
-        return self.alive_ids() - {self.candidate}
+        """Растауға дауыс бере алатындар: үміткерден және Көңілдес барғандардан басқа тірі ойыншылар."""
+        return self.alive_ids() - {self.candidate} - self.silenced
 
     def confirm_counts(self) -> tuple[int, int]:
         voters = self.confirm_voters()
@@ -1128,6 +1139,8 @@ class Game:
             return SubmitResult(False, self.t("confirm.not_alive"))
         if user_id == self.candidate:
             return SubmitResult(False, self.t("confirm.self"))
+        if user_id in self.silenced:
+            return SubmitResult(False, self.t("vote.silenced", role=self.title(Role.HACKER)))
         self.confirm_votes[user_id] = yes
         return SubmitResult(True, self.t("confirm.ok_yes" if yes else "confirm.ok_no"))
 

@@ -18,8 +18,8 @@ MESSAGES: dict[str, str] = {
     "role.sergeant.desc": "Komissarning yordamchisi. Komissarni taniysiz va uning tekshiruv natijalarini olasiz. Komissar o‘lsa, yangi Komissar siz bo‘lasiz.",
     "role.doctor": "Shifokor",
     "role.doctor.desc": "Har kecha bir o‘yinchini davolaysiz — u o‘sha kecha o‘lmaydi. Bir odamni ketma-ket ikki kecha davolab bo‘lmaydi, o‘zingizni o‘yinda faqat bir marta davolay olasiz.",
-    "role.hacker": "Xaker",
-    "role.hacker.desc": "Kechasi bir o‘yinchining telefonini buzasiz — uning o‘sha kechagi harakati bajarilmaydi. Bir odamni ketma-ket ikki kecha bloklab bo‘lmaydi.",
+    "role.hacker": "Ma’shuqa",
+    "role.hacker.desc": "Siz tinch aholisiz. Kechasi bitta o‘yinchining oldiga borasiz: uning tungi harakati bajarilmaydi, ertasi kuni esa u guruhda yoza olmaydi va ovoz bera olmaydi. Shifokor uni davolasa, tashrifingiz ta’sir qilmaydi. Bir odamning oldiga ketma-ket ikki kecha borib bo‘lmaydi.",
     "role.beggar": "Gado",
     "role.beggar.desc": "Kechasi bir o‘yinchining uyiga shisha so‘rab borasiz. Ertalab o‘sha uyga kechasi kimlar kelganini bilasiz.",
     "role.kamikaze": "Kamikadze",
@@ -51,7 +51,7 @@ MESSAGES: dict[str, str] = {
     "action.ck": "Tekshirish",
     "action.sh": "Otish",
     "action.hl": "Davolash",
-    "action.bl": "Bloklash",
+    "action.bl": "Borish",
     "action.pr": "Himoya qilish",
     "action.vs": "Uyiga borish",
     "action.bm": "Bomba qo‘yish",
@@ -94,7 +94,7 @@ MESSAGES: dict[str, str] = {
     "prompt.commissioner": "Tekshirasizmi yoki otasizmi?",
     "prompt.commissioner_first": "Kimni tekshirasiz?",
     "prompt.doctor": "Kimni davolaysiz?",
-    "prompt.hacker": "Kimning telefonini buzasiz?",
+    "prompt.hacker": "Tunni kim bilan o‘tkazasiz?",
     "prompt.defender": "Kimni himoya qilasiz?",
     "prompt.beggar": "Kimnikiga borasiz?",
     "prompt.pyro": "Kimga bomba qo‘yasiz?",
@@ -120,14 +120,14 @@ MESSAGES: dict[str, str] = {
     "announce.check": "Komissar tergov olib bormoqda...",
     "announce.shoot": "Komissar to‘pponchasini ko‘tardi...",
     "announce.heal": "Shifokor navbatchilikka chiqdi...",
-    "announce.block": "Xaker kimningdir telefonini buzmoqda...",
+    "announce.block": "Ma’shuqa kimdir bilan xilvatda...",
     "announce.protect": "Himoyachilar kimnidir himoyaga oldi...",
     "announce.visit": "Gado kimningdir eshigini taqillatdi...",
     "announce.bomb": "Piroman bomba qo‘ymoqda...",
     "announce.detonate": "Piroman detonatorni qo‘liga oldi...",
     "announce.sleepless": "Balym jalep so‘rishga tayyorlanmoqda...",
 
-    "night.hacked": "Kechasi xaker telefoningizni buzdi — <b>harakatingiz bajarilmadi.</b>",
+    "night.hacked": "{role} sizga keldi.",
     "night.team_choice": "{name}: tanladi {target}",
     "night.check_result": "<b>Tekshiruv natijasi:</b> {target} — <b>{role}</b>",
     "night.sergeant_relay": "<b>Komissardan xabar:</b>\n{text}",
@@ -145,7 +145,6 @@ MESSAGES: dict[str, str] = {
     "night.healed_saved": "Kechasi sizga hujum qilindi, lekin {role} <b>sizni qutqarib qoldi!</b>",
     "night.doctor_saved": "{target} kechasi davolandi! Mehmonlar: {roles}",
     "night.doctor_idle": "{target} davolanishga muhtoj emas edi.",
-    "night.hacked_idle": "{role} kechasi <b>telefoningizni buzdi</b>.",
     "night.protected_you": "{role} kechasi <b>sizni qo‘riqladi</b>.",
     "night.visited_you": "{role} kechasi eshigingizni taqillatib, <b>shisha so‘radi</b>.",
     "night.bombed_you": "{role} kechasi <b>eshigingiz oldiga bomba qo‘ydi!</b>",
@@ -193,6 +192,7 @@ MESSAGES: dict[str, str] = {
     "vote.cast_abstain": "{voter} betaraf qoldi",
     "vote.not_now": "Hozir ovoz berish o‘tmayapti.",
     "vote.not_alive": "Faqat tirik o‘yinchilar ovoz bera oladi.",
+    "vote.silenced": "{role} siz bilan edi: bugun guruhda yoza olmaysiz va ovoz bera olmaysiz.",
     "vote.already": "Siz ovoz berib bo‘ldingiz.",
     "vote.bad_target": "Bu o‘yinchiga ovoz berib bo‘lmaydi.",
     "vote.ok_abstain": "Siz betaraf qoldingiz.",
@@ -402,9 +402,9 @@ MESSAGES: dict[str, str] = {
     "rules.night": (
         "🌙 <b>Tungi harakatlarning hisoblanish tartibi</b>\n\n"
         "1. Barcha tungi tanlovlar yig‘iladi (bir vaqtda).\n"
-        "2. 💻 Xaker bloklagan o‘yinchining harakati bajarilmaydi.\n"
-        "3. 🛡 Bosh himoyachining nishoni aniqlanadi.\n"
-        "4. 👨‍⚕️ Shifokor davolaydi — davolangan odam o‘sha kecha hujumdan ham, bombadan ham o‘lmaydi.\n"
+        "2. 💃 Ma’shuqa borgan o‘yinchining harakati bajarilmaydi, ertasi kuni u guruhda yoza olmaydi va ovoz bera olmaydi.\n"
+        "3. 👨‍⚕️ Shifokor davolaydi — davolangan odam o‘sha kecha hujumdan ham, bombadan ham o‘lmaydi.\n"
+        "4. 🛡 Bosh himoyachining nishoni aniqlanadi.\n"
         "5. 🤵 Mafiyaning umumiy hujumi (Donning qarori, bo‘lmasa mafiya ovozi).\n"
         "6. 🔪 Killer va 7. 🪓 Manyak hujum qiladi.\n"
         "8. 🕵️ Komissar tekshiradi yoki otadi.\n"

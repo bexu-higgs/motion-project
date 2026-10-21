@@ -153,6 +153,11 @@ async def test_moderation_rules():
     # Күндіз тірі ойыншы еркін жаза алады.
     s.game.phase = Phase.DAY
     assert not await manager.moderate(CHAT, 1, 105, "мен тұрғынмын", no)
+    # Көңілдес барған ойыншы осы күні жаза алмайды: хабары өшіріледі (үнсіз етілмейді).
+    s.game.silenced = {3}
+    assert await manager.moderate(CHAT, 3, 109, "мен де сөйлеймін", no)
+    assert (CHAT, 109) in notifier.deleted and (CHAT, 3) not in notifier.restricted
+    s.game.silenced = set()
     # Өлген ойыншы — өшіріліп, үнсіз етіледі; қайта шектеу жіберілмейді.
     await manager.leave(2)
     assert await manager.moderate(CHAT, 2, 106, "мен өлмедім!", no)
@@ -365,6 +370,30 @@ async def test_lynch_needs_group_confirmation():
     await wait_until(lambda: any("күндізгі жиналыста дарға асылды" in m.text for m in notifier.to(CHAT)))
     assert not g.players[target].alive and g.players[target].death_cause == "lynch"
     assert any("Дауыс беру нәтижелері:\n4 👍  |  1 👎" == text for _, mid, text in notifier.edits)
+    await manager.abort(CHAT)
+
+
+async def test_lovers_guest_gets_no_vote_buttons():
+    manager, notifier, storage = make_manager(time_scale=50)
+    gid = await open_with_players(manager, 6)
+    await manager.force_start(CHAT)
+    await wait_until(lambda: CHAT in manager.sessions)
+    s = manager.sessions[CHAT]
+    g = s.game
+    s.timings = balance.Timings(night=5, day=0.01, vote=5, witch=0.01, confirm=5)
+    lover = g.with_role(Role.HACKER)[0].user_id
+    guest = g.with_role(Role.DOCTOR)[0].user_id
+    for uid in list(g.expected_actors()):
+        if uid == lover:
+            assert (await manager.night_action(uid, gid, 1, "bl", guest))[0]
+        else:
+            assert (await manager.night_action(uid, gid, 1, "sk", 0))[0]
+    await wait_until(lambda: g.phase is Phase.VOTE)
+    await wait_until(lambda: any("Көңілдес сізбен болды" in m.text for m in notifier.to(guest)))
+    assert guest not in s.prompts and g.silenced == {guest}
+    assert not (await manager.vote(guest, gid, 1, lover))[0]
+    await wait_until(lambda: any(t == "Көңілдес біреумен әмпәй-жәмпәй болып жатыр..."
+                                 for t in [m.text for m in notifier.to(CHAT)]))
     await manager.abort(CHAT)
 
 

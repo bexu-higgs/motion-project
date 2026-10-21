@@ -48,7 +48,9 @@ def play_random_game(n: int, seed: int) -> Game:
         g.start_vote()
         for p in g.alive():
             choices = g.vote_candidates(p.user_id) + [None]
-            assert g.submit_vote(p.user_id, rng.choice(choices)).ok
+            # Көңілдес барған ойыншы бұл күні дауыс бере алмайды.
+            assert g.submit_vote(p.user_id, rng.choice(choices)).ok is (p.user_id not in g.silenced)
+        assert g.vote_complete()
         g.resolve_vote()
         if g.phase is Phase.CONFIRM:
             for uid in g.confirm_voters():

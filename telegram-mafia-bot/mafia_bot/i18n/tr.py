@@ -18,8 +18,8 @@ MESSAGES: dict[str, str] = {
     "role.sergeant.desc": "Komiserin yardımcısı. Komiseri tanırsınız ve onun kontrol sonuçlarını alırsınız. Komiser ölürse yeni Komiser siz olursunuz.",
     "role.doctor": "Doktor",
     "role.doctor.desc": "Her gece bir oyuncuyu iyileştirirsiniz — o gece ölmez. Aynı kişiyi iki gece üst üste iyileştiremezsiniz, kendinizi oyun boyunca yalnızca bir kez iyileştirebilirsiniz.",
-    "role.hacker": "Hacker",
-    "role.hacker.desc": "Gece bir oyuncunun telefonunu hacklersiniz — onun o geceki eylemi gerçekleşmez. Aynı kişiyi iki gece üst üste engelleyemezsiniz.",
+    "role.hacker": "Sevgili",
+    "role.hacker.desc": "Bir vatandaşsınız. Gece bir oyuncuyu ziyaret edersiniz: o gecelik eylemi gerçekleşmez, ertesi gün grupta yazamaz ve oy veremez. Doktor onu iyileştirirse ziyaretinizin etkisi olmaz. Aynı kişiyi iki gece üst üste ziyaret edemezsiniz.",
     "role.beggar": "Dilenci",
     "role.beggar.desc": "Gece bir oyuncunun evine şişe istemeye gidersiniz. Sabah o eve gece kimlerin geldiğini öğrenirsiniz.",
     "role.kamikaze": "Kamikaze",
@@ -51,7 +51,7 @@ MESSAGES: dict[str, str] = {
     "action.ck": "Kontrol et",
     "action.sh": "Ateş et",
     "action.hl": "İyileştir",
-    "action.bl": "Engelle",
+    "action.bl": "Ziyaret",
     "action.pr": "Koru",
     "action.vs": "Ziyaret et",
     "action.bm": "Bomba koy",
@@ -94,7 +94,7 @@ MESSAGES: dict[str, str] = {
     "prompt.commissioner": "Kontrol mü, ateş mi?",
     "prompt.commissioner_first": "Kimi kontrol edeceksiniz?",
     "prompt.doctor": "Kimi iyileştireceksiniz?",
-    "prompt.hacker": "Kimin telefonunu hackleyeceksiniz?",
+    "prompt.hacker": "Geceyi kiminle geçireceksiniz?",
     "prompt.defender": "Kimi koruyacaksınız?",
     "prompt.beggar": "Kime gideceksiniz?",
     "prompt.pyro": "Kime bomba koyacaksınız?",
@@ -120,14 +120,14 @@ MESSAGES: dict[str, str] = {
     "announce.check": "Komiser soruşturma yürütüyor...",
     "announce.shoot": "Komiser silahını kaldırdı...",
     "announce.heal": "Doktor nöbete çıktı...",
-    "announce.block": "Hacker birinin telefonunu hackliyor...",
+    "announce.block": "Sevgili biriyle baş başa...",
     "announce.protect": "Koruyucular birini korumaya aldı...",
     "announce.visit": "Dilenci birinin kapısını çaldı...",
     "announce.bomb": "Piroman bomba yerleştiriyor...",
     "announce.detonate": "Piroman fünyeyi eline aldı...",
     "announce.sleepless": "Balım jalep emmeye hazırlanıyor...",
 
-    "night.hacked": "Gece bir hacker telefonunuzu hackledi — <b>eyleminiz gerçekleşmedi.</b>",
+    "night.hacked": "{role} size geldi.",
     "night.team_choice": "{name}: seçti {target}",
     "night.check_result": "<b>Kontrol sonucu:</b> {target} — <b>{role}</b>",
     "night.sergeant_relay": "<b>Komiserden mesaj:</b>\n{text}",
@@ -145,7 +145,6 @@ MESSAGES: dict[str, str] = {
     "night.healed_saved": "Gece size saldırıldı ama {role} <b>hayatınızı kurtardı!</b>",
     "night.doctor_saved": "{target} bu gece iyileştirildi! Misafirler: {roles}",
     "night.doctor_idle": "{target} iyileştirmeye ihtiyaç duymadı.",
-    "night.hacked_idle": "{role} gece <b>telefonunuzu hackledi</b>.",
     "night.protected_you": "{role} gece <b>sizi korudu</b>.",
     "night.visited_you": "{role} gece kapınızı çalıp <b>bir şişe istedi</b>.",
     "night.bombed_you": "{role} gece <b>kapınızın önüne bomba koydu!</b>",
@@ -193,6 +192,7 @@ MESSAGES: dict[str, str] = {
     "vote.cast_abstain": "{voter} çekimser kaldı",
     "vote.not_now": "Şu an oylama yapılmıyor.",
     "vote.not_alive": "Yalnızca hayattaki oyuncular oy verebilir.",
+    "vote.silenced": "{role} sizinleydi: bugün grupta yazamaz ve oy veremezsiniz.",
     "vote.already": "Zaten oy verdiniz.",
     "vote.bad_target": "Bu oyuncuya oy veremezsiniz.",
     "vote.ok_abstain": "Çekimser kaldınız.",
@@ -402,9 +402,9 @@ MESSAGES: dict[str, str] = {
     "rules.night": (
         "🌙 <b>Gece eylemlerinin hesaplanma sırası</b>\n\n"
         "1. Tüm gece seçimleri toplanır (aynı anda).\n"
-        "2. 💻 Hacker'ın engellediği oyuncunun eylemi gerçekleşmez.\n"
-        "3. 🛡 Baş koruyucunun hedefi belirlenir.\n"
-        "4. 👨‍⚕️ Doktor iyileştirir — iyileştirilen kişi o gece ne saldırıdan ne de bombadan ölür.\n"
+        "2. 💃 Sevgili'nin ziyaret ettiği oyuncunun eylemi gerçekleşmez; ertesi gün grupta yazamaz ve oy veremez.\n"
+        "3. 👨‍⚕️ Doktor iyileştirir — iyileştirilen kişi o gece ne saldırıdan ne de bombadan ölür.\n"
+        "4. 🛡 Baş koruyucunun hedefi belirlenir.\n"
         "5. 🤵 Mafyanın ortak saldırısı (Don'un kararı, yoksa mafyanın oyu).\n"
         "6. 🔪 Tetikçi ve 7. 🪓 Seri Katil saldırır.\n"
         "8. 🕵️ Komiser kontrol eder ya da ateş eder.\n"

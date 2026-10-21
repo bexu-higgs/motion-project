@@ -316,11 +316,13 @@ async def rules(message: Message, lang: str) -> None:
 
 
 @router.callback_query(F.data.startswith("rules:"))
-async def rules_cb(callback: CallbackQuery, lang: str) -> None:
+async def rules_cb(callback: CallbackQuery, manager: GameManager, lang: str) -> None:
     page = callback.data.split(":", 1)[1]
     await callback.answer()
     try:
-        await callback.message.edit_text(texts.rules_page(page, lang), reply_markup=keyboards.rules(lang))
+        await callback.message.edit_text(
+            texts.rules_page(page, lang, manager.sleepless_enabled), reply_markup=keyboards.rules(lang)
+        )
     except TelegramAPIError:
         pass  # бет өзгермеген болса
 

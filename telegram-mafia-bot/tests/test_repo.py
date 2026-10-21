@@ -16,7 +16,9 @@ from mafia_bot.game.roles import Role
 DSN = os.getenv("TEST_DATABASE_URL")
 pytestmark = pytest.mark.skipif(not DSN, reason="TEST_DATABASE_URL көрсетілмеген")
 
-TABLES = "giveaway_claims, giveaways, ledger, payments, role_purchases, game_players, games, chats, users"
+TABLES = (
+    "bot_settings, giveaway_claims, giveaways, ledger, payments, role_purchases, game_players, games, chats, users"
+)
 
 
 @pytest.fixture
