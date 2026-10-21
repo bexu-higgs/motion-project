@@ -195,6 +195,14 @@ async def test_votes_and_actions_are_announced_one_by_one():
     assert all(t.count("tg://user") <= 2 for t in casts)
     assert any("тергеу жүргізуде" in t or "тапаншасын көтерді" in t for t in group)
     assert any(t == "Дон құрбанын таңдады..." for t in group)
+    # Ойын басы: «Ойын басталды» → тірі ойыншылар мен рөлдер → 1-түн → түнгі әрекеттер.
+    started = next(i for i, t in enumerate(group) if "Ойын басталды" in t)
+    roster = group[started + 1].split("\n")
+    assert roster[0] == "Тірі ойыншылар:" and [line.split(".")[0] for line in roster[1:9]] == [
+        str(n) for n in range(1, 9)
+    ]
+    assert roster[9:] == ["", roster[10], "Барлығы: 8"] and roster[10].startswith("Олардың ішінде: Дон")
+    assert "1-түн</b>" in group[started + 2]
     assert not any(re.search("[\U0001F300-\U0001FAFF\u2600-\u27BF]", t) for t in group
                    if "👍" not in t)  # ойын хабарларында смайлик жоқ
     # Әр дауыс өз дауыс беру кезеңінің ішінде, әр түнгі әрекет өз түнінің ішінде шығады.

@@ -542,6 +542,8 @@ class GameManager:
         if failed:
             lines += ["", game.t("game.dm_failed", names=", ".join(p.mention for p in failed))]
         await self._say(lobby.chat_id, "\n".join(lines), self._bot_button(game.lang))
+        # Түнгі әрекеттерден бұрын: «Тірі ойыншылар» тізімі, астында — ойындағы рөлдер.
+        await self._say(lobby.chat_id, "\n".join(game.alive_block()))
         if not session.finished:  # хабарламалар жіберілгенше ойын тоқтатылмаса
             session.task = asyncio.create_task(self._run(session))
 
