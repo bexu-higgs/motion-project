@@ -363,7 +363,8 @@ export class Effects {
       while (e.acc >= 1) {
         e.acc -= 1;
         if (e.type === 'fire') {
-          this.add.spawn({ x: e.pos.x + (Math.random() - 0.5) * 0.4, y: e.pos.y, z: e.pos.z + (Math.random() - 0.5) * 0.4, vy: 1.2 + Math.random(), life: 0.5 + Math.random() * 0.3, s0: 0.5, s1: 0.1, c0: [1, 0.6, 0.2, 0.9], c1: [1, 0.2, 0.05, 0], fr: 3, rs: 2 });
+          this.add.spawn({ x: e.pos.x + (Math.random() - 0.5) * 0.7, y: e.pos.y - 0.1, z: e.pos.z + (Math.random() - 0.5) * 0.7, vx: (Math.random() - 0.5) * 0.3, vy: 1.0 + Math.random(), vz: (Math.random() - 0.5) * 0.3, life: 0.55 + Math.random() * 0.35, s0: 0.75, s1: 0.15, c0: [1, 0.6, 0.2, 0.95], c1: [1, 0.2, 0.05, 0], fr: 3, rs: 2 });
+          if (Math.random() < 0.25) this.add.spawn({ x: e.pos.x, y: e.pos.y + 0.6, z: e.pos.z, vx: (Math.random() - 0.5) * 0.8, vy: 2 + Math.random() * 2, vz: (Math.random() - 0.5) * 0.8, life: 1.2, s0: 0.05, s1: 0.02, c0: [1, 0.8, 0.4, 1], fr: 0, drag: 0.5 });
           if (Math.random() < 0.3) this.alpha.spawn({ x: e.pos.x, y: e.pos.y + 0.8, z: e.pos.z, vx: 0.3, vy: 1, life: 3, s0: 0.4, s1: 2, c0: [0.3, 0.3, 0.3, 0.3], c1: [0.5, 0.5, 0.5, 0], fr: 1, drag: 0.5 });
         } else if (e.type === 'smoke') {
           this.alpha.spawn({ x: e.pos.x + (Math.random() - 0.5), y: e.pos.y, z: e.pos.z + (Math.random() - 0.5), vx: 1.2 + Math.random() * 0.5, vy: 2 + Math.random(), vz: 0.4, life: 8, s0: 2, s1: 9, c0: [0.55, 0.55, 0.55, 0.35], c1: [0.7, 0.7, 0.72, 0], fr: 1, drag: 0.3, rs: 0.2, fadeIn: 0.5 });

@@ -365,6 +365,14 @@ export class World {
   get lootSpots() { return this.ctx.lootSpots; }
   get doors() { return this.ctx.doors; }
 
+  setTime(name) {
+    if (this.sky.time === name) return;
+    this.sky.setTime(name, this.scene, this.renderer, this.water);
+    // Кешке шамдар жанады
+    const lampOn = name === 'sunset';
+    if (this.mats.lamp) this.mats.lamp.emissiveIntensity = lampOn ? 4 : 1.2;
+  }
+
   update(dt, camPos) {
     windUniform.value += dt;
     this.water.update(dt);

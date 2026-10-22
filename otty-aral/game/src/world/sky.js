@@ -51,6 +51,18 @@ void main() {
   #include <colorspace_fragment>
 }`;
 
+// Тәулік уақыты пресеттері
+export const TIMES = {
+  day: {
+    sun: [-0.45, 0.62, -0.38], sunCol: 0xfff0d8, sunI: 3.1, hemiSky: 0xcfe4ff, hemiGround: 0x5a4a32, hemiI: 1.15,
+    zenith: 0x3d7fd1, horizon: 0xc6dcec, ground: 0x9fb3c0, glow: 0xffe2b0, fog: 0xb9d3e6, exposure: 1.05, waterSky: 0xa9cbe6, env: 0.55,
+  },
+  sunset: {
+    sun: [-0.78, 0.17, -0.6], sunCol: 0xffb070, sunI: 2.6, hemiSky: 0xb8c4e8, hemiGround: 0x6a4830, hemiI: 0.95,
+    zenith: 0x2e4f8f, horizon: 0xf0a070, ground: 0x8a7060, glow: 0xff9a50, fog: 0xd8a888, exposure: 1.1, waterSky: 0xe8a888, env: 0.5,
+  },
+};
+
 export class Sky {
   constructor(scene, quality) {
     this.uniforms = {
@@ -97,6 +109,29 @@ export class Sky {
       s.radius = quality.shadowSoft ? 2 : 1;
       s.camera.updateProjectionMatrix();
     }
+  }
+
+  setTime(name, scene, renderer, water) {
+    const P = TIMES[name] || TIMES.day;
+    this.time = name;
+    SUN_DIR.set(P.sun[0], P.sun[1], P.sun[2]).normalize();
+    this.uniforms.uSun.value.copy(SUN_DIR);
+    this.uniforms.uZenith.value.set(P.zenith);
+    this.uniforms.uHorizon.value.set(P.horizon);
+    this.uniforms.uGround.value.set(P.ground);
+    this.uniforms.uSunCol.value.set(P.glow);
+    this.sun.color.set(P.sunCol); this.sun.intensity = P.sunI;
+    this.hemi.color.set(P.hemiSky); this.hemi.groundColor.set(P.hemiGround); this.hemi.intensity = P.hemiI;
+    FOG_COLOR.set(P.fog);
+    if (scene.fog) scene.fog.color.copy(FOG_COLOR);
+    scene.background = FOG_COLOR;
+    renderer.toneMappingExposure = P.exposure;
+    if (water) { water.uniforms.uSun.value.copy(SUN_DIR); water.uniforms.uSky.value.set(P.waterSky); }
+    // Қоршаған орта картасын жаңарту
+    const old = scene.environment;
+    scene.environment = this.makeEnv(renderer);
+    scene.environmentIntensity = P.env;
+    if (old && old.dispose) old.dispose();
   }
 
   // Көлеңке камерасы ойыншыға ілеседі (тексель бойынша тұрақтандырылған)

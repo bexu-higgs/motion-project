@@ -150,8 +150,12 @@ class Game {
   setupLobby() {
     const p = poi('jailau');
     const col = this.world.col;
-    const x = p.x + 3.2, z = p.z + 12.5;
+    const x = p.x + 2.4, z = p.z + 10.6;
     this.lobby = { x, z, y: col.groundAt(x, z, 0.3, 100), t: 0 };
+    // От басының жылы жарығы (тек мәзірде)
+    this.fireLight = new THREE.PointLight(0xff8a3a, 0, 16, 1.4);
+    this.fireLight.position.set(p.x, col.groundAt(p.x, p.z + 9, 0.3, 100) + 1.0, p.z + 9);
+    this.scene.add(this.fireLight);
   }
 
   setLobbyOutfit(id) {
@@ -160,6 +164,8 @@ class Game {
 
   enterMenu() {
     this.state = 'menu';
+    this.world.setTime('sunset');
+    if (this.fireLight) this.fireLight.intensity = 6;
     if (this.pendingReload) { location.reload(); return; }
     this.hud.show(false);
     this.menus.showMenu(true);
@@ -178,7 +184,7 @@ class Game {
     P.reset();
     P.state = 'ground'; P.alive = true;
     P.pos.set(this.lobby.x, this.lobby.y, this.lobby.z);
-    P.yaw = 3.55;
+    P.yaw = 2.24;
     P.obj.visible = true;
     P.model.setWeapon(WEAPONS.ak, M.weaponMesh('ak'));
     if (document.pointerLockElement) document.exitPointerLock();
@@ -187,16 +193,21 @@ class Game {
   updateLobby(dt) {
     const L = this.lobby;
     L.t += dt;
+    if (this.fireLight) this.fireLight.intensity = 5 + Math.sin(L.t * 13) * 0.8 + Math.sin(L.t * 7.3) * 0.6;
     const P = this.match.player;
     const M = this.match;
     P.pos.set(L.x, L.y, L.z);
     P.cur = 0;
     P.switchT = 0.3;
     P.updateModel(dt, this.camera.position, false);
-    const a = 2.6 + Math.sin(L.t * 0.15) * 0.25 + 0.5;
-    const d = 3.6;
-    this.camera.position.set(L.x + Math.sin(a) * d - 0.9, L.y + 1.35, L.z + Math.cos(a) * d);
-    this.camera.lookAt(L.x - 0.9, L.y + 1.05, L.z);
+    const a = 2.24 + Math.sin(L.t * 0.15) * 0.14;
+    const d = 3.3;
+    const cx = L.x + Math.sin(a) * d, cz = L.z + Math.cos(a) * d;
+    // Кейіпкер экранның сол жағында, от басы оң жақта
+    const fx = L.x - cx, fz = L.z - cz, fl = Math.hypot(fx, fz);
+    const rx = -fz / fl, rz = fx / fl;
+    this.camera.position.set(cx, L.y + 1.45, cz);
+    this.camera.lookAt(L.x + rx * 0.45, L.y + 1.0, L.z + rz * 0.45);
     this.camera.fov = 50; this.camera.updateProjectionMatrix();
     this.world.update(dt, this.camera.position);
     this.world.sky.follow(this.camera.position, dt);
@@ -211,6 +222,8 @@ class Game {
     this.menus.setLoading(0.3, 'actors');
     setTimeout(() => {
       this.match.zone.wall.visible = true;
+      if (this.fireLight) this.fireLight.intensity = 0;
+      this.world.setTime(Math.random() < 0.35 ? 'sunset' : 'day');
       this.match.start();
       this.menus.setLoading(1, 'ready');
       this.menus.hideLoading();

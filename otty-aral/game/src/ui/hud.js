@@ -248,6 +248,7 @@ export class HUD {
     if (!this.mapImg) this.buildMapImage(M.world);
   }
 
+  css(e, prop, v) { const k = '_c_' + prop; if (e[k] !== v) { e[k] = v; e.style[prop] = v; } }
   setVis(e, v) { if (e._v !== v) { e._v = v; e.classList.toggle('hidden', !v); } }
   setText(e, t) { if (e._t !== t) { e._t = t; e.textContent = t; } }
   setHTML(e, t) { if (e._h !== t) { e._h = t; e.innerHTML = t; } }
@@ -266,17 +267,19 @@ export class HUD {
     this.setVis(this.altEl, st === 'fall' || st === 'chute');
     if (st === 'fall' || st === 'chute') this.setText(this.altEl, Math.max(0, Math.round(P.agl || 0)) + ' ' + T.hud.meters);
     const groundCtl = ground ? '' : 'none';
-    for (const b of [this.bAim, this.bCrouch, this.bReload, this.bGloo, this.bHeal, this.bKymyz, this.bNade, this.bJump]) if (isTouch && b.style.display !== groundCtl) b.style.display = groundCtl;
-    if (isTouch) { const f = ground ? '' : 'none'; if (this.bFire.style.display !== f) this.bFire.style.display = f; const fl = ground && settings.leftFire ? '' : 'none'; if (this.bFireL.style.display !== fl) this.bFireL.style.display = fl; }
-    this.slotsEl.style.visibility = ground ? 'visible' : 'hidden';
-    if (isTouch) { const jv = st === 'plane' || !P.alive ? 'hidden' : 'visible'; if (this.joyZone.style.visibility !== jv) this.joyZone.style.visibility = jv; }
-    this.status.style.visibility = st === 'plane' ? 'hidden' : 'visible';
-    this.wpn.style.visibility = ground ? 'visible' : 'hidden';
-    this.bAim.classList.toggle('on', pc.aiming);
-    this.bCrouch.classList.toggle('on', P.crouch);
+    if (isTouch) {
+      for (const b of [this.bAim, this.bCrouch, this.bReload, this.bGloo, this.bHeal, this.bKymyz, this.bNade, this.bJump, this.bFire]) this.css(b, 'display', groundCtl);
+      this.css(this.bFireL, 'display', ground && settings.leftFire ? '' : 'none');
+      this.css(this.joyZone, 'visibility', st === 'plane' || !P.alive ? 'hidden' : 'visible');
+    }
+    this.css(this.slotsEl, 'visibility', ground ? 'visible' : 'hidden');
+    this.css(this.status, 'visibility', st === 'plane' ? 'hidden' : 'visible');
+    this.css(this.wpn, 'visibility', ground ? 'visible' : 'hidden');
+    if (this.last.aimOn !== pc.aiming) { this.last.aimOn = pc.aiming; this.bAim.classList.toggle('on', pc.aiming); }
+    if (this.last.crOn !== P.crouch) { this.last.crOn = P.crouch; this.bCrouch.classList.toggle('on', P.crouch); }
     // Скоп
     this.setVis(this.scope, pc.scoped);
-    this.cross.style.display = pc.scoped || !ground ? 'none' : '';
+    this.css(this.cross, 'display', pc.scoped || !ground ? 'none' : '');
     // Нысана белгісінің шашырауы
     const spread = Math.max(4, P.spread * 600 * (pc.aiming ? 0.7 : 1));
     if (Math.abs((this.last.spread || 0) - spread) > 0.5) {
@@ -352,8 +355,8 @@ export class HUD {
     const dOut = Math.hypot(P.pos.x - Z.to.x, P.pos.z - Z.to.z) - Z.to.r;
     this.setText(this.zoneDist, dOut > 0 ? Math.round(dOut) + T.hud.meters : '');
     const out = ground && !Z.inside(P.pos.x, P.pos.z);
-    this.vigBlue.style.opacity = out ? 0.9 : 0;
-    this.vigRed.style.opacity = P.alive && P.hp < 60 ? (0.35 + 0.25 * Math.sin(M.time * 6)) * (1 - P.hp / 60) + 0.2 : Math.max(0, (this.redT || 0));
+    this.css(this.vigBlue, 'opacity', out ? '0.9' : '0');
+    this.css(this.vigRed, 'opacity', (P.alive && P.hp < 60 ? (0.35 + 0.25 * Math.sin(M.time * 6)) * (1 - P.hp / 60) + 0.2 : Math.max(0, (this.redT || 0))).toFixed(2));
     this.redT = Math.max(0, (this.redT || 0) - dt * 2);
     if (out && (!this.lastOutWarn || M.time - this.lastOutWarn > 6)) { this.lastOutWarn = M.time; this.toast(T.hud.outZone, 'warn'); }
     // Компас

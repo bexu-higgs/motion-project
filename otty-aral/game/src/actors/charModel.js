@@ -132,8 +132,8 @@ export function buildCharacterGeometry(o, gear = {}) {
   pb.add(new THREE.SphereGeometry(0.116, 14, 10), 'head', sk, M(0, hy, 0.005, 0, 0, 0, 0.98, 1.1, 1.04));
   pb.add(new THREE.SphereGeometry(0.06, 8, 6), 'head', sk, M(0, hy - 0.07, 0.035, 0, 0, 0, 1.2, 0.7, 1.0)); // иек
   for (const s of [-1, 1]) {
-    pb.add(new THREE.SphereGeometry(0.022, 6, 4), 'head', 0xf8f8f4, M(s * 0.042, hy + 0.012, 0.1, 0, 0, 0, 1.25, 0.85, 0.6));
-    pb.add(new THREE.SphereGeometry(0.013, 5, 4), 'head', 0x1a0e08, M(s * 0.042, hy + 0.011, 0.111));
+    pb.add(new THREE.SphereGeometry(0.025, 7, 5), 'head', 0xffffff, M(s * 0.043, hy + 0.013, 0.1, 0, 0, 0, 1.25, 0.9, 0.6));
+    pb.add(new THREE.SphereGeometry(0.015, 6, 4), 'head', 0x140a06, M(s * 0.043, hy + 0.012, 0.112));
     pb.add(new THREE.BoxGeometry(0.05, 0.012, 0.014), 'head', o.hair, M(s * 0.043, hy + 0.045, 0.106, 0, 0, s * -0.12));
     pb.add(new THREE.SphereGeometry(0.024, 6, 4), 'head', sk, M(s * 0.112, hy + 0.0, -0.005, 0, 0, 0, 0.5, 1, 0.8));
   }
