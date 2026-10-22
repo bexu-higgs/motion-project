@@ -32,6 +32,18 @@ class Game {
   reportError(e) {
     console.error('ERR', e && e.stack ? e.stack : e);
     window.err = String(e && e.stack ? e.stack : e);
+    // Жүктеу кезіндегі ауыр қате — пайдаланушыға қазақша түсіндіру
+    if (this.state === 'loading') {
+      const L = document.getElementById('loading');
+      const lab = L && L.querySelector('.loadlabel');
+      const noGL = /WebGL|context/i.test(window.err);
+      if (lab) {
+        lab.style.color = '#ff8a7a';
+        lab.textContent = noGL
+          ? 'Құрылғыңыз WebGL 2.0 графикасын қолдамайды. Android System WebView қолданбасын жаңартып көріңіз.'
+          : 'Жүктеу кезінде қате шықты. Ойынды қайта ашып көріңіз.';
+      }
+    }
   }
 
   initRenderer() {
@@ -48,7 +60,8 @@ class Game {
     r.outputColorSpace = THREE.SRGBColorSpace;
     r.shadowMap.enabled = q.shadows > 0;
     r.shadowMap.type = q.shadowSoft ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap;
-    r.shadowMap.autoUpdate = true;
+    r.shadowMap.autoUpdate = !(q.shadowEvery > 1);
+    this.frameNo = 0;
     this.basePixel = Math.min(window.devicePixelRatio || 1, q.maxDpr) * q.pixel;
     this.applyResolution();
     this.scene = new THREE.Scene();
@@ -306,6 +319,8 @@ class Game {
     } else if (this.state === 'result' || this.state === 'pause') {
       if (this.state === 'result') { this.match.effects.update(dt, this.camera); this.world.update(dt, this.camera.position); }
     }
+    this.frameNo++;
+    if (this.q.shadowEvery > 1) this.renderer.shadowMap.needsUpdate = this.frameNo % this.q.shadowEvery === 0;
     this.renderer.render(this.scene, this.camera);
     this.adaptResolution(dt);
   }

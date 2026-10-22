@@ -21,7 +21,7 @@ const DEFAULTS = {
 
 export const QUALITY = {
   low: { pixel: 0.6, maxDpr: 1.0, shadows: 0, shadowSoft: false, antialias: false, grass: 0, veg: 0.55, draw: 320, tex: 256, normals: false, cloudOct: 2, waterDetail: false, decals: 40, particles: 0.5 },
-  medium: { pixel: 0.8, maxDpr: 1.5, shadows: 1024, shadowSoft: false, antialias: true, grass: 0, veg: 0.8, draw: 450, tex: 512, normals: true, cloudOct: 3, waterDetail: true, decals: 70, particles: 0.8 },
+  medium: { pixel: 0.8, maxDpr: 1.5, shadows: 1024, shadowEvery: 2, shadowSoft: false, antialias: true, grass: 0, veg: 0.8, draw: 450, tex: 512, normals: true, cloudOct: 3, waterDetail: true, decals: 70, particles: 0.8 },
   high: { pixel: 1.0, maxDpr: 2.0, shadows: 2048, shadowSoft: true, antialias: true, grass: 2600, veg: 1.0, draw: 600, tex: 512, normals: true, cloudOct: 4, waterDetail: true, decals: 100, particles: 1 },
   ultra: { pixel: 1.0, maxDpr: 3.0, shadows: 4096, shadowSoft: true, antialias: true, grass: 5000, veg: 1.0, draw: 750, tex: 1024, normals: true, cloudOct: 5, waterDetail: true, decals: 150, particles: 1 },
 };

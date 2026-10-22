@@ -28,7 +28,7 @@ export class World {
     const step = async (p, label) => { progress(p, label); await new Promise((r) => setTimeout(r, 0)); };
     this.terrain = new Terrain(this.q.tex >= 512 ? 250 : 200);
     this.col = new CollisionWorld(this.terrain);
-    this.batch = new StaticBatch(150);
+    this.batch = new StaticBatch(this.q.tex <= 256 ? 320 : 150);
     this.ctx = {
       scene: this.scene, batch: this.batch, mats: this.mats, col: this.col, terrain: this.terrain,
       rng: new RNG(2024), lootSpots: [], doors: [], landmarks: [], animated: [], smokeSources: [], extraTrees: [], boats: [], tex: this.tex,
