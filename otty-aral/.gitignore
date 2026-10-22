@@ -1,0 +1,4 @@
+.tools/
+build/
+game/node_modules/
+game/dist/
