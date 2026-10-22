@@ -132,13 +132,15 @@ export class Input {
     });
     window.addEventListener('keyup', (e) => { this.keys.delete(e.code); this.updateKeys(); });
     window.addEventListener('blur', () => { this.keys.clear(); this.updateKeys(); this.fire = false; });
+    const touchDev = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
     this.canvas.addEventListener('mousedown', (e) => {
-      if (e.pointerType === 'touch') return;
+      if (touchDev) return;
       if (!this.pointerLocked && this.wantLock) { this.canvas.requestPointerLock && this.canvas.requestPointerLock(); return; }
       if (e.button === 0) this.fire = true;
       if (e.button === 2) this.aimHold = true;
     });
     window.addEventListener('mouseup', (e) => {
+      if (touchDev) return;
       if (e.button === 0 && this.fireIds.size === 0) this.fire = false;
       if (e.button === 2) this.aimHold = false;
     });

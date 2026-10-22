@@ -11,6 +11,7 @@ import { HUD } from './ui/hud.js';
 import { Menus } from './ui/menus.js';
 import { Input } from './ui/input.js';
 import { audio } from './audio/audio.js';
+import { cachePrune } from './core/cache.js';
 import { WEAPONS } from './actors/weapons.js';
 import { OUTFITS as OUTFITS_ALL } from './actors/charModel.js';
 
@@ -82,12 +83,16 @@ class Game {
     step(0.02, 'textures');
     await nf();
     const lib = new TextureLib(this.renderer, this.q.tex, this.q.normals);
+    const tm = { t0: performance.now() };
     this.tex = await lib.generateAll((p) => step(0.02 + p * 0.2, 'textures'));
+    tm.tex = performance.now();
     this.mats = makeMaterials(this.tex);
     step(0.24, 'sounds');
     await audio.generate((p) => step(0.24 + p * 0.22, 'sounds'));
+    tm.audio = performance.now();
     this.world = new World(this.scene, this.renderer, this.tex, this.mats, this.q);
     await this.world.build((p, l) => step(0.46 + p * 0.38, l));
+    tm.world = performance.now();
     step(0.86, 'actors');
     await nf();
     this.input = new Input(this.canvas);
@@ -97,7 +102,10 @@ class Game {
     step(0.93, 'shaders');
     await nf();
     this.setupLobby();
+    tm.match = performance.now();
     this.warmup();
+    tm.warm = performance.now();
+    console.log('boot ms: tex', (tm.tex - tm.t0) | 0, 'audio', (tm.audio - tm.tex) | 0, 'world', (tm.world - tm.audio) | 0, 'match', (tm.match - tm.world) | 0, 'warmup', (tm.warm - tm.match) | 0);
     step(1, 'ready');
     await nf();
     this.menus.hideLoading();
@@ -120,6 +128,7 @@ class Game {
     this.manual = /[?&]test=1/.test(location.search);
     requestAnimationFrame((t) => this.loop(t));
     window.game = this;
+    setTimeout(() => cachePrune(), 5000);
     window.WEAP = WEAPONS;
     window.OUT = OUTFITS_ALL;
     window.ready = true;

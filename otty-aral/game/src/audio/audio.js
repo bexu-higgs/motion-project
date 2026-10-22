@@ -3,6 +3,7 @@ import { SR } from './dsp.js';
 import { SFX_LIST } from './sfx.js';
 import { menuTheme, victoryTheme, defeatTheme } from './music.js';
 import { settings } from '../core/settings.js';
+import { cacheGet, cacheSet } from '../core/cache.js';
 
 class AudioEngine {
   constructor() {
@@ -54,8 +55,10 @@ class AudioEngine {
   async generate(onProgress) {
     const list = SFX_LIST;
     let last = performance.now();
+    const all = await cacheGet('snd:all');
     for (let i = 0; i < list.length; i++) {
-      const d = list[i].fn();
+      let d = all && all[list[i].name];
+      if (!d) d = list[i].fn();
       this.raw[list[i].name] = d;
       this._toBuffer(list[i].name, d);
       if (performance.now() - last > 30) {
@@ -64,14 +67,15 @@ class AudioEngine {
         last = performance.now();
       }
     }
-    const m = menuTheme();
+    const m = (all && all.music_menu) || menuTheme();
     this.raw.music_menu = m; this._toBuffer('music_menu', m);
     onProgress && onProgress(1);
     this.ready = true;
     // Қалғандарын кейін
     setTimeout(() => {
-      const v = victoryTheme(); this.raw.music_win = v; this._toBuffer('music_win', v);
-      const d = defeatTheme(); this.raw.music_lose = d; this._toBuffer('music_lose', d);
+      const v = (all && all.music_win) || victoryTheme(); this.raw.music_win = v; this._toBuffer('music_win', v);
+      const d = (all && all.music_lose) || defeatTheme(); this.raw.music_lose = d; this._toBuffer('music_lose', d);
+      if (!all) cacheSet('snd:all', this.raw);
     }, 1500);
   }
 

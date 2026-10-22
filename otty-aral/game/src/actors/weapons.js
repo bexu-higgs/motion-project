@@ -18,22 +18,22 @@ export const WEAPONS = {
   ak: {
     id: 'ak', slot: 1, dmg: 32, rpm: 600, mag: 30, reload: 2.5, spreadHip: 0.05, spreadAim: 0.012, bloom: 0.008, range: 160, falloff: 60, recoil: 0.03, auto: true,
     ammo: 'ammo_762', rarity: 1, sound: 'ak', zoom: 1.5, tracer: 0xffc070,
-    hold: { x: -0.13, y: 0.12, z: 0.27 }, grip: [0, -0.07, -0.01], fore: [0, 0.0, 0.2], magPos: [0, -0.14, 0.09], muzzle: [0, 0.035, 0.6],
+    hold: { x: -0.16, y: 0.12, z: 0.27 }, grip: [0, -0.07, -0.01], fore: [0, 0.0, 0.19], magPos: [0, -0.14, 0.09], muzzle: [0, 0.035, 0.6],
   },
   m4: {
     id: 'm4', slot: 1, dmg: 27, rpm: 720, mag: 30, reload: 2.2, spreadHip: 0.04, spreadAim: 0.008, bloom: 0.006, range: 170, falloff: 70, recoil: 0.018, auto: true,
     ammo: 'ammo_556', rarity: 2, sound: 'm4', zoom: 1.6, tracer: 0xffe090,
-    hold: { x: -0.13, y: 0.12, z: 0.25 }, grip: [0, -0.07, -0.01], fore: [0, 0.0, 0.21], magPos: [0, -0.13, 0.08], muzzle: [0, 0.035, 0.58],
+    hold: { x: -0.16, y: 0.12, z: 0.25 }, grip: [0, -0.07, -0.01], fore: [0, 0.0, 0.2], magPos: [0, -0.13, 0.08], muzzle: [0, 0.035, 0.58],
   },
   shotgun: {
     id: 'shotgun', slot: 1, dmg: 19, pellets: 8, rpm: 75, mag: 5, reload: 0.55, perShell: true, spreadHip: 0.09, spreadAim: 0.07, bloom: 0, range: 30, falloff: 10, recoil: 0.07, auto: false,
     ammo: 'ammo_12', rarity: 1, sound: 'shotgun', zoom: 1.2, tracer: 0xffd080,
-    hold: { x: -0.13, y: 0.12, z: 0.3 }, grip: [0, -0.07, -0.01], fore: [0, -0.02, 0.2], magPos: [0, -0.04, 0.3], muzzle: [0, 0.03, 0.72],
+    hold: { x: -0.16, y: 0.12, z: 0.3 }, grip: [0, -0.07, -0.01], fore: [0, -0.02, 0.19], magPos: [0, -0.04, 0.3], muzzle: [0, 0.03, 0.72],
   },
   sniper: {
     id: 'sniper', slot: 1, dmg: 140, rpm: 42, mag: 5, reload: 3.0, spreadHip: 0.06, spreadAim: 0.0008, bloom: 0, range: 420, falloff: 300, recoil: 0.09, auto: false,
     ammo: 'ammo_300', rarity: 3, sound: 'sniper', zoom: 4.5, scope: true, tracer: 0xfff0c0, bolt: true,
-    hold: { x: -0.13, y: 0.12, z: 0.27 }, grip: [0, -0.07, -0.01], fore: [0, -0.01, 0.2], magPos: [0, -0.1, 0.07], muzzle: [0, 0.03, 0.8],
+    hold: { x: -0.16, y: 0.12, z: 0.27 }, grip: [0, -0.07, -0.01], fore: [0, -0.01, 0.19], magPos: [0, -0.1, 0.07], muzzle: [0, 0.03, 0.8],
   },
 };
 

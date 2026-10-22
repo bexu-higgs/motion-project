@@ -209,7 +209,7 @@ export class Menus {
       <div class="ttl ${r.win ? 'win' : 'lose'}">${r.win ? R.win : R.lose}</div>
       <div class="sub">${r.win ? R.winSub : R.loseSub}</div>
       <div class="rank">#${r.place} <small>/ 40</small></div>
-      ${!r.win && r.killer ? `<div class="killer">${R.killedBy}: <b>${r.killer}</b></div>` : ''}
+      ${!r.win && r.killer ? `<div class="killer">${R.killedBy}: <b>${r.killer}</b></div>` : !r.win && r.cause === 'zone' ? `<div class="killer">${R.zoneDeath}</div>` : !r.win && r.cause === 'fall' ? `<div class="killer">${R.fallDeath}</div>` : ''}
       <div class="grid">
         <div class="stat"><b>${r.kills}</b><span>${R.kills}</span></div>
         <div class="stat"><b>${Math.round(r.damage)}</b><span>${R.damage}</span></div>

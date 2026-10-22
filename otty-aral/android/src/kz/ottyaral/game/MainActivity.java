@@ -18,12 +18,20 @@ import android.view.Window;
 import android.view.WindowInsets;
 import android.view.WindowInsetsController;
 import android.view.WindowManager;
+import android.net.Uri;
 import android.webkit.ConsoleMessage;
+import android.webkit.WebResourceRequest;
+import android.webkit.WebResourceResponse;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Отты Арал — ойын WebGL арқылы WebView ішінде жұмыс істейді.
@@ -31,6 +39,9 @@ import android.webkit.WebViewClient;
  * және дірілді басқарады.
  */
 public class MainActivity extends Activity {
+
+    /** Ойын файлдары осы виртуал https-доменнен беріледі (IndexedDB, localStorage тұрақты жұмыс істеуі үшін). */
+    private static final String HOST = "appassets.androidplatform.net";
 
     private WebView webView;
     private final Handler ui = new Handler(Looper.getMainLooper());
@@ -70,7 +81,7 @@ public class MainActivity extends Activity {
         s.setJavaScriptEnabled(true);
         s.setDomStorageEnabled(true);
         s.setDatabaseEnabled(true);
-        s.setAllowFileAccess(true);
+        s.setAllowFileAccess(false);
         s.setAllowContentAccess(false);
         s.setMediaPlaybackRequiresUserGesture(false);
         s.setLoadWithOverviewMode(true);
@@ -84,7 +95,20 @@ public class MainActivity extends Activity {
             s.setSafeBrowsingEnabled(false);
         }
 
-        webView.setWebViewClient(new WebViewClient());
+        webView.setWebViewClient(new WebViewClient() {
+            @Override
+            public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest req) {
+                Uri u = req.getUrl();
+                if (u != null && HOST.equals(u.getHost())) return serveAsset(u.getPath());
+                return super.shouldInterceptRequest(view, req);
+            }
+
+            @Override
+            public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest req) {
+                Uri u = req.getUrl();
+                return u == null || !HOST.equals(u.getHost());
+            }
+        });
         webView.setWebChromeClient(new WebChromeClient() {
             @Override
             public boolean onConsoleMessage(ConsoleMessage m) {
@@ -98,7 +122,31 @@ public class MainActivity extends Activity {
         applyRefreshRate(requestedHz);
         hideSystemUi();
 
-        webView.loadUrl("file:///android_asset/game/index.html");
+        webView.loadUrl("https://" + HOST + "/index.html");
+    }
+
+    private WebResourceResponse serveAsset(String path) {
+        if (path == null || path.isEmpty() || "/".equals(path)) path = "/index.html";
+        if (path.contains("..")) path = "/index.html";
+        Map<String, String> headers = new HashMap<>();
+        headers.put("Cache-Control", "no-cache");
+        headers.put("Access-Control-Allow-Origin", "*");
+        try {
+            InputStream in = getAssets().open("game" + path);
+            return new WebResourceResponse(mimeOf(path), "UTF-8", 200, "OK", headers, in);
+        } catch (IOException e) {
+            return new WebResourceResponse("text/plain", "UTF-8", 404, "Not Found", headers, null);
+        }
+    }
+
+    private static String mimeOf(String path) {
+        if (path.endsWith(".html")) return "text/html";
+        if (path.endsWith(".js")) return "application/javascript";
+        if (path.endsWith(".css")) return "text/css";
+        if (path.endsWith(".png")) return "image/png";
+        if (path.endsWith(".json")) return "application/json";
+        if (path.endsWith(".wasm")) return "application/wasm";
+        return "application/octet-stream";
     }
 
     /** Дисплейдің ең қолайлы режимін таңдаймыз (мысалы 120 Гц). */

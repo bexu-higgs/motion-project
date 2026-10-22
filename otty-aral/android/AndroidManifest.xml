@@ -4,6 +4,8 @@
     android:installLocation="auto">
 
     <uses-permission android:name="android.permission.VIBRATE" />
+    <!-- Ойын толық оффлайн: WebView ішкі файлдарды виртуал https-доменнен оқу үшін ғана -->
+    <uses-permission android:name="android.permission.INTERNET" />
     <uses-feature android:glEsVersion="0x00030000" android:required="true" />
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
 

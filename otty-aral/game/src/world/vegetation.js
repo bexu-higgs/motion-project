@@ -7,9 +7,10 @@ import { POIS, roadDist } from './map.js';
 
 export const windUniform = { value: 0 };
 
-function addWind(mat, strength, key) {
+function addWind(mat, strength, key, noFlip = false) {
   mat.onBeforeCompile = (sh) => {
     sh.uniforms.uTime = windUniform;
+    if (noFlip) sh.fragmentShader = sh.fragmentShader.replace('#include <normal_fragment_begin>', '#include <normal_fragment_begin>\n  normal = normalize( vNormal );');
     sh.vertexShader = sh.vertexShader
       .replace('#include <common>', '#include <common>\nuniform float uTime;')
       .replace('#include <begin_vertex>', `#include <begin_vertex>
@@ -171,7 +172,7 @@ function grassGeo(rng) {
     const base = pos.length / 3;
     pos.push(bx - dx, 0, bz - dz, bx + dx, 0, bz + dz, bx + lean * 0.5 - dx * 0.5, h * 0.55, bz + lean * 0.3 - dz * 0.5, bx + lean * 0.5 + dx * 0.5, h * 0.55, bz + lean * 0.3 + dz * 0.5, bx + lean, h, bz + lean * 0.6);
     const g = rng.float(0.8, 1.15);
-    const cb = [0.09 * g, 0.15 * g, 0.04 * g], cm = [0.17 * g, 0.26 * g, 0.07 * g], ct = [0.3 * g, 0.4 * g, 0.13 * g];
+    const cb = [0.035 * g, 0.065 * g, 0.012 * g], cm = [0.075 * g, 0.135 * g, 0.022 * g], ct = [0.14 * g, 0.23 * g, 0.045 * g];
     col.push(...cb, ...cb, ...cm, ...cm, ...ct);
     idx.push(base, base + 1, base + 2, base + 1, base + 3, base + 2, base + 2, base + 3, base + 4);
   }
@@ -198,7 +199,7 @@ export class Vegetation {
     this.mFruit = new THREE.MeshStandardMaterial({ roughness: 0.4, vertexColors: true });
     this.mGrass = new THREE.MeshStandardMaterial({ roughness: 0.95, vertexColors: true, side: THREE.DoubleSide });
     addWind(this.mLeaves, 0.012, 'L');
-    addWind(this.mGrass, 0.25, 'G');
+    addWind(this.mGrass, 0.25, 'G', true);
     this.chunk = 340;
   }
 

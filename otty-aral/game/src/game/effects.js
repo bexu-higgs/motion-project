@@ -275,11 +275,12 @@ export class Effects {
   }
 
   muzzle(pos, dir, big = 1, near = true) {
-    const s = 0.28 * big;
-    this.add.spawn({ x: pos.x, y: pos.y, z: pos.z, life: 0.05, s0: s, s1: s * 1.3, c0: [1, 0.85, 0.55, 1], c1: [1, 0.5, 0.2, 0], fr: 3 });
-    this.add.spawn({ x: pos.x + dir.x * 0.12, y: pos.y + dir.y * 0.12, z: pos.z + dir.z * 0.12, life: 0.04, s0: s * 0.7, s1: s * 0.2, c0: [1, 0.95, 0.8, 1], fr: 0 });
+    const s = 0.42 * big;
+    this.add.spawn({ x: pos.x, y: pos.y, z: pos.z, life: 0.055, s0: s, s1: s * 1.35, c0: [1, 0.85, 0.55, 1], c1: [1, 0.5, 0.2, 0], fr: 3 });
+    this.add.spawn({ x: pos.x + dir.x * 0.15, y: pos.y + dir.y * 0.15, z: pos.z + dir.z * 0.15, life: 0.045, s0: s * 0.9, s1: s * 0.3, c0: [1, 0.95, 0.8, 1], fr: 0 });
+    this.add.spawn({ x: pos.x + dir.x * 0.06, y: pos.y + dir.y * 0.06, z: pos.z + dir.z * 0.06, life: 0.04, s0: s * 1.4, s1: s * 0.6, c0: [1, 0.9, 0.6, 0.8], fr: 7, rot: Math.random() * 3 });
     if (near) {
-      this.flash(pos, 5 * big);
+      this.flash(pos, 30 * big);
       for (let i = 0; i < 2; i++) this.alpha.spawn({ x: pos.x + dir.x * 0.2, y: pos.y, z: pos.z + dir.z * 0.2, vx: dir.x * 1.5 + (Math.random() - 0.5) * 0.4, vy: 0.4 + Math.random() * 0.3, vz: dir.z * 1.5, life: 0.7, s0: 0.12, s1: 0.5, c0: [0.75, 0.75, 0.72, 0.25], c1: [0.8, 0.8, 0.78, 0], fr: 1, drag: 3 });
     }
   }

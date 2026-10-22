@@ -422,8 +422,9 @@ export function yurt(ctx, x, y, z, doorAngle, rich = false) {
   b.geo(wallG, 'felt', 0xffffff, 0, WH / 2, 0, 0, 0, 0);
   // Ішкі кереге торы (қызыл ағаш)
   const inner = new THREE.CylinderGeometry(R - 0.06, R - 0.06, WH, 36, 1, true, doorAngle + gap + Math.PI / 2, Math.PI * 2 - gap * 2);
-  inner.scale(-1, 1, 1);
-  b.geo(inner, 'ornament', 0xffffff, 0, WH / 2, 0, 0, Math.PI, 0, { cast: false });
+  const iu = inner.attributes.uv;
+  for (let i = 0; i < iu.count; i++) iu.setXY(i, iu.getX(i) * (Math.PI * 2 * R) / 1.6, iu.getY(i) * WH / 1.6);
+  b.geo(inner, 'kerege', 0xffffff, 0, WH / 2, 0, 0, 0, 0, { cast: false });
   wallG.dispose(); inner.dispose();
   // Өрнекті белдеу
   const band = new THREE.CylinderGeometry(R + 0.02, R + 0.02, 0.35, 36, 1, true, doorAngle + gap + Math.PI / 2, Math.PI * 2 - gap * 2);
@@ -442,8 +443,10 @@ export function yurt(ctx, x, y, z, doorAngle, rich = false) {
   }
   dome.computeVertexNormals();
   b.geo(dome, 'felt', 0xf6f0e2, 0, WH + (TOP - WH) / 2, 0);
-  const domeIn = dome.clone(); domeIn.scale(-0.98, 0.98, 0.98);
-  b.geo(domeIn, 'wood', 0xa0522d, 0, WH + (TOP - WH) / 2 - 0.02, 0, 0, 0, 0, { cast: false });
+  const domeIn = dome.clone(); domeIn.scale(0.97, 0.98, 0.97);
+  const du = domeIn.attributes.uv;
+  for (let i = 0; i < du.count; i++) du.setX(i, du.getX(i) * 9);
+  b.geo(domeIn, 'uyk', 0xffffff, 0, WH + (TOP - WH) / 2 - 0.03, 0, 0, 0, 0, { cast: false });
   dome.dispose(); domeIn.dispose();
   // Шаңырақ
   const ring = new THREE.TorusGeometry(0.75, 0.08, 6, 24);

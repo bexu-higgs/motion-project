@@ -36,7 +36,35 @@ function load(key, def) {
   }
 }
 
+// Алғашқы іске қосуда құрылғының қуатына қарай графика сапасын таңдау
+function autoQuality() {
+  try {
+    const touch = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
+    if (!touch) return 'high';
+    const cores = navigator.hardwareConcurrency || 4;
+    const mem = navigator.deviceMemory || 4;
+    let gpu = '';
+    const c = document.createElement('canvas');
+    const gl = c.getContext('webgl2');
+    if (gl) {
+      const ext = gl.getExtension('WEBGL_debug_renderer_info');
+      gpu = String(gl.getParameter(ext ? ext.UNMASKED_RENDERER_WEBGL : gl.RENDERER) || '');
+      const lose = gl.getExtension('WEBGL_lose_context');
+      if (lose) lose.loseContext();
+    }
+    const strong = /Adreno \(TM\) (6[4-9]\d|7\d\d|8\d\d)|Mali-G(7[1-9]|71\d|72\d|6[1-9]\d)|Immortalis|Xclipse|Apple/i.test(gpu);
+    if (strong && mem >= 6) return 'high';
+    if (cores >= 8 && mem >= 4) return 'medium';
+    return 'low';
+  } catch (e) {
+    return 'medium';
+  }
+}
+
+let firstRun = false;
+try { firstRun = !localStorage.getItem(KEY); } catch (e) { firstRun = true; }
 export const settings = load(KEY, DEFAULTS);
+if (firstRun) { settings.quality = autoQuality(); saveSettings(); }
 if (![30, 60, 120].includes(settings.fps)) settings.fps = 60;
 if (!QUALITY[settings.quality]) settings.quality = 'high';
 

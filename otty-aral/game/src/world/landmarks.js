@@ -246,27 +246,44 @@ export function pier(ctx, x, z, len, rot, y = 1.4) {
   return b;
 }
 
-// Балықшы қайығы
+// Балықшы қайығы: үстінен қарағандағы пішіні созылып, V тәрізді түпке жиналады
 export function boat(ctx, x, z, ry, col = 0x2f6f9f, beached = false) {
   const b = new Builder(ctx, x, 0, z, 0, 0);
-  const L = 6, W = 2.2;
-  const shape = new THREE.Shape();
-  shape.moveTo(-W / 2, 0); shape.lineTo(W / 2, 0); shape.lineTo(W / 2 * 0.7, -0.9); shape.lineTo(-W / 2 * 0.7, -0.9); shape.closePath();
-  const hull = new THREE.ExtrudeGeometry(shape, { depth: L, bevelEnabled: false });
+  const L = 6.2, W = 2.1, D = 0.95;
+  const sh = new THREE.Shape();
+  sh.moveTo(-W / 2, -L / 2);
+  sh.lineTo(W / 2, -L / 2);
+  sh.bezierCurveTo(W / 2, L * 0.15, W * 0.35, L * 0.38, 0, L / 2);
+  sh.bezierCurveTo(-W * 0.35, L * 0.38, -W / 2, L * 0.15, -W / 2, -L / 2);
+  const hull = new THREE.ExtrudeGeometry(sh, { depth: D, bevelEnabled: false, curveSegments: 10 });
+  hull.rotateX(Math.PI / 2); // Shape XY -> XZ, экструзия төмен қарай
   const p = hull.attributes.position;
   for (let i = 0; i < p.count; i++) {
-    const zz = p.getZ(i) / L;
-    const taper = zz > 0.7 ? 1 - (zz - 0.7) / 0.3 * 0.95 : 1;
-    p.setX(i, p.getX(i) * taper);
-    p.setY(i, p.getY(i) + (zz > 0.75 ? (zz - 0.75) * 1.4 : 0));
+    const yy = p.getY(i);
+    const t = -yy / D; // 0 — жиегі, 1 — түбі
+    const zz = p.getZ(i);
+    const bow = Math.max(0, (zz / (L / 2)) - 0.4);
+    p.setX(i, p.getX(i) * (1 - t * 0.62));
+    p.setY(i, yy + bow * bow * 0.9 + (1 - t) * 0);
   }
   hull.computeVertexNormals();
-  hull.translate(0, 0, -L / 2);
-  const y = beached ? 0.6 : 0.35;
-  b.geo(hull, 'wood', col, 0, y + 0.9, 0, beached ? 0.05 : 0, ry, beached ? 0.18 : 0);
-  hull.dispose();
-  b.geo(uvBox(W * 0.85, 0.06, L * 0.65, 1.5), 'wood', 0x8a6a4a, 0, y + 0.5, 0, 0, ry, 0, { cast: false });
-  b.geo(uvBox(1.2, 1.0, 1.4, 1), 'paint', 0xf0f0f0, Math.sin(ry) * -1, y + 0.55, Math.cos(ry) * -1, 0, ry, 0);
+  const y = beached ? 0.55 : 0.45;
+  const rx = beached ? 0.04 : 0, rz = beached ? 0.16 : 0;
+  b.geo(hull, 'wood', col, 0, y + D * 0.55, 0, rx, ry, rz);
+  // Жиегі (ақ жолақ)
+  const rim = new THREE.ExtrudeGeometry(sh, { depth: 0.08, bevelEnabled: false, curveSegments: 10 });
+  rim.rotateX(Math.PI / 2);
+  rim.scale(1.02, 1, 1.01);
+  b.geo(rim, 'paint', 0xf2f2ee, 0, y + D * 0.55 + 0.04, 0, rx, ry, rz);
+  hull.dispose(); rim.dispose();
+  const cs = Math.cos(ry), sn = Math.sin(ry);
+  const at = (lx, lz) => [lx * cs + lz * sn, -lx * sn + lz * cs];
+  // Орындықтар, кабина, мотор
+  for (const lz of [-1.4, 0.6]) { const [ax, az] = at(0, lz); b.geo(uvBox(W * 0.8, 0.06, 0.35, 1.5), 'wood', 0x8a6a4a, ax, y + 0.25, az, rx, ry, rz, { cast: false }); }
+  { const [ax, az] = at(0, -0.4); b.geo(uvBox(1.25, 0.9, 1.2, 1), 'paint', 0xeeeeea, ax, y + 0.3, az, rx, ry, rz); }
+  { const [ax, az] = at(0, -0.4); b.geo(uvBox(1.15, 0.32, 1.22, 1), 'glass', 0x9fb6c8, ax, y + 0.85, az, rx, ry, rz, { cast: false }); }
+  { const [ax, az] = at(0, -0.4); b.geo(uvBox(1.4, 0.08, 1.4, 1), 'paint', col, ax, y + 1.22, az, rx, ry, rz); }
+  { const [ax, az] = at(0, -L / 2 - 0.15); b.geo(uvBox(0.35, 0.55, 0.4, 1), 'paint', 0x222222, ax, y + 0.3, az, rx, ry, rz); }
   ctx.col.addBox(x - 1.8, y - 0.6, z - 1.8, x + 1.8, y + 1.0, z + 1.8, 'wood', true);
   ctx.boats.push(b);
 }

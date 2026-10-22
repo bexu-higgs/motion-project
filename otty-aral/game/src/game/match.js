@@ -365,7 +365,8 @@ export class Match {
     }
     if (victim === this.player) {
       this.stats.place = this.aliveCount + 1;
-      this.stats.killer = killer && killer !== victim ? killer.name : (weapon === 'zone' ? T.hud.zoneKill : null);
+      this.stats.killer = killer && killer !== victim ? killer.name : null;
+      this.stats.cause = weapon;
       this.finish(false);
     } else if (this.aliveCount <= 1 && this.player.alive) {
       this.stats.place = 1;

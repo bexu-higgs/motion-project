@@ -1,6 +1,7 @@
 // Процедуралық текстуралар: барлығы кодпен салынады, сыртқы файл қажет емес.
 import * as THREE from 'three';
 import { TileNoise, RNG, clamp } from '../core/rng.js';
+import { cacheGet, cacheSet } from '../core/cache.js';
 
 const tn = new TileNoise(1337);
 
@@ -310,6 +311,51 @@ const GEN = {
     return { c: p.c, h: p.h, ns: 1.5 };
   },
 
+  // Кереге торы: киіз үстінде қызыл ағаш айқас таяқтар
+  kerege(size) {
+    const p = pixels(size, (u, v, o) => {
+      const n = tn.fbm(u, v, 8, 4);
+      const b = 0.82 + n * 0.12;
+      o[0] = 232 * b; o[1] = 220 * b; o[2] = 196 * b;
+      const w = 0.035;
+      const d1 = Math.abs(((u + v) * 4) % 1 - 0.5), d2 = Math.abs(((u - v + 4) * 4) % 1 - 0.5);
+      const l1 = d1 > 0.5 - w ? 1 : 0, l2 = d2 > 0.5 - w ? 1 : 0;
+      if (l1 || l2) {
+        const g = 0.75 + tn.value(u, v, 64) * 0.25;
+        o[0] = 150 * g; o[1] = 42 * g; o[2] = 30 * g;
+        return 0.9;
+      }
+      return 0.3 + n * 0.2;
+    });
+    // Түйіспелердегі қайыс байлау
+    const ctx = p.ctx;
+    ctx.fillStyle = '#3a2416';
+    for (let i = 0; i < 8; i++) for (let j = 0; j < 8; j++) {
+      const x = (i + 0.5) / 8 * size, y = (j + 0.5) / 8 * size;
+      if ((i + j) % 2) continue;
+      ctx.beginPath(); ctx.arc(x, y, size / 90, 0, 7); ctx.fill();
+    }
+    return { c: p.c, h: heightFromCanvas(p.c), ns: 3.0 };
+  },
+
+  // Уықтар: шаңыраққа қарай тартылған қызыл сырлы таяқтар
+  uyk(size) {
+    const p = pixels(size, (u, v, o) => {
+      const n = tn.fbm(u, v, 8, 4);
+      const b = 0.86 + n * 0.1;
+      o[0] = 250 * b; o[1] = 240 * b; o[2] = 218 * b;
+      const f = (u * 4) % 1;
+      if (f < 0.14) {
+        const g = 0.8 + Math.sin(f / 0.14 * Math.PI) * 0.25;
+        o[0] = 170 * g; o[1] = 50 * g; o[2] = 34 * g;
+        if (((v * 6) % 1) < 0.05) { o[0] = 230; o[1] = 190; o[2] = 70; }
+        return 0.9;
+      }
+      return 0.3 + n * 0.2;
+    });
+    return { c: p.c, h: p.h, ns: 3.0 };
+  },
+
   ornament(size) {
     const c = canvas(size);
     const ctx = c.getContext('2d');
@@ -543,14 +589,36 @@ export class TextureLib {
 
   async generateAll(onProgress) {
     const names = Object.keys(GEN);
-    const rng = new RNG(4242);
+    const hash = (str) => { let h = 2166136261; for (let i = 0; i < str.length; i++) h = Math.imul(h ^ str.charCodeAt(i), 16777619); return h >>> 0; };
+    const toCanvas = (data, size) => {
+      const c = canvas(size);
+      const ctx = c.getContext('2d');
+      const img = ctx.createImageData(size, size);
+      img.data.set(data);
+      ctx.putImageData(img, 0, 0);
+      return c;
+    };
+    const pixelsOf = (c) => c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
     for (let i = 0; i < names.length; i++) {
       const n = names[i];
       const s = (n === 'ornament' || n === 'carpet') ? Math.min(512, this.size) : this.size;
-      const r = GEN[n](s, rng);
+      const key = `tex:${s}:${this.normals ? 1 : 0}:${n}`;
       const entry = {};
-      if (!r.normalOnly) entry.map = this._tex(r.c, true);
-      if ((this.normals || r.normalOnly) && r.h) entry.normal = this._tex(normalFromHeight(r.h, s, r.ns || 2), false);
+      const cached = await cacheGet(key);
+      if (cached && cached.size === s) {
+        if (cached.map) entry.map = this._tex(toCanvas(cached.map, s), true);
+        if (cached.normal) entry.normal = this._tex(toCanvas(cached.normal, s), false);
+      } else {
+        const r = GEN[n](s, new RNG(hash(n)));
+        const store = { size: s };
+        if (!r.normalOnly) { entry.map = this._tex(r.c, true); store.map = pixelsOf(r.c); }
+        if ((this.normals || r.normalOnly) && r.h) {
+          const nc = normalFromHeight(r.h, s, r.ns || 2);
+          entry.normal = this._tex(nc, false);
+          store.normal = pixelsOf(nc);
+        }
+        cacheSet(key, store);
+      }
       this.t[n] = entry;
       if (onProgress) onProgress((i + 1) / names.length);
       await new Promise((res) => setTimeout(res, 0));

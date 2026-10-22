@@ -8,7 +8,7 @@ export const PHYS = {
   plaster: 'concrete', brick: 'concrete', concrete: 'concrete', stone: 'concrete', asphalt: 'concrete',
   wood: 'wood', crate: 'wood', roof: 'wood', hay: 'cloth', bark: 'wood', birch: 'wood',
   metal: 'metal', paint: 'metal', flatMetal: 'metal', gold: 'metal',
-  felt: 'cloth', fabric: 'cloth', carpet: 'cloth', ornament: 'cloth', camo: 'cloth', burlap: 'sand',
+  felt: 'cloth', kerege: 'cloth', uyk: 'cloth', fabric: 'cloth', carpet: 'cloth', ornament: 'cloth', camo: 'cloth', burlap: 'sand',
   rock: 'concrete', dirt: 'dirt', flat: 'wood', glass: 'metal', leaves: 'cloth',
 };
 

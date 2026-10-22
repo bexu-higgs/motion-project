@@ -3,7 +3,7 @@ import * as THREE from 'three';
 
 export const MAT_TILE = {
   plaster: 2.5, brick: 2.2, concrete: 3, wood: 2.2, crate: 1.2, metal: 3, paint: 2, roof: 2.5,
-  felt: 2.2, ornament: 1, carpet: 1, stone: 3, burlap: 1, hay: 1.5, camo: 2, fabric: 1, asphalt: 6,
+  felt: 2.2, ornament: 1, kerege: 1.6, uyk: 1, carpet: 1, stone: 3, burlap: 1, hay: 1.5, camo: 2, fabric: 1, asphalt: 6,
   rock: 4, dirt: 4, bark: 1.2, birch: 1.5, glass: 1,
 };
 
@@ -42,6 +42,8 @@ export function makeMaterials(tex) {
   std('roof', { roughness: 0.82 });
   std('felt', { roughness: 0.97 });
   std('ornament', { roughness: 0.9, noNormal: true });
+  std('kerege', { roughness: 0.95, side: THREE.DoubleSide });
+  std('uyk', { roughness: 0.9, side: THREE.DoubleSide });
   std('carpet', { roughness: 0.98, noNormal: true });
   std('stone', { roughness: 0.92 });
   std('burlap', { roughness: 0.97 });

@@ -45,7 +45,8 @@ export class Terrain {
       const dx = x - p.x, dz = z - p.z;
       const dd = Math.sqrt(dx * dx + dz * dz);
       const t = smoothstep(p.r + 40, p.r, dd);
-      if (t > 0) h = lerp(h, p.h + N2.noise(x / 60, z / 60) * 0.25, t);
+      // Жағалаудағы елді мекендер теңізді толтырмайды
+      if (t > 0 && (!p.coast || h > 0.4)) h = lerp(h, p.h + N2.noise(x / 60, z / 60) * 0.25, p.coast ? Math.min(t, smoothstep(0.4, 2.5, h)) : t);
     }
     // Жолдарды тегістеу
     const rd = roadDist(x, z);
@@ -123,7 +124,7 @@ export class Terrain {
       for (const p of POIS) {
         const dx = x - p.x, dz = z - p.z;
         const dd = Math.sqrt(dx * dx + dz * dz);
-        dirt = Math.max(dirt, smoothstep(p.r * 0.95, p.r * 0.4, dd) * (0.35 + 0.4 * clamp(N.fbm(x / 25, z / 25, 2) + 0.5, 0, 1)));
+        dirt = Math.max(dirt, smoothstep(p.r * 0.9, p.r * 0.35, dd) * (0.15 + 0.55 * clamp(N.fbm(x / 22, z / 22, 3) * 1.6 + 0.4, 0, 1)));
       }
       const rd = roadDist(x, z);
       dirt = Math.max(dirt, smoothstep(6.5, 3.0, rd + N.noise(x / 6, z / 6) * 1.2));

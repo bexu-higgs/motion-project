@@ -11,13 +11,13 @@ export const MAP = {
 export const POIS = [
   { id: 'bayterek', x: 0, z: 20, r: 85, h: 8, tier: 1 },
   { id: 'factory', x: -235, z: 130, r: 72, h: 6, tier: 1 },
-  { id: 'harbor', x: 255, z: 255, r: 62, h: 2.2, tier: 0 },
+  { id: 'harbor', x: 250, z: 250, r: 48, h: 2.2, tier: 0, coast: true },
   { id: 'jailau', x: -60, z: -245, r: 70, h: 14, tier: 0 },
   { id: 'military', x: 225, z: -175, r: 82, h: 10, tier: 2 },
   { id: 'fortress', x: -265, z: -165, r: 52, h: 36, tier: 2 },
   { id: 'orchard', x: 105, z: 185, r: 62, h: 6, tier: 0 },
   { id: 'windfarm', x: 300, z: 25, r: 45, h: 18, tier: 0 },
-  { id: 'lighthouse', x: -300, z: 300, r: 30, h: 7, tier: 1 },
+  { id: 'lighthouse', x: -257, z: 282, r: 24, h: 11, tier: 1, coast: true },
 ];
 
 export const poi = (id) => POIS.find((p) => p.id === id);
@@ -29,7 +29,7 @@ export const ROADS = [
   [[0, 20], [20, -90], [-60, -245]],
   [[0, 20], [120, -60], [225, -175]],
   [[0, 20], [160, 20], [300, 25]],
-  [[-235, 130], [-280, 230], [-300, 300]],
+  [[-235, 130], [-262, 215], [-257, 282]],
   [[-60, -245], [-170, -200], [-265, -165]],
   [[225, -175], [300, 25]],
   [[-235, 130], [-250, 0], [-265, -165]],
