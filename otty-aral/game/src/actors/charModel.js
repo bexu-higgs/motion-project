@@ -406,6 +406,19 @@ export class CharacterModel {
       ft.rotation.set(fx - kx * 0.25 + Math.max(0, -tx) * 0.1, 0, 0);
     }
 
+    // Көлікте отыру
+    st.sit = damp(st.sit || 0, a.sit ? 1 : 0, 12, dt);
+    if (st.sit > 0.01) {
+      const k = st.sit;
+      B.hips.position.y = lerp(B.hips.position.y, this.rest.hips.y - 0.42, k);
+      for (const s of ['L', 'R']) {
+        B['thigh' + s].rotation.x = lerp(B['thigh' + s].rotation.x, -1.45, k);
+        B['thigh' + s].rotation.z = lerp(B['thigh' + s].rotation.z, (s === 'L' ? 1 : -1) * 0.12, k);
+        B['shin' + s].rotation.x = lerp(B['shin' + s].rotation.x, 1.35, k);
+        B['foot' + s].rotation.x = lerp(B['foot' + s].rotation.x, 0.1, k);
+      }
+      B.spine.rotation.x = lerp(B.spine.rotation.x, -0.08, k);
+    }
     // Еркін құлау / парашют
     if (st.dive > 0.01) {
       B.root.rotation.x = st.dive * 1.35;
@@ -443,9 +456,9 @@ export class CharacterModel {
     // Қолдар
     const def = this.weaponDef;
     const armed = !!(def && this.weaponMesh) && st.dead < 0.3;
-    if (this.weaponMesh) this.weaponMesh.visible = armed;
+    if (this.weaponMesh) this.weaponMesh.visible = armed && !a.sit;
     const simple = !a.near;
-    if (armed && st.dive < 0.5 && st.chute < 0.5) {
+    if (armed && st.dive < 0.5 && st.chute < 0.5 && !(st.sit > 0.5)) {
       // Қару ұяшығының орны (кеуде кеңістігінде)
       const g = def.hold;
       const low = st.lowGun;
@@ -483,6 +496,13 @@ export class CharacterModel {
 
   _fkArms(armedSimple, ph = 0, mv = 0, back = 1) {
     const B = this.bones, st = this.st;
+    if (st.sit > 0.5) {
+      // Рульді ұстау
+      B.upperArmL.rotation.set(-1.0, 0, 0.25); B.foreArmL.rotation.set(-0.55, 0, 0);
+      B.upperArmR.rotation.set(-1.0, 0, -0.25); B.foreArmR.rotation.set(-0.55, 0, 0);
+      B.handL.rotation.set(0, 0, 0); B.handR.rotation.set(0, 0, 0);
+      return;
+    }
     if (armedSimple) {
       B.upperArmR.rotation.set(-1.1, 0, -0.35); B.foreArmR.rotation.set(-0.9, 0, 0);
       B.upperArmL.rotation.set(-1.3, 0, 0.5); B.foreArmL.rotation.set(-0.6, 0, 0);

@@ -507,6 +507,43 @@ function zoneLoop() {
   for (let i = 0; i < 40; i++) { const c = noise(0.004, 60 + i); filter(c, 'hp', 2000); envExp(c, 0, 0.0015); mix(b, c, Math.abs(r()) * (L - 0.05), 0.4 * Math.abs(r())); }
   return normalize(loopify(b, 0.1), 0.5);
 }
+function engineLoop() {
+  const L = 4.0;
+  const b = buf(L);
+  const f0 = 46;
+  for (let h = 1; h <= 6; h++) mix(b, tone(L, f0 * h, 'saw'), 0, 0.45 / h);
+  // Цилиндр соққылары
+  for (let i = 0; i < b.length; i++) b[i] *= 0.65 + 0.35 * Math.max(0, Math.sin(2 * Math.PI * 92 * i / SR));
+  filter(b, 'lp', 1100);
+  const n = brown(L, 90); filter(n, 'bp', 300, 0.6);
+  mix(b, n, 0, 0.5);
+  const ex = noise(L, 91); filter(ex, 'bp', 1800, 1.2);
+  for (let i = 0; i < ex.length; i++) ex[i] *= 0.1 * (0.5 + 0.5 * Math.sin(2 * Math.PI * 23 * i / SR));
+  mix(b, ex, 0, 1);
+  softclip(b, 1.6);
+  return normalize(loopify(b, 0.2), 0.6);
+}
+function door(seed) {
+  const b = buf(0.5);
+  mix(b, modal(0.3, [[140, 0.06, 1], [260, 0.05, 0.6], [520, 0.03, 0.3]], seed), 0, 0.9);
+  mix(b, click(seed + 1, 2200, 0.05), 0.01, 0.5);
+  const n = noise(0.08, seed + 2); filter(n, 'lp', 1500); envExp(n, 0.001, 0.02);
+  mix(b, n, 0, 0.6);
+  return normalize(b, 0.65);
+}
+function crash(seed) {
+  const b = buf(1.2);
+  const r = rngf(seed);
+  const n = noise(0.6, seed); filter(n, 'bp', 1400, 0.6); envExp(n, 0.002, 0.12);
+  mix(b, n, 0, 1);
+  mix(b, modal(0.8, [[420, 0.2, 1], [910, 0.14, 0.7], [1730, 0.1, 0.5], [2650, 0.06, 0.3]], seed + 1), 0, 0.7);
+  const th = tone(0.3, (t) => 50 + 90 * Math.exp(-t / 0.03)); envExp(th, 0.002, 0.08);
+  mix(b, th, 0, 1);
+  for (let i = 0; i < 12; i++) mix(b, impact(Math.abs(r()) > 0.5 ? 'metal' : 'concrete', seed + 10 + i), 0.05 + Math.abs(r()) * 0.4, 0.15);
+  softclip(b, 1.8);
+  return normalize(reverb(b, { room: 0.6, wet: 0.2, tail: 0.4 }), 0.85);
+}
+
 function birdChirp(seed) {
   const r = rngf(seed);
   const b = buf(0.9);
@@ -571,6 +608,9 @@ add('wind_loop', () => windLoop(), 'loop');
 add('ambient_loop', () => ambientLoop(), 'loop');
 add('waves_loop', () => wavesLoop(), 'loop');
 add('zone_loop', () => zoneLoop(), 'loop');
+add('engine_loop', () => engineLoop(), 'loop');
+add('door', () => door(26));
+add('crash', () => crash(27));
 for (let i = 0; i < 4; i++) add('bird_' + i, () => birdChirp(500 + i * 31));
 
 export { GUN, reverb as _reverb, concat, delay, fadeIn, Biquad };

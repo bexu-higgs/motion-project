@@ -25,6 +25,7 @@ export class PlayerController {
     this.scoped = false;
     this.firePrev = false;
     this.semiReady = true;
+    this.nearCar = null;
     this.nearItem = null;
     this.nearBox = null;
     this.camInit = false;
@@ -40,6 +41,7 @@ export class PlayerController {
     const a = this.a, M = this.m, I = this.input;
     // ---- Қарау ----
     const [lx, ly] = I.consumeLook();
+    this.lookAmt = Math.abs(lx) + Math.abs(ly);
     const zoom = this.scoped ? a.def.zoom : this.aiming ? Math.min(1.6, a.def.zoom || 1.3) : 1;
     const base = (isTouch ? 0.0058 : 0.0026) * settings.sens;
     const k = base * (this.aiming ? settings.aimSens / zoom : 1);
@@ -51,6 +53,14 @@ export class PlayerController {
 
     if (a.state === 'plane') return this.updatePlane(dt);
     if (!a.alive) return this.updateDead(dt);
+
+    // ---- Көлік ----
+    if (I.take('car')) {
+      if (a.vehicle) M.vehicles.exit(a);
+      else { const v = M.vehicles.nearest(a.pos); if (v && a.state === 'ground') { M.vehicles.enter(a, v); this.aimToggle = false; } }
+    }
+    if (a.vehicle) return this.updateDriving(dt);
+    this.nearCar = a.state === 'ground' ? M.vehicles.nearest(a.pos) : null;
 
     // ---- Әрекеттер ----
     if (I.take('aim')) this.aimToggle = !this.aimToggle;
@@ -105,6 +115,22 @@ export class PlayerController {
 
     // ---- Жақын олжа ----
     this.scanLoot();
+  }
+
+  updateDriving(dt) {
+    const a = this.a, M = this.m, I = this.input;
+    const v = a.vehicle;
+    this.nearCar = null;
+    this.nearItem = null; this.nearBox = null;
+    for (const k of ['aim', 'crouch', 'reload', 'heal', 'kymyz', 'gloo', 'grenade', 'pickup', 'jump', 'slot0', 'slot1', 'slot2']) I.take(k);
+    a.firing = false;
+    M.vehicles.drive(v, dt, I.moveY, -I.moveX);
+    // Камера артқа өздігінен қайтады
+    if ((this.lookAmt || 0) < 0.01) {
+      this.idleLook = (this.idleLook || 0) + dt;
+      if (this.idleLook > 1.2) this.yaw += angleDiff(this.yaw, v.yaw) * Math.min(1, dt * 2.5);
+    } else this.idleLook = 0;
+    this.pitch = clamp(this.pitch, -0.6, 0.5);
   }
 
   get aiming() { return (this.aimToggle || this.input.aimHold) && this.a.alive && this.a.state === 'ground' && !this.a.def.melee; }
@@ -211,7 +237,8 @@ export class PlayerController {
       dist = 32; side = 0; targetFov = 65;
     } else {
       const ey = a.visualY;
-      if (a.state === 'fall') { dist = 5.5; height = 1.2; side = 0; targetFov = 78; }
+      if (a.vehicle) { dist = 7.2; height = 1.9; side = 0; targetFov = 72 + Math.min(8, Math.abs(a.vehicle.speed) * 0.4); }
+      else if (a.state === 'fall') { dist = 5.5; height = 1.2; side = 0; targetFov = 78; }
       else if (a.state === 'chute') { dist = 6.5; height = 2.2; side = 0; targetFov = 72; }
       else if (!a.alive) { dist = 5; height = 1.8; side = 0; }
       else if (this.aiming) {

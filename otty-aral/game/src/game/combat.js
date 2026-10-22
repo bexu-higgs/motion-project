@@ -114,6 +114,7 @@ export class Combat {
       M.throwables.damageGloo(h.solid.gloo, def.dmg * (def.pellets ? 0.5 : 1));
       mat = 'ice';
     }
+    if (h.solid && h.solid.vehicle) M.vehicles.damage(h.solid.vehicle, def.dmg * 0.5, shooter);
     const kind = mat === 'grass' ? 'dirt' : mat;
     const d = M.camera.position.distanceTo(_e.set(h.x, h.y, h.z));
     if (d < 120) M.effects.impact(h, kind === 'water' ? 'water' : kind, def.id === 'sniper' ? 1.4 : 1);

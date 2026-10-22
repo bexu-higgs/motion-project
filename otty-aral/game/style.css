@@ -135,6 +135,11 @@ input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 22px;
 .btn.kymyz { width: min(10vh, 58px); height: min(10vh, 58px); left: calc(50% - min(31vh, 200px) + 9vh); bottom: calc(26vh + 8px); }
 .btn.pickup { width: auto; height: 48px; border-radius: 14px; padding: 0 18px 0 10px; right: calc(30% + var(--safe-r)); top: 44%; display: flex; gap: 10px; background: rgba(10,20,35,.75); border-color: var(--gold); font-weight: 800; font-size: 15px; }
 .btn.pickup svg { width: 26px; height: 26px; }
+.btn.carbtn { top: auto; bottom: calc(50vh + 6px); right: calc(30% + var(--safe-r)); border-color: var(--sky2); }
+.speedo { position: absolute; right: calc(5vw + min(22vh, 124px) + 4vh + var(--safe-r)); bottom: 28vh; text-align: center; pointer-events: none; text-shadow: 0 2px 4px #000; }
+.speedo b { display: block; font-size: min(9vh, 40px); font-weight: 900; line-height: 1; font-style: italic; }
+.speedo span { font-size: 12px; color: var(--dim); font-weight: 700; }
+.speedo .vhp { width: 90px; height: 6px; border-radius: 4px; background: rgba(0,0,0,.5); margin-top: 6px; overflow: hidden; } .speedo .vhp i { display: block; height: 100%; background: linear-gradient(90deg, #ffb02e, #ffe27a); }
 .btn.planejump, .btn.chute { width: auto; height: 64px; border-radius: 16px; padding: 0 28px; right: calc(8% + var(--safe-r)); bottom: 38%; font-weight: 900; font-size: 22px; letter-spacing: .06em; color: #3a1a00; border: none;
   background: linear-gradient(180deg, #fff2a8, var(--gold) 45%, #f59a00); box-shadow: 0 5px 0 #a45a00, 0 10px 24px rgba(254,160,12,.4); }
 .btn.pausebtn { width: 42px; height: 42px; border-radius: 12px; right: calc(1.6% + var(--safe-r)); top: 2.4%; }

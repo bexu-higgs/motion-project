@@ -11,6 +11,7 @@ import { Zone } from './zone.js';
 import { Throwables } from './throwables.js';
 import { Plane, Airdrop } from './plane.js';
 import { Effects } from './effects.js';
+import { Vehicles } from './vehicles.js';
 import { RNG } from '../core/rng.js';
 import { T } from '../core/i18n.js';
 import { settings, vibrate } from '../core/settings.js';
@@ -42,6 +43,7 @@ export class Match {
     this.throwables = new Throwables(this);
     this.plane = new Plane(this);
     this.airdrop = new Airdrop(this);
+    this.vehicles = new Vehicles(this);
     this.actors = [];
     this.bots = [];
     const rng = new RNG(7);
@@ -139,6 +141,8 @@ export class Match {
     this.effects.clear();
     this.throwables.clear();
     this.loot.spawnAll(this.world.lootSpots, seed);
+    for (const a of this.actors) if (a.vehicle) this.vehicles.exit(a);
+    this.vehicles.reset();
     this.zone.reset(seed + 1);
     this.plane.start(rng);
     this.airdropDone = false;
@@ -199,6 +203,9 @@ export class Match {
       }
       if (a.pos.y < -40) this.combat.damage(a, 999, null, 'body', 'fall');
     }
+    this.vehicles.update(dt);
+    // Көліктегілер орындықта отырады
+    for (const a of this.actors) if (a.vehicle && a.alive) this.seat(a);
     this.throwables.update(dt);
     this.loot.update(dt, this.camera);
     // Модельдер
@@ -255,6 +262,18 @@ export class Match {
       this.lowHpT -= dt;
       if (this.lowHpT <= 0) { this.lowHpT = 0.9; audio.play('heartbeat', { volume: 0.7 }); }
     }
+  }
+
+  seat(a) {
+    const v = a.vehicle;
+    const s = Math.sin(v.yaw), c = Math.cos(v.yaw);
+    const lx = 0.42, lz = -0.2;
+    a.pos.set(v.pos.x + lx * c + lz * s, v.pos.y + 0.4, v.pos.z - lx * s + lz * c);
+    a.visualY = a.pos.y;
+    a.vel.set(s * v.speed, 0, c * v.speed);
+    a.yaw = v.yaw;
+    a.onGround = true;
+    a.moveSpeed = 0;
   }
 
   // ---------- Әрекеттер ----------
@@ -346,6 +365,7 @@ export class Match {
   }
 
   onKill(victim, killer, weapon, head) {
+    if (victim.vehicle) this.vehicles.exit(victim);
     victim.alive = false;
     victim.state = 'dead';
     victim.deathT = 0;

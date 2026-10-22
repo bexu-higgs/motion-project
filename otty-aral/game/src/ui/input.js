@@ -120,7 +120,7 @@ export class Input {
   // ---- Пернетақта мен тышқан ----
   bindKeyboard() {
     const map = {
-      KeyR: 'reload', Space: 'jump', KeyC: 'crouch', ControlLeft: 'crouch', KeyF: 'pickup', KeyE: 'pickup', KeyG: 'gloo', KeyH: 'heal', KeyJ: 'kymyz',
+      KeyR: 'reload', Space: 'jump', KeyC: 'crouch', ControlLeft: 'crouch', KeyF: 'pickup', KeyE: 'car', KeyG: 'gloo', KeyH: 'heal', KeyJ: 'kymyz',
       KeyQ: 'grenade', Digit1: 'slot0', Digit2: 'slot1', Digit3: 'slot2', Digit4: 'heal', Digit5: 'kymyz', Escape: 'pause', KeyP: 'pause', KeyX: 'holster', KeyV: 'view',
     };
     window.addEventListener('keydown', (e) => {

@@ -58,8 +58,8 @@ export const TIMES = {
     zenith: 0x3d7fd1, horizon: 0xc6dcec, ground: 0x9fb3c0, glow: 0xffe2b0, fog: 0xb9d3e6, exposure: 1.05, waterSky: 0xa9cbe6, env: 0.55,
   },
   sunset: {
-    sun: [-0.78, 0.17, -0.6], sunCol: 0xffb070, sunI: 2.6, hemiSky: 0xb8c4e8, hemiGround: 0x6a4830, hemiI: 0.95,
-    zenith: 0x2e4f8f, horizon: 0xf0a070, ground: 0x8a7060, glow: 0xff9a50, fog: 0xd8a888, exposure: 1.1, waterSky: 0xe8a888, env: 0.5,
+    sun: [-0.78, 0.2, -0.6], sunCol: 0xffb478, sunI: 3.0, hemiSky: 0xc4ccec, hemiGround: 0x7a5838, hemiI: 1.3,
+    zenith: 0x2e4f8f, horizon: 0xf0a070, ground: 0x8a7060, glow: 0xff9a50, fog: 0xd8a888, exposure: 1.2, waterSky: 0xe8a888, env: 0.5,
   },
 };
 

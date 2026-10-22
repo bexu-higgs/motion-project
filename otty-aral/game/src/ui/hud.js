@@ -89,6 +89,10 @@ export class HUD {
     this.bPlane.textContent = T.hud.jump;
     this.bChute = B('parachute', 'chute hidden', '', '');
     this.bChute.textContent = T.hud.parachute;
+    this.bCar = B('car', 'pickup carbtn hidden', ICON.car + '<span class="pt"></span>');
+    this.carTx = this.bCar.querySelector('.pt');
+    this.speedEl = el('div', 'speedo hidden', '<b>0</b><span></span><div class="vhp"><i></i></div>');
+    h.appendChild(this.speedEl);
     this.bPause = B('pause', 'pausebtn', ICON.pause);
     this.bMap = B('map', 'mapbtn', ICON.map);
     this.cnt = { gloo: this.bGloo.querySelector('.cnt'), heal: this.bHeal.querySelector('.cnt'), kymyz: this.bKymyz.querySelector('.cnt'), grenade: this.bNade.querySelector('.cnt') };
@@ -106,6 +110,7 @@ export class HUD {
   applyTouchMode() {
     const touch = isTouch;
     for (const b of this.buttons) if (!['pause', 'map'].includes(b.dataset.action) && !b.classList.contains('planejump') && !b.classList.contains('chute') && !b.classList.contains('pickup')) b.style.display = touch ? '' : 'none';
+    this.speedEl.querySelector('span').textContent = T.hud.kmh;
     this.bFireL.style.display = touch && settings.leftFire ? '' : 'none';
     this.joyZone.style.display = touch ? '' : 'none';
     this.lookLayer.style.display = touch ? '' : 'none';
@@ -259,7 +264,8 @@ export class HUD {
     this.frames++; this.fpsT += dt;
     if (this.fpsT > 0.5) { this.fps = Math.round(this.frames / this.fpsT); this.frames = 0; this.fpsT = 0; this.setText(this.fpsEl, settings.showFps ? this.fps + ' FPS' : ''); }
     const st = P.state;
-    const ground = st === 'ground' && P.alive;
+    const driving = !!P.vehicle;
+    const ground = st === 'ground' && P.alive && !driving;
     this.setVis(this.bPlane, st === 'plane');
     this.setVis(this.bChute, st === 'fall');
     this.setVis(this.planeHint, st === 'plane');
@@ -340,6 +346,17 @@ export class HUD {
       this.healP.setAttribute('stroke-dashoffset', String(201 * (P.healT / P.healDur)));
       this.setText(this.healTx, P.healKind === 'kymyz' ? T.hud.drinking : T.hud.healing);
     }
+    // Көлік
+    const carNear = !!pc.nearCar && ground;
+    this.setVis(this.bCar, carNear || driving);
+    if (carNear || driving) this.setText(this.carTx, driving ? T.hud.exitCar : T.hud.enterCar);
+    this.setVis(this.speedEl, driving);
+    if (driving) {
+      const v = P.vehicle;
+      this.setText(this.speedEl.firstChild, String(Math.round(Math.abs(v.speed) * 3.6)));
+      this.css(this.speedEl.querySelector('.vhp i'), 'width', Math.max(0, v.hp / 650 * 100).toFixed(0) + '%');
+    }
+    if (isTouch) this.css(this.joyZone, 'visibility', st === 'plane' || !P.alive ? 'hidden' : 'visible');
     // Алу батырмасы
     const ni = pc.nearItem;
     this.setVis(this.bPick, !!ni && ground);

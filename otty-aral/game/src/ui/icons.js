@@ -19,5 +19,6 @@ export const ICON = {
   book: s('<path d="M4 5c3-1.5 5.5-1.5 8 0v15c-2.5-1.5-5-1.5-8 0zM20 5c-3-1.5-5.5-1.5-8 0v15c2.5-1.5 5-1.5 8 0z"/>'),
   chart: s('<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>'),
   exit: s('<path d="M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10"/>'),
+  car: s('<path d="M3 15v-3l2-5h14l2 5v3z"/><circle cx="7.5" cy="16.5" r="2"/><circle cx="16.5" cy="16.5" r="2"/><path d="M6 12h12"/>'),
   skull: s('<path d="M5 11a7 7 0 0 1 14 0v3l-2 1v3H7v-3l-2-1z"/><circle cx="9" cy="11" r="1.6" fill="#fff"/><circle cx="15" cy="11" r="1.6" fill="#fff"/>'),
 };

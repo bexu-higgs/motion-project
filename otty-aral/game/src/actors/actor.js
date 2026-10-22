@@ -43,6 +43,7 @@ export class Actor {
     this.items = { medkit: 0, kymyz: 0, gloo: 0, grenade: 0 };
     this.state = 'plane';
     this.alive = true;
+    this.vehicle = null;
     this.crouch = false;
     this.aiming = false;
     this.onGround = false;
@@ -350,7 +351,9 @@ export class Actor {
     a.dead = !this.alive;
     a.reloading = this.reloadT > 0;
     a.healing = this.healT > 0;
-    a.holster = this.switchT > 0.2;
+    a.holster = this.switchT > 0.2 || !!this.vehicle;
+    a.sit = !!this.vehicle;
+    if (this.vehicle) { a.crouch = false; a.air = false; a.speed = 0; }
     a.near = dist < 45;
     if (this.fireKick) { a.fireKick = this.fireKick; this.fireKick = 0; }
     this.model.animate(a, ((this.id + this.match.frame) & 3) === 0 && dist > 160 ? dt * 4 : dt);
