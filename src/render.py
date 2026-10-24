@@ -14,8 +14,8 @@ from pathlib import Path
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).parent))
-from fx import (H, W, Sprite, Video, blurred_cover, clamp01, in_cubic, in_out_cubic,  # noqa: E402
-                keyframes, lerp, out_back, out_cubic, out_expo, paste, place, prog,
+from fx import (H, W, Sprite, Video, blurred_cover, clamp01, in_out_cubic,  # noqa: E402
+                lerp, out_back, out_cubic, out_expo, paste, place, prog,
                 rounded_rect_mask, shadow, text_sprite)
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -29,8 +29,7 @@ T_MORPH = (3.15, 4.0)  # intro stack -> header row
 T_CARD = (3.75, 4.65)    # blockout card rises in
 T_HIGGS = 9.9          # "+ Higgsfield Genjutsu" joins the header
 T_WIPE = (11.0, 12.3)  # blockout -> realistic wipe on the card
-T_EXPAND = (12.7, 13.7)  # card grows to full screen
-T_OUTRO = 33.2         # result blurs away, final lockup
+T_OUTRO = 33.2         # card leaves, header settles into the end lockup
 DURATION = 37.6
 
 CREAM = (240, 238, 230)
@@ -39,12 +38,6 @@ LIME = np.array([212, 255, 0], np.float32) / 255
 
 CARD = (40, 719, 1040, 719 + 1000 * 1078 / 1920)  # x0, y0, x1, y1
 CARD_R = 30
-
-# where the action is in the 16:9 result (fraction of width), by story time
-CROP_X = [(9.0, 0.53), (10, 0.50), (11, 0.57), (12, 0.60), (13, 0.60), (14, 0.55), (15, 0.46),
-          (16, 0.49), (17, 0.50), (18, 0.45), (19, 0.49), (20, 0.39), (21, 0.40), (22, 0.43),
-          (24, 0.43), (25, 0.47), (27, 0.48), (28, 0.44), (29, 0.46), (30, 0.46)]
-
 
 def story(t):
     return t - STORY0
@@ -118,14 +111,18 @@ def header_y(t):
 
 
 # ---------------------------------------------------------------- scenes ----
+def outro_mix(t):
+    """0 -> 1 as the header settles into the centred end lockup."""
+    return in_out_cubic(prog(t, T_OUTRO + 0.25, T_OUTRO + 1.35))
+
+
 def logos_stage(frame, a, t):
-    """Intro reveal, morph into the header, header life until the card expands."""
-    if t > T_EXPAND[1]:
-        return
+    """Intro reveal, morph into the header, header life, then the centred end lockup."""
     breathe = 1 + 0.025 * out_cubic(prog(t, 0, T_MORPH[0]))
-    exp_fade = 1 - prog(t, T_EXPAND[0], T_EXPAND[0] + 0.45)
-    exp_lift = -90 * in_cubic(prog(t, T_EXPAND[0], T_EXPAND[1]))
-    B = row_layout(header_y(t) + exp_lift, 0.30, 0.9)
+    o = outro_mix(t)
+    settle = 1 + 0.02 * out_cubic(prog(t, T_OUTRO + 1.35, DURATION))
+    hy = lerp(header_y(t), 800, o)
+    B = row_layout(hy, lerp(0.30, 0.33, o) * settle, lerp(0.9, 1.0, o) * settle)
 
     def pos(name, stagger):
         m = in_out_cubic(prog(t, T_MORPH[0] + stagger, T_MORPH[1] + stagger))
@@ -143,7 +140,7 @@ def logos_stage(frame, a, t):
     x, y, k = pos("claude", 0.0)
     p = prog(t, 0.2, 1.0)
     pw = out_cubic(prog(t, 0.55, 1.25))
-    draw_lockup(frame, a, "claude", x, y, k, opacity=exp_fade,
+    draw_lockup(frame, a, "claude", x, y, k,
                 mark={"scale": out_back(p, 1.6), "rot": -140 * (1 - out_cubic(p)), "opacity": prog(t, 0.2, 0.35)},
                 word={"wipe": pw, "dx": -30 * (1 - pw)})
 
@@ -166,71 +163,58 @@ def logos_stage(frame, a, t):
     p = prog(t, 1.15, 1.55)
     paste(frame, text_sprite("×", "display-light", 84, CREAM), x, y,
           scale=k * lerp(0.4, 1, out_back(p)), rot=90 * (1 - out_cubic(p)),
-          opacity=0.7 * prog(t, 1.15, 1.3) * exp_fade)
+          opacity=0.7 * prog(t, 1.15, 1.3))
 
     # Blender
     x, y, k = pos("blender", 0.08)
     p = prog(t, 1.35, 2.1)
     pw = out_cubic(prog(t, 1.65, 2.35))
-    draw_lockup(frame, a, "blender", x, y, k, opacity=exp_fade,
+    draw_lockup(frame, a, "blender", x, y, k,
                 mark={"scale": out_back(p, 1.5), "rot": 160 * (1 - out_cubic(p)), "opacity": prog(t, 1.35, 1.5)},
                 word={"wipe": pw, "dx": -30 * (1 - pw)})
 
     # "+ Higgsfield Genjutsu"
-    hy = header_y(t) + exp_lift
     p = prog(t, T_HIGGS, T_HIGGS + 0.4)
-    paste(frame, text_sprite("+", "display-light", 70, CREAM), 540, hy + 92,
-          scale=lerp(0.3, 1, out_back(p)), opacity=0.75 * clamp01(p * 3) * exp_fade)
+    paste(frame, text_sprite("+", "display-light", 70, CREAM), 540, lerp(hy + 92, 935, o),
+          scale=lerp(0.3, 1, out_back(p)) * lerp(1, 76 / 70, o) * settle, opacity=0.75 * clamp01(p * 3))
     p = prog(t, T_HIGGS + 0.12, T_HIGGS + 0.75)
-    paste(frame, a.higgs, 540, hy + 212 + 30 * (1 - out_cubic(p)),
-          scale=430 * lerp(0.7, 1, out_back(p, 2.0)), opacity=clamp01(p * 3) * exp_fade)
+    paste(frame, a.higgs, 540, lerp(hy + 212, 1085, o) + 30 * (1 - out_cubic(p)),
+          scale=lerp(430, 540, o) * settle * lerp(0.7, 1, out_back(p, 2.0)), opacity=clamp01(p * 3))
 
 
 def card_stage(frame, a, t):
-    if t < T_CARD[0] or t >= T_EXPAND[1]:
+    if t < T_CARD[0]:
         return
     s = story(max(t, STORY0))
     x0, y0, x1, y1 = CARD
     cw, ch = x1 - x0, y1 - y0
     wipe = in_out_cubic(prog(t, *T_WIPE))
-    e = in_out_cubic(prog(t, *T_EXPAND))
 
-    # card entry
+    # card entry / exit
     p = out_expo(prog(t, *T_CARD))
-    enter_op = prog(t, T_CARD[0], T_CARD[0] + 0.3)
-    enter_dy = 140 * (1 - p)
-    enter_k = 0.92 + 0.08 * p
+    leave = in_out_cubic(prog(t, T_OUTRO, T_OUTRO + 0.7))
+    vis = prog(t, T_CARD[0], T_CARD[0] + 0.3) * (1 - leave)
+    if vis <= 0:
+        return
+    dy = 140 * (1 - p) + 60 * leave
+    k = (0.92 + 0.08 * p) * (1 - 0.06 * leave)
 
-    blk = a.blockout.frame(s)
-    res = a.result.frame(s) if (wipe > 0 or e > 0) else None
+    blk = a.blockout.frame(s) if wipe < 1 else None
+    res = a.result.frame(s) if wipe > 0 else None
 
     # ambient blurred fill behind the card
-    src_bg = res if wipe > 0.5 else blk
-    fill = blurred_cover(src_bg, darken=0.45)
-    frame += (fill - frame) * (0.55 * enter_op)
+    fill = blurred_cover(res if wipe > 0.5 else blk, darken=0.45)
+    frame += (fill - frame) * (0.55 * vis)
 
-    # geometry (card -> full screen)
-    rx0, ry0, rx1, ry1 = (lerp(x0, 0, e), lerp(y0, 0, e), lerp(x1, W, e), lerp(y1, H, e))
-    radius = lerp(CARD_R, 0, e)
-    ccx, ccy = (rx0 + rx1) / 2, (ry0 + ry1) / 2 + enter_dy
-    kx = enter_k
-    rx0, rx1 = ccx - (rx1 - rx0) / 2 * kx, ccx + (rx1 - rx0) / 2 * kx
-    ry0, ry1 = ccy - (ry1 - ry0) / 2 * kx, ccy + (ry1 - ry0) / 2 * kx
+    ccx, ccy = (x0 + x1) / 2, (y0 + y1) / 2 + dy
+    rx0, rx1 = ccx - cw / 2 * k, ccx + cw / 2 * k
+    ry0, ry1 = ccy - ch / 2 * k, ccy + ch / 2 * k
+    vscale = cw / 1920 * k
 
-    s_card = cw / 1920 * enter_k
-    s_full = H / 1078 * 1.0
-    vscale = lerp(s_card, s_full, e)
-    vcx = lerp(540, 540 + (0.5 - crop_x(s)) * 1920 * s_full, e)
-    vcy = lerp(ccy, 960, e)
+    shadow(frame, rx0, ry0, rx1, ry1, CARD_R, strength=0.55 * vis, spread=60)
 
-    if e < 0.05:
-        shadow(frame, rx0, ry0, rx1, ry1, radius, strength=0.55 * enter_op, spread=60)
-
-    vid_res = place(res, vscale, vcx, vcy) if res is not None else None
-    if wipe < 1 and e == 0:
-        vid_blk = place(blk, vscale * 1920 / 1280, vcx, vcy)
-    else:
-        vid_blk = None
+    vid_res = place(res, vscale, ccx, ccy) if res is not None else None
+    vid_blk = place(blk, vscale * 1920 / 1280, ccx, ccy) if blk is not None else None
 
     if vid_blk is not None and vid_res is not None:
         ys = np.arange(H, dtype=np.float32)[:, None]
@@ -242,24 +226,22 @@ def card_stage(frame, a, t):
         vid = vid_res * m + vid_blk * (1 - m)
         glow = (np.exp(-(d / 5.0) ** 2) * 0.9 + np.exp(-(d / 40.0) ** 2) * 0.28)[..., None]
         vid = np.clip(vid + glow * LIME * np.sin(np.pi * wipe) ** 0.5, 0, 1)
-    elif vid_res is not None:
-        vid = vid_res
     else:
-        vid = vid_blk
+        vid = vid_res if vid_res is not None else vid_blk
 
-    mask = rounded_rect_mask(W, H, rx0, ry0, rx1, ry1, radius)[..., None] * enter_op
+    mask = rounded_rect_mask(W, H, rx0, ry0, rx1, ry1, CARD_R * k)[..., None] * vis
     frame *= 1 - mask
     frame += vid * mask
 
     # label under the card
-    lab_op = prog(t, 4.2, 4.6) * (1 - prog(t, T_EXPAND[0], T_EXPAND[0] + 0.3))
+    lab_op = prog(t, 4.2, 4.6) * (1 - prog(t, T_OUTRO, T_OUTRO + 0.35))
     if lab_op > 0:
-        ly = y1 + 52 + enter_dy
+        ly = y1 + 52 + dy
         sw_ = prog(t, T_WIPE[0] + 0.5, T_WIPE[0] + 0.7)
-        for txt, op, dy in (("01  BLOCKOUT", 1 - sw_, -14 * sw_), ("02  REALISTIC", sw_, 14 * (1 - sw_))):
+        for txt, op, ddy in (("01  BLOCKOUT", 1 - sw_, -14 * sw_), ("02  REALISTIC", sw_, 14 * (1 - sw_))):
             spr = text_sprite(txt, "mono", 28, CREAM, 0.06)
-            paste(frame, spr, x0 + spr.size()[0] / 2 - 4, ly + dy, opacity=0.8 * op ** 2 * lab_op)
-        tc = f"00:{int(max(s, 0)):02d}"
+            paste(frame, spr, x0 + spr.size()[0] / 2 - 4, ly + ddy, opacity=0.8 * op ** 2 * lab_op)
+        tc = f"00:{int(min(max(s, 0), 29)):02d}"
         spr = text_sprite(tc, "mono", 28, CREAM, 0.06)
         paste(frame, spr, x1 - spr.size()[0] / 2 + 4, ly, opacity=0.45 * lab_op)
         # status dot: orange for Claude/Blender, lime once Genjutsu takes over
@@ -272,58 +254,11 @@ def card_stage(frame, a, t):
         frame[int(ly) - 10:int(ly) + 11, int(dx) - 10:int(dx) + 11] += dot * cov
 
 
-def crop_x(s):
-    return keyframes(s, CROP_X)
-
-
-def full_stage(frame, a, t):
-    if t < T_EXPAND[1]:
-        return
-    s = story(t)
-    held = min(s, 29.95)
-    zoom = 1 + 0.06 * in_out_cubic(prog(t, T_EXPAND[1], T_OUTRO)) + 0.04 * out_cubic(prog(t, T_OUTRO, DURATION))
-    scale = H / 1078 * zoom
-    half = W / (1920 * scale) / 2
-    cx = min(max(crop_x(held), half), 1 - half)
-    src = a.result.frame(held)
-    vid = place(src, scale, 540 + (0.5 - cx) * 1920 * scale, 960, sharpen=0.35)
-    o = in_out_cubic(prog(t, T_OUTRO, T_OUTRO + 1.0))
-    if o > 0:
-        vid = vid * (1 - o) + blurred_cover(src, darken=0.25) * o
-        vid = vid * (1 - 0.5 * o) + a.bg * 0.5 * o
-    frame[:] = vid
-
-
-def outro_stage(frame, a, t):
-    if t < T_OUTRO + 0.5:
-        return
-    C = row_layout(800, 0.33, 1.0)
-    for i, name in enumerate(("claude", "x", "blender")):
-        p = prog(t, T_OUTRO + 0.55 + i * 0.12, T_OUTRO + 1.35 + i * 0.12)
-        x, y, k = C[name]
-        y += 40 * (1 - out_cubic(p))
-        op = clamp01(p * 2.5)
-        if name == "x":
-            paste(frame, text_sprite("×", "display-light", 84, CREAM), x, y, scale=k * 0.9, opacity=0.7 * op)
-        else:
-            draw_lockup(frame, a, name, x, y, k * lerp(0.9, 1, out_cubic(p)), opacity=op)
-    p = prog(t, T_OUTRO + 0.95, T_OUTRO + 1.35)
-    paste(frame, text_sprite("+", "display-light", 76, CREAM), 540, 935,
-          scale=lerp(0.3, 1, out_back(p)), opacity=0.75 * clamp01(p * 3))
-    p = prog(t, T_OUTRO + 1.05, T_OUTRO + 1.8)
-    paste(frame, a.higgs, 540, 1085 + 40 * (1 - out_cubic(p)),
-          scale=540 * lerp(0.75, 1, out_back(p, 2.0)), opacity=clamp01(p * 3))
-
-
 def render_frame(a, t):
     frame = a.bg.copy()
-    if t >= T_EXPAND[1]:
-        full_stage(frame, a, t)
     card_stage(frame, a, t)
     logos_stage(frame, a, t)
-    outro_stage(frame, a, t)
-    if t < T_EXPAND[1] or t > T_OUTRO + 0.5:  # grain only on the graphic sections (it costs bitrate)
-        frame += a.grain[int(t * FPS) % len(a.grain)]
+    frame += a.grain[int(t * FPS) % len(a.grain)] * (1 - 0.6 * prog(t, T_CARD[0], T_CARD[1]))
     fade = min(prog(t, 0, 0.4), 1 - prog(t, DURATION - 0.45, DURATION))
     frame *= fade
     return (np.clip(frame, 0, 1) * 255 + 0.5).astype(np.uint8)
@@ -380,8 +315,11 @@ def main():
         return
     silent = render_video(args.start, args.end, Path(args.out), args.workers)
     import audio
-    audio.mux(silent, Path(args.out), args.start, args.end)
-    print("->", args.out)
+    out = Path(args.out)
+    audio.mux(silent, out, args.start, args.end)
+    alt = out.with_name(out.stem + "_no_sfx" + out.suffix)  # clip sound only, no sound design
+    audio.mux(silent, alt, args.start, args.end, sfx=False)
+    print("->", out, "+", alt.name)
 
 
 if __name__ == "__main__":
