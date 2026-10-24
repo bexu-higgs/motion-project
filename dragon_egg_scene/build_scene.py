@@ -584,7 +584,7 @@ def path_point(y, side):
 
 
 stones = []
-for i in range(N_STEPS + 1):
+for i in range(N_STEPS):
     k = N_STEPS - 1 - i
     side = 1 if k % 2 == 0 else -1
     y = -k * STEP_LEN
@@ -602,6 +602,7 @@ for i in range(N_STEPS + 1):
     footfalls.append(dict(frame=LAND_EGG - k * STEP_T, side="R" if side > 0 else "L", ankle=ankle, fwd=d, top=top))
     if i < N_STEPS - 1:
         stones.append((p + d * 0.06, top))
+rng.random()   # spare draw keeps the seeded forest layout identical to the rendered version
 
 PUSHED_STONES = []
 
