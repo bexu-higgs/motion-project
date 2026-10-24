@@ -1,3 +1,4 @@
 dragon_egg_scene/renders/frames/
 *.blend1
 __pycache__/
+dragon_egg_scene/renders/closeup_frames/

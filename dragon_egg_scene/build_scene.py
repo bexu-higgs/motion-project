@@ -338,6 +338,11 @@ MAT = {
     # egg
     "egg_in": material("Egg_Inner_Membrane", (0.5, 0.42, 0.28), 0.5),
     "glow": material("Egg_Inner_Glow", (1.0, 0.6, 0.15), 0.5, emit=(1.0, 0.55, 0.12), emit_strength=0.0),
+    # close-up face rig
+    "eye_white": material("Person_EyeWhite", (0.75, 0.72, 0.68), 0.25),
+    "iris": material("Person_Iris", (0.05, 0.03, 0.02), 0.2),
+    "lips": material("Person_Mouth", (0.16, 0.035, 0.035), 0.5),
+    "glint": material("Eye_Glint", (1.0, 1.0, 1.0), 0.1, emit=(1.0, 1.0, 1.0), emit_strength=4.0),
 }
 for k in ("membrane",):
     MAT[k].use_backface_culling = False
@@ -926,7 +931,13 @@ THIGH, SHIN, UPARM, FOREARM = 0.44, 0.42, 0.29, 0.26
 HIP_W, SHOULDER_W, PELVIS_TO_HIP, SPINE = 0.095, 0.185, 0.06, 0.48
 
 
-def build_person():
+FACE_EYE = {"L": Vector((-0.032, 0.082, 0.022)), "R": Vector((0.032, 0.082, 0.022))}
+FACE_BROW = {"L": Vector((-0.032, 0.09, 0.046)), "R": Vector((0.032, 0.09, 0.046))}
+FACE_MOUTH = Vector((0, 0.087, -0.047))
+
+
+def build_person(face_rig=False):
+    """face_rig adds separate eyes, brows and a mouth with shape keys for close-ups."""
     P = {}
 
     def mk(name, builder, mats):
@@ -948,9 +959,27 @@ def build_person():
         bm_ellipsoid(bm, (0.014, 0.022, 0.028), (0, 0.098, -0.01))                     # nose
         for s in (-1, 1):
             bm_ellipsoid(bm, (0.012, 0.025, 0.03), (s * 0.08, -0.005, 0.0))            # ears
-            bm_ellipsoid(bm, (0.012, 0.008, 0.009), (s * 0.032, 0.088, 0.022), mat=2)  # eyes
-            bm_ellipsoid(bm, (0.022, 0.006, 0.005), (s * 0.033, 0.09, 0.042), mat=1)   # brows
+            if not face_rig:
+                bm_ellipsoid(bm, (0.012, 0.008, 0.009), (s * 0.032, 0.088, 0.022), mat=2)  # eyes
+                bm_ellipsoid(bm, (0.022, 0.006, 0.005), (s * 0.033, 0.09, 0.042), mat=1)   # brows
     mk("Head", head, [MAT["skin"], MAT["hair"], MAT["dark"]])
+    if face_rig:
+        for s in ("L", "R"):
+            def eye(bm):
+                bm_ellipsoid(bm, (0.013, 0.011, 0.012), seg=14, rings=10)
+                bm_ellipsoid(bm, (0.0072, 0.004, 0.0072), (0, 0.009, 0), seg=12, rings=8, mat=1)
+                bm_ellipsoid(bm, (0.0018, 0.0018, 0.0018), (0.0025, 0.0125, 0.003), seg=8, rings=6, mat=2)
+            mk("Eye_" + s, eye, [MAT["eye_white"], MAT["iris"], MAT["glint"]])
+            mk("Brow_" + s, lambda bm: bm_capsule(bm, 0.026, 0.0055, 0.0045, xform=rot("Y", 90) @ T((0, 0, 0.013)), seg=8),
+               [MAT["hair"]])
+        mk("Mouth", lambda bm: bm_ellipsoid(bm, (0.017, 0.006, 0.0035), seg=16, rings=8), [MAT["lips"]])
+        mouth = P["Mouth"]
+        mouth.shape_key_add(name="Basis")
+        for name, fn in (("Open", lambda c: (c.x * 0.7, c.y, c.z * 3.2)),
+                         ("Smile", lambda c: (c.x * 1.3, c.y - 2.0 * c.x * c.x, c.z * 0.9 + 18.0 * c.x * c.x))):
+            kb = mouth.shape_key_add(name=name)
+            for v, kv in zip(mouth.data.vertices, kb.data):
+                kv.co = Vector(fn(v.co))
     for s in ("L", "R"):
         mk("UpperArm_" + s, lambda bm: bm_capsule(bm, UPARM, 0.058, 0.046), [MAT["jacket"]])
         mk("Forearm_" + s, lambda bm: bm_capsule(bm, FOREARM, 0.046, 0.036), [MAT["jacket"]])
@@ -1208,7 +1237,8 @@ D_LEG = {"F": (0.17, 0.16), "R": (0.18, 0.17)}
 N_NECK, N_TAIL = 8, 11
 
 
-def build_dragon():
+def build_dragon(cute_eyes=False):
+    """cute_eyes swaps the slit pupils for separate pupils that can dilate, plus an eye glint."""
     D = {}
 
     def mk(name, builder, mats):
@@ -1250,8 +1280,13 @@ def build_dragon():
     for s in ("L", "R"):
         def eye(bm):
             bm_ellipsoid(bm, (0.037, 0.037, 0.037), seg=16, rings=12)
-            bm_ellipsoid(bm, (0.007, 0.012, 0.026), (0, 0.032, 0), mat=1)
-        mk("Eye_" + s, eye, [MAT["eye"], MAT["dark"]])
+            if cute_eyes:
+                bm_ellipsoid(bm, (0.0055, 0.0055, 0.0055), (0.011, 0.036, 0.013), seg=8, rings=6, mat=1)
+            else:
+                bm_ellipsoid(bm, (0.007, 0.012, 0.026), (0, 0.032, 0), mat=1)
+        mk("Eye_" + s, eye, [MAT["eye"], MAT["glint"] if cute_eyes else MAT["dark"]])
+        if cute_eyes:
+            mk("Pupil_" + s, lambda bm: bm_ellipsoid(bm, (0.021, 0.008, 0.025), seg=14, rings=8), [MAT["dark"]])
     for i in range(N_TAIL):
         r = lerp(0.1, 0.024, i / (N_TAIL - 1))
         mk(f"Tail_{i}", lambda bm, r=r: bm_ellipsoid(bm, (r, r * 1.2, r * 0.95)), [MAT["scales"]])
@@ -1487,6 +1522,14 @@ PALM_DOWN_W = Track([(1, 0.0), (552, 0.0), (588, 0.6), (606, 0.6), (618, 1.0), (
 HUG_W = Track([(1, 0.0), (668, 0.0), (695, 1.0), (720, 1.0)])
 
 
+HEAD_ROLL = Track([(1, 0.0)])     # person head tilt, degrees
+FACE_FEAR = Track([(1, 0.0)])     # 0..1: wide eyes, raised brows, open mouth
+FACE_SMILE = Track([(1, 0.0)])    # 0..1
+FACE_BLINK = Track([(1, 0.0)])    # 0..1
+PUPIL = Track([(1, 1.0)])         # dragon pupil width: ~0.35 slit .. 1 round
+HAND_ORIENT = None                # optional fn(side, f, B, forearm_dir, hand_dir, palm) -> (hand_dir, palm)
+
+
 def look_target(f):
     def ahead(f):
         B = person_body(f)
@@ -1603,19 +1646,15 @@ CRACK = Track([(1, 0.0), (296, 0.0), (318, 0.004), (340, 0.008), (352, 0.012), (
 
 
 # ================================================================== BUILD
-def main(out_path):
-    # camera keep-out zones for vegetation
-    for sh in SHOTS:
-        for f in range(sh.f0, sh.f1 + 1, 6):
-            p = sh.pos(f)
-            CAMERA_KEEP_OUT.append((p.x, p.y))
+def build_world(face_rig=False, cute_eyes=False):
+    """Builds all geometry and precomputes the egg debris; returns object handles."""
     build_ground()
     build_stones()
     build_forest()
     glow = build_egg()
     glow.visible_shadow = False
-    P = build_person()
-    D = build_dragon()
+    P = build_person(face_rig)
+    D = build_dragon(cute_eyes)
     egg_light = build_lights()
 
     # crater ring + soil clumps
@@ -1655,159 +1694,176 @@ def main(out_path):
             w = Vector((rng.uniform(-9, 9), rng.uniform(-9, 9), rng.uniform(-4, 4)))
             fr["sim"] = debris_sim(M0, v, w, BURST, 0.04, bounce=0.2)
 
-    # ---- per-frame animation
-    for f in range(1, FRAME_END + 1):
-        EM = egg_matrix(f)
-        # egg fragments
-        for fr in FRAGS:
-            ob, k = fr["ob"], fr["kind"]
-            if k == "hole":
-                s = ramp(f, 184, 191)
-                M = EM @ T(fr["c"] + Vector((0, 0, -0.28 * s)) + fr["n"] * 0.04 * s) @ rot(fr["n"].cross(UP).normalized() if fr["n"].length else "X", 70 * s)
-                if f >= 194:
-                    M = M @ Matrix.Scale(0.0001, 4)
-            elif f < BURST or k == "cup":
-                M = frag_pre(fr, min(f, BURST))
-            elif k == "rim":
-                a = 32 * smooth((f - BURST) / 7) - 6 * math.sin(clamp((f - BURST - 7) / 8, 0, 1) * math.pi)
-                piv = fr["c"] - Vector((0, 0, 0.18)) - fr["n"] * 0.0
-                axis = UP.cross(fr["n"]).normalized()
-                M = egg_matrix(BURST) @ T(piv) @ rot(axis, a) @ T(-piv) @ T(fr["c"] + fr["n"] * CRACK(BURST))
+    return dict(glow=glow, P=P, D=D, egg_light=egg_light, crater=crater, clumps=clumps, frag_pre=frag_pre)
+
+
+def animate_world(W, f, key=None):
+    """Keys the egg, debris, glow and pushed stones as they are at film frame f (on frame `key`)."""
+    key = f if key is None else key
+    glow, egg_light, crater, clumps, frag_pre = W["glow"], W["egg_light"], W["crater"], W["clumps"], W["frag_pre"]
+    EM = egg_matrix(f)
+    # egg fragments
+    for fr in FRAGS:
+        ob, k = fr["ob"], fr["kind"]
+        if k == "hole":
+            s = ramp(f, 184, 191)
+            M = EM @ T(fr["c"] + Vector((0, 0, -0.28 * s)) + fr["n"] * 0.04 * s) @ rot(fr["n"].cross(UP).normalized() if fr["n"].length else "X", 70 * s)
+            if f >= 194:
+                M = M @ Matrix.Scale(0.0001, 4)
+        elif f < BURST or k == "cup":
+            M = frag_pre(fr, min(f, BURST))
+        elif k == "rim":
+            a = 32 * smooth((f - BURST) / 7) - 6 * math.sin(clamp((f - BURST - 7) / 8, 0, 1) * math.pi)
+            piv = fr["c"] - Vector((0, 0, 0.18)) - fr["n"] * 0.0
+            axis = UP.cross(fr["n"]).normalized()
+            M = egg_matrix(BURST) @ T(piv) @ rot(axis, a) @ T(-piv) @ T(fr["c"] + fr["n"] * CRACK(BURST))
+        else:
+            M = fr["sim"][f]
+        KS.matrix(ob, key, M)
+    # glow / light
+    gs = 1.0 - ramp(f, BURST, BURST + 6)
+    KS.matrix(glow, key, EM @ Matrix.Scale(max(gs, 0.0001), 4))
+    KS.put(MAT["glow"].node_tree, GLOW_PATH, 0, key, GLOW(f))
+    lp = EM.translation + Vector((0, 0, 0.1)) if f < BURST + 10 else dragon_body_matrix(f) @ Vector((0, 0.1, 0.3))
+    KS.matrix(egg_light, key, T(lp))
+    KS.put(egg_light.data, "energy", 0, key, EGG_LIGHT(f))
+    # crater + clumps + pushed stones
+    rise = clamp((egg_center_z(f) - EGG_Z0) / (EGG_Z1 - EGG_Z0), 0, 1)
+    cz = Matrix.Diagonal((0.85 + 0.15 * rise, 0.85 + 0.15 * rise, max(rise, 0.001), 1.0))
+    KS.matrix(crater, key, T((0, 0, G0 - 0.03)) @ cz)
+    for c in clumps:
+        M = c["sim"][f] if f >= c["detach"] else EM @ T(c["c"]) @ c["q"].to_matrix().to_4x4()
+        KS.matrix(c["ob"], key, M)
+    for ob, M0, p in PUSHED_STONES:
+        d = p.normalized() if p.length > 1e-4 else Vector((0, -1, 0))
+        push = 0.35 * smooth(rise * 1.6)
+        KS.matrix(ob, key, T(d * push + UP * 0.05 * push) @ M0 @ rot("X", -22 * smooth(rise * 1.6)))
+
+
+def pose_person(P, f):
+    B = person_body(f)
+    mats = {"Pelvis": B["pel_m"], "Chest": B["chest_m"]}
+    look = look_target(f)
+    hc = B["head_c"]
+    hf = (look - hc)
+    hf = (hf.normalized() * 0.85 + B["cf"] * 0.15).normalized()
+    hf.z = clamp(hf.z, -0.8, 0.65)
+    Hm = frame_yz(hc, hf, B["cu"]) @ rot("Y", HEAD_ROLL(f))
+    mats["Head"] = Hm
+    if "Mouth" in P:
+        fear, smile, blink = FACE_FEAR(f), FACE_SMILE(f), FACE_BLINK(f)
+        for s, sg in (("L", -1), ("R", 1)):
+            e = 1 + 0.18 * fear
+            mats["Eye_" + s] = Hm @ T(FACE_EYE[s]) @ Matrix.Diagonal((e, e, e * max(1 - 0.92 * blink, 0.05), 1))
+            mats["Brow_" + s] = Hm @ T(FACE_BROW[s] + Vector((0, 0, 0.007 * fear - 0.002 * smile))) @ rot("Y", sg * 20 * fear)
+        mats["Mouth"] = Hm @ T(FACE_MOUTH)
+        KS.put(P["Mouth"].data.shape_keys, 'key_blocks["Open"].value', 0, f, 0.85 * fear)
+        KS.put(P["Mouth"].data.shape_keys, 'key_blocks["Smile"].value', 0, f, smile)
+    mats["Neck"] = seg_matrix(B["neck"] - B["cu"] * 0.04, hc - Hm.to_3x3() @ Vector((0, 0.01, 0.07)), B["cf"])
+    for s, sg in (("L", -1), ("R", 1)):
+        mats["Thigh_" + s] = seg_matrix(B["hip"][s], B["knee"][s], B["fwd"])
+        mats["Shin_" + s] = seg_matrix(B["knee"][s], B["ankle"][s], B["fwd"])
+        A, ffwd, pitch = B["feet"][s]
+        p = math.radians(pitch)
+        yv = ffwd * math.cos(p) + UP * math.sin(p)
+        zv = UP * math.cos(p) - ffwd * math.sin(p)
+        mats["Boot_" + s] = basis(yv.cross(zv), yv, zv, B["ankle"][s])
+        hand_t = (HAND_R if s == "R" else HAND_L)(f)
+        pole = -B["cf"] * 1.0 + B["cr"] * (0.4 * sg) - UP * 0.3
+        reach_pole = -UP * 1.0 + B["cr"] * (0.7 * sg)
+        w = PALM_DOWN_W(f) if s == "R" else HUG_W(f)
+        if s == "R":
+            w = max(w, ramp(f, 186, 190) * (1 - ramp(f, 205, 222)), ramp(f, 364, 377) * (1 - ramp(f, 404, 430)))
+        else:
+            w = max(w, ramp(f, 186, 190) * (1 - ramp(f, 205, 222)))
+        pole = pole.lerp(reach_pole, w)
+        elbow, wrist = ik2(B["shoulder"][s], hand_t, UPARM, FOREARM, pole)
+        mats["UpperArm_" + s] = seg_matrix(B["shoulder"][s], elbow, B["cf"])
+        mats["Forearm_" + s] = seg_matrix(elbow, wrist, B["cf"])
+        fa = (wrist - elbow).normalized()
+        hdir, palm = fa, B["cr"] * sg
+        if s == "R" and PALM_DOWN_W(f) > 0:
+            if f >= 606:
+                Hd = dragon_state(f)["H"].to_3x3()
+                flat = -(Hd @ Vector((0, 1, 0)))
+                ph = Hd @ Vector((0, 0, 1))
             else:
-                M = fr["sim"][f]
-            KS.matrix(ob, f, M)
-        # glow / light
-        gs = 1.0 - ramp(f, BURST, BURST + 6)
-        KS.matrix(glow, f, EM @ Matrix.Scale(max(gs, 0.0001), 4))
-        KS.put(MAT["glow"].node_tree, GLOW_PATH, 0, f, GLOW(f))
-        lp = EM.translation + Vector((0, 0, 0.1)) if f < BURST + 10 else dragon_body_matrix(f) @ Vector((0, 0.1, 0.3))
-        KS.matrix(egg_light, f, T(lp))
-        KS.put(egg_light.data, "energy", 0, f, EGG_LIGHT(f))
-        # crater + clumps + pushed stones
-        rise = clamp((egg_center_z(f) - EGG_Z0) / (EGG_Z1 - EGG_Z0), 0, 1)
-        cz = Matrix.Diagonal((0.85 + 0.15 * rise, 0.85 + 0.15 * rise, max(rise, 0.001), 1.0))
-        KS.matrix(crater, f, T((0, 0, G0 - 0.03)) @ cz)
-        for c in clumps:
-            M = c["sim"][f] if f >= c["detach"] else EM @ T(c["c"]) @ c["q"].to_matrix().to_4x4()
-            KS.matrix(c["ob"], f, M)
-        for ob, M0, p in PUSHED_STONES:
-            d = p.normalized() if p.length > 1e-4 else Vector((0, -1, 0))
-            push = 0.35 * smooth(rise * 1.6)
-            KS.matrix(ob, f, T(d * push + UP * 0.05 * push) @ M0 @ rot("X", -22 * smooth(rise * 1.6)))
+                flat = Vector((B["cf"].x, B["cf"].y, -0.25)).normalized()
+                ph = UP
+            ww = PALM_DOWN_W(f)
+            hdir = fa.lerp(flat, ww).normalized()
+            palm = palm.lerp(ph, ww)
+        if HAND_ORIENT:
+            hdir, palm = HAND_ORIENT(s, f, B, fa, hdir, palm)
+        mats["Hand_" + s] = seg_matrix(wrist, wrist + hdir, palm)
+    for name, M in mats.items():
+        KS.matrix(P[name], f, M)
 
-        # ---- person
-        B = person_body(f)
-        mats = {"Pelvis": B["pel_m"], "Chest": B["chest_m"]}
-        look = look_target(f)
-        hc = B["head_c"]
-        hf = (look - hc)
-        hf = (hf.normalized() * 0.85 + B["cf"] * 0.15).normalized()
-        hf.z = clamp(hf.z, -0.8, 0.65)
-        Hm = frame_yz(hc, hf, B["cu"])
-        mats["Head"] = Hm
-        mats["Neck"] = seg_matrix(B["neck"] - B["cu"] * 0.04, hc - Hm.to_3x3() @ Vector((0, 0.01, 0.07)), B["cf"])
-        for s, sg in (("L", -1), ("R", 1)):
-            mats["Thigh_" + s] = seg_matrix(B["hip"][s], B["knee"][s], B["fwd"])
-            mats["Shin_" + s] = seg_matrix(B["knee"][s], B["ankle"][s], B["fwd"])
-            A, ffwd, pitch = B["feet"][s]
-            p = math.radians(pitch)
-            yv = ffwd * math.cos(p) + UP * math.sin(p)
-            zv = UP * math.cos(p) - ffwd * math.sin(p)
-            mats["Boot_" + s] = basis(yv.cross(zv), yv, zv, B["ankle"][s])
-            hand_t = (HAND_R if s == "R" else HAND_L)(f)
-            pole = -B["cf"] * 1.0 + B["cr"] * (0.4 * sg) - UP * 0.3
-            reach_pole = -UP * 1.0 + B["cr"] * (0.7 * sg)
-            w = PALM_DOWN_W(f) if s == "R" else HUG_W(f)
-            if s == "R":
-                w = max(w, ramp(f, 186, 190) * (1 - ramp(f, 205, 222)), ramp(f, 364, 377) * (1 - ramp(f, 404, 430)))
-            else:
-                w = max(w, ramp(f, 186, 190) * (1 - ramp(f, 205, 222)))
-            pole = pole.lerp(reach_pole, w)
-            elbow, wrist = ik2(B["shoulder"][s], hand_t, UPARM, FOREARM, pole)
-            mats["UpperArm_" + s] = seg_matrix(B["shoulder"][s], elbow, B["cf"])
-            mats["Forearm_" + s] = seg_matrix(elbow, wrist, B["cf"])
-            fa = (wrist - elbow).normalized()
-            hdir, palm = fa, B["cr"] * sg
-            if s == "R" and PALM_DOWN_W(f) > 0:
-                if f >= 606:
-                    Hd = dragon_state(f)["H"].to_3x3()
-                    flat = -(Hd @ Vector((0, 1, 0)))
-                    ph = Hd @ Vector((0, 0, 1))
-                else:
-                    flat = Vector((B["cf"].x, B["cf"].y, -0.25)).normalized()
-                    ph = UP
-                ww = PALM_DOWN_W(f)
-                hdir = fa.lerp(flat, ww).normalized()
-                palm = palm.lerp(ph, ww)
-            mats["Hand_" + s] = seg_matrix(wrist, wrist + hdir, palm)
-        for name, M in mats.items():
-            KS.matrix(P[name], f, M)
 
-        # ---- dragon
-        if f < BURST:
-            hidden = T((0, 0.05, EGG_Z0 + 0.3)) @ Matrix.Scale(0.0001, 4)
-            for ob in D.values():
-                KS.matrix(ob, f, hidden)
-            continue
-        DS_f = dragon_state(f)
-        M, Hm, HP, nb = DS_f["M"], DS_f["H"], DS_f["HP"], DS_f["nb"]
-        R3 = M.to_3x3()
-        bu = R3 @ Vector((0, 0, 1))
-        KS.matrix(D["Chest"], f, M @ T((0, 0.12, 0.02)))
-        KS.matrix(D["Hips"], f, M @ T((0, -0.17, 0.0)))
-        hf = Hm.to_3x3() @ Vector((0, 1, 0))
-        hu = Hm.to_3x3() @ Vector((0, 0, 1))
-        p0, p3 = nb, HP - hf * 0.09 - hu * 0.03
-        p1 = nb + (R3 @ Vector((0, 0.45, 0.9))).normalized() * 0.2
-        p2 = p3 - hf * 0.16 - hu * 0.05
-        prev = None
-        for i in range(N_NECK):
-            t = i / (N_NECK - 1)
-            q = p0 * (1 - t) ** 3 + p1 * 3 * (1 - t) ** 2 * t + p2 * 3 * (1 - t) * t * t + p3 * t ** 3
-            tan = (p1 - p0) * 3 * (1 - t) ** 2 + (p2 - p1) * 6 * (1 - t) * t + (p3 - p2) * 3 * t * t
-            dorsal = (bu * 0.5 - (R3 @ Vector((0, 1, 0)))).normalized().lerp(hu, t)
-            KS.matrix(D[f"Neck_{i}"], f, frame_yz(q, tan, dorsal))
-        KS.matrix(D["Head"], f, Hm)
-        KS.matrix(D["Jaw"], f, Hm @ T((0, 0.02, -0.06)) @ rot("X", -D_JAW(f)))
-        for s, sg in (("L", -1), ("R", 1)):
-            KS.matrix(D["Eye_" + s], f, Hm @ T((sg * 0.068, 0.075, 0.035)) @ rot("Z", -sg * 35) @ Matrix.Diagonal((1, 1, max(D_EYE(f), 0.05), 1)))
-        # tail
-        pos = M @ Vector((0, -0.34, 0.0))
-        d = (R3 @ Vector((0, -1, -0.35))).normalized()
-        curl, wag = D_TAIL_CURL(f), D_WAG(f)
-        for i in range(N_TAIL):
-            r = lerp(0.1, 0.024, i / (N_TAIL - 1))
-            ang = curl * (0.5 + i * 0.12) + 9.0 * wag * math.sin(f / FPS * 2 * math.pi * (0.45 + 0.3 * wag) - i * 0.55)
-            d = (rot(UP, ang).to_3x3() @ d).normalized()
-            floor = ground_h(pos.x, pos.y) + 0.02 + r
-            if pos.z < floor + 0.01:
-                d.z = max(d.z, 0.0)
-                d.normalize()
-            pos = pos + d * (0.085 if i else 0.0)
-            pos.z = max(pos.z, floor)
-            KS.matrix(D[f"Tail_{i}"], f, frame_yz(pos, d, UP))
-        KS.matrix(D["TailTip"], f, frame_yz(pos + d * 0.03, d, UP))
-        # legs
-        for leg, anc in D_ANCH.items():
-            l1, l2 = D_LEG[leg[0]]
-            root = M @ anc
-            foot = dragon_foot(leg, f, M)
-            pole = (R3 @ Vector((0, -1 if leg[0] == "F" else 1, 0.1)))
-            knee, ank = ik2(root, foot, l1, l2, pole)
-            KS.matrix(D["Upper_" + leg], f, seg_matrix(root, knee, R3 @ Vector((0, 1, 0))))
-            KS.matrix(D["Lower_" + leg], f, seg_matrix(knee, ank, R3 @ Vector((0, 1, 0))))
-            fwd = R3 @ Vector((0, 1, 0))
-            fwd.z = 0
-            KS.matrix(D["Paw_" + leg], f, frame_yz(ank, fwd, UP))
-        # wings
-        for s, sg in (("L", -1), ("R", 1)):
-            W = M @ T((sg * 0.1, 0.12, 0.15)) @ rot("Y", -sg * D_FLAP(f))
-            KS.matrix(D["Wing_" + s], f, W)
-            KS.put(D["Wing_" + s].data.shape_keys, 'key_blocks["Fold"].value', 0, f, D_FOLD(f))
+def pose_dragon(D, f):
+    DS_f = dragon_state(f)
+    M, Hm, HP, nb = DS_f["M"], DS_f["H"], DS_f["HP"], DS_f["nb"]
+    R3 = M.to_3x3()
+    bu = R3 @ Vector((0, 0, 1))
+    KS.matrix(D["Chest"], f, M @ T((0, 0.12, 0.02)))
+    KS.matrix(D["Hips"], f, M @ T((0, -0.17, 0.0)))
+    hf = Hm.to_3x3() @ Vector((0, 1, 0))
+    hu = Hm.to_3x3() @ Vector((0, 0, 1))
+    p0, p3 = nb, HP - hf * 0.09 - hu * 0.03
+    p1 = nb + (R3 @ Vector((0, 0.45, 0.9))).normalized() * 0.2
+    p2 = p3 - hf * 0.16 - hu * 0.05
+    prev = None
+    for i in range(N_NECK):
+        t = i / (N_NECK - 1)
+        q = p0 * (1 - t) ** 3 + p1 * 3 * (1 - t) ** 2 * t + p2 * 3 * (1 - t) * t * t + p3 * t ** 3
+        tan = (p1 - p0) * 3 * (1 - t) ** 2 + (p2 - p1) * 6 * (1 - t) * t + (p3 - p2) * 3 * t * t
+        dorsal = (bu * 0.5 - (R3 @ Vector((0, 1, 0)))).normalized().lerp(hu, t)
+        KS.matrix(D[f"Neck_{i}"], f, frame_yz(q, tan, dorsal))
+    KS.matrix(D["Head"], f, Hm)
+    KS.matrix(D["Jaw"], f, Hm @ T((0, 0.02, -0.06)) @ rot("X", -D_JAW(f)))
+    for s, sg in (("L", -1), ("R", 1)):
+        eye_m = Hm @ T((sg * 0.068, 0.075, 0.035)) @ rot("Z", -sg * 35) @ Matrix.Diagonal((1, 1, max(D_EYE(f), 0.05), 1))
+        KS.matrix(D["Eye_" + s], f, eye_m)
+        if "Pupil_" + s in D:
+            KS.matrix(D["Pupil_" + s], f, eye_m @ T((0, 0.031, 0)) @ Matrix.Diagonal((PUPIL(f), 1, 1, 1)))
+    # tail
+    pos = M @ Vector((0, -0.34, 0.0))
+    d = (R3 @ Vector((0, -1, -0.35))).normalized()
+    curl, wag = D_TAIL_CURL(f), D_WAG(f)
+    for i in range(N_TAIL):
+        r = lerp(0.1, 0.024, i / (N_TAIL - 1))
+        ang = curl * (0.5 + i * 0.12) + 9.0 * wag * math.sin(f / FPS * 2 * math.pi * (0.45 + 0.3 * wag) - i * 0.55)
+        d = (rot(UP, ang).to_3x3() @ d).normalized()
+        floor = ground_h(pos.x, pos.y) + 0.02 + r
+        if pos.z < floor + 0.01:
+            d.z = max(d.z, 0.0)
+            d.normalize()
+        pos = pos + d * (0.085 if i else 0.0)
+        pos.z = max(pos.z, floor)
+        KS.matrix(D[f"Tail_{i}"], f, frame_yz(pos, d, UP))
+    KS.matrix(D["TailTip"], f, frame_yz(pos + d * 0.03, d, UP))
+    # legs
+    for leg, anc in D_ANCH.items():
+        l1, l2 = D_LEG[leg[0]]
+        root = M @ anc
+        foot = dragon_foot(leg, f, M)
+        pole = (R3 @ Vector((0, -1 if leg[0] == "F" else 1, 0.1)))
+        knee, ank = ik2(root, foot, l1, l2, pole)
+        KS.matrix(D["Upper_" + leg], f, seg_matrix(root, knee, R3 @ Vector((0, 1, 0))))
+        KS.matrix(D["Lower_" + leg], f, seg_matrix(knee, ank, R3 @ Vector((0, 1, 0))))
+        fwd = R3 @ Vector((0, 1, 0))
+        fwd.z = 0
+        KS.matrix(D["Paw_" + leg], f, frame_yz(ank, fwd, UP))
+    # wings
+    for s, sg in (("L", -1), ("R", 1)):
+        W = M @ T((sg * 0.1, 0.12, 0.15)) @ rot("Y", -sg * D_FLAP(f))
+        KS.matrix(D["Wing_" + s], f, W)
+        KS.put(D["Wing_" + s].data.shape_keys, 'key_blocks["Fold"].value', 0, f, D_FOLD(f))
 
-    # ---- cameras
+
+def build_cameras(shots, frame_end):
     cams = []
-    for sh in SHOTS:
+    for sh in shots:
         cd = bpy.data.cameras.new("CAM_" + sh.name)
         cd.sensor_width = 36
         cd.dof.use_dof = True
@@ -1817,7 +1873,7 @@ def main(out_path):
         cam = bpy.data.objects.new("CAM_" + sh.name, cd)
         C_CAM.objects.link(cam)
         cam.rotation_mode = "QUATERNION"
-        for f in range(max(1, sh.f0 - 2), min(FRAME_END, sh.f1 + 2) + 1):
+        for f in range(max(1, sh.f0 - 2), min(frame_end, sh.f1 + 2) + 1):
             Mc, dist = camera_matrix(sh, f)
             KS.matrix(cam, f, Mc)
             KS.put(cd, "lens", 0, f, sh.lens(f))
@@ -1826,9 +1882,10 @@ def main(out_path):
         m.camera = cam
         cams.append(cam)
     scene.camera = cams[0]
-    KS.flush()
+    return cams
 
-    # ---- render defaults (EEVEE, 1080p)
+
+def save(out_path):
     scene.render.engine = "BLENDER_EEVEE"
     scene.eevee.taa_render_samples = 24
     scene.eevee.use_shadows = True
@@ -1841,6 +1898,27 @@ def main(out_path):
     os.makedirs(os.path.dirname(os.path.abspath(out_path)), exist_ok=True)
     bpy.ops.wm.save_as_mainfile(filepath=os.path.abspath(out_path), compress=True)
     print("SAVED", out_path)
+
+
+def main(out_path):
+    # camera keep-out zones for vegetation
+    for sh in SHOTS:
+        for f in range(sh.f0, sh.f1 + 1, 6):
+            p = sh.pos(f)
+            CAMERA_KEEP_OUT.append((p.x, p.y))
+    W = build_world()
+    for f in range(1, FRAME_END + 1):
+        animate_world(W, f)
+        pose_person(W["P"], f)
+        if f < BURST:
+            hidden = T((0, 0.05, EGG_Z0 + 0.3)) @ Matrix.Scale(0.0001, 4)
+            for ob in W["D"].values():
+                KS.matrix(ob, f, hidden)
+        else:
+            pose_dragon(W["D"], f)
+    build_cameras(SHOTS, FRAME_END)
+    KS.flush()
+    save(out_path)
 
 
 # dragon feet: simple automatic gait ------------------------------------------

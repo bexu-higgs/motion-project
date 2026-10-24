@@ -16,6 +16,7 @@
 | B — 1-бөлім | `renders/parts/part1_SH01-SH03_0-10s.mp4` | 10 с | Әр бөлімді бөлек генерациялап, кейін монтаждау |
 | B — 2-бөлім | `renders/parts/part2_SH04-SH05_10-19.5s.mp4` | 9.5 с | |
 | B — 3-бөлім | `renders/parts/part3_SH06-SH07_19.5-30s.mp4` | 10.5 с | |
+| C — ірі план | `renders/closeup/look_at_each_other_5s.mp4` | 5 с | «Бір-біріне қарау» сахнасы, кезек-кезек ірі план |
 
 Генерация параметрлері (промптқа жазылмайды, интерфейстен қойылады):
 16:9, ұзақтығы референс видеоның ұзақтығына тең, дыбыс — қалауыңызша.
@@ -117,6 +118,36 @@ The person does not speak; no narration, no on-screen text. Sound: quiet forest 
 ```
 
 ---
+
+## C. «Бір-біріне қарау» — 5 секундтық ірі план сахнасы
+
+Референс: `renders/closeup/look_at_each_other_5s.mp4` (5 с, 5 кадр). Фильмде SH05
+(жұмыртқа жарылуы) мен SH06 (адам жақындап тізерлеуі) арасына қойылады.
+
+```text
+@Video1 is a coarse 3D blockout reference. Use only its camera positions, framing, shot cuts and their timing, character blocking, head turns and motion paths. Do not use its untextured low-poly look, plain materials, cartoon faces or flat sky.
+
+The person in the rust-orange jacket in @Video1 is the person: a lone traveler in a worn rust-brown jacket, short dark hair, a natural realistic face.
+The teal creature in @Video1 is a newborn baby dragon: teal-blue scales, cream belly and throat, small ivory horns, very large golden eyes, slightly damp skin, small half-folded wings. It stands among the pieces of its broken eggshell.
+
+The same old-growth forest with moss-covered trunks and ferns, soft morning light through the canopy, shallow depth of field in every close-up.
+
+The mood moves from fear to tenderness.
+Shot 1: close-up of the person's face from slightly below. Having just watched the egg burst, the person is frightened: eyes wide, eyebrows raised and drawn together, lips parted, quick shallow breathing; the person leans back and takes half a step away, one hand raised in front of the chest and the other pressed to the chest.
+Shot 2: close-up of the baby dragon looking up at the person. Its pupils slowly widen from thin slits into big round dark pupils, it blinks once, tilts its head to one side and lets out a tiny chirp.
+Shot 3: close-up of the person again. The fear drains away: the eyebrows relax, the raised hand slowly lowers, the head tilts a little, the person blinks and a soft, surprised smile appears.
+Shot 4: close-up of the baby dragon. It squints happily, tilts its head the other way, gives a small hop with a quick flutter of its wings and chirps again.
+Shot 5: medium shot over the back of the dragon's head; the smiling person takes a careful step toward the dragon and starts to hold out a hand, palm up.
+
+Keep one person and one baby dragon. The person always looks at the dragon and the dragon always looks at the person, with the same screen directions as in @Video1.
+The person does not speak; no narration, no on-screen text. Sound: quiet forest ambience, the person's nervous breathing that calms down, the baby dragon's soft chirps.
+```
+
+**Қазақша мазмұны:** бес кадр кезектесіп жүреді. Адам қорқып артқа шегінеді →
+айдаһардың қарашығы үлкейіп, басын қисайтып шырылдайды → адам жұмсарып жымияды →
+айдаһар қуанып секіреді → адам айдаһарға қарай қадам басып, қолын созады.
+Бетке эмоцияны (қорқу, жымию) blockout-тағы манекен ғана шамамен көрсетеді,
+шынайы бет әлпетін промпттағы сипаттама береді.
 
 ## Қосымша: кейіпкер суреттерін қосу
 
