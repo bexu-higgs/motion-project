@@ -17,6 +17,7 @@
 | B — 2-бөлім | `renders/parts/part2_SH04-SH05_10-19.5s.mp4` | 9.5 с | |
 | B — 3-бөлім | `renders/parts/part3_SH06-SH07_19.5-30s.mp4` | 10.5 с | |
 | C — ірі план | `renders/closeup/look_at_each_other_5s.mp4` | 5 с | «Бір-біріне қарау» сахнасы, кезек-кезек ірі план |
+| D — фотореализм | `renders/dragon_egg_blockout_30s.mp4` + `@image1`, `@image2` | 30 с | Кино стиліндегі фотореалистік нұсқа, адам мен айдаһар өз суреттеріңізден |
 
 Генерация параметрлері (промптқа жазылмайды, интерфейстен қойылады):
 16:9, ұзақтығы референс видеоның ұзақтығына тең, дыбыс — қалауыңызша.
@@ -148,6 +149,46 @@ The person does not speak; no narration, no on-screen text. Sound: quiet forest 
 айдаһар қуанып секіреді → адам айдаһарға қарай қадам басып, қолын созады.
 Бетке эмоцияны (қорқу, жымию) blockout-тағы манекен ғана шамамен көрсетеді,
 шынайы бет әлпетін промпттағы сипаттама береді.
+
+## D. Фотореалистік, кинематографиялық 30 секундтық промпт (@image1 — адам, @image2 — айдаһар)
+
+Жүктелетін файлдар: `@video1` — `renders/dragon_egg_blockout_30s.mp4`,
+`@image1` — адамның суреті, `@image2` — айдаһардың суреті.
+Камера, кадр құрылымы, монтаж уақыты мен қозғалыстың бәрі `@video1`-ден алынады.
+Сыртқы келбетті тек суреттер береді, сондықтан промптта адам мен айдаһардың
+түсі немесе киімі сипатталмаған.
+
+```text
+Photorealistic, cinematic live-action re-render of @video1.
+
+@video1 is a 3D blockout reference. Keep exactly its camera positions, camera moves, framing and lens choices, shot cuts and their timing, character positions, motion paths, the order and timing of every action, and its lighting directions: sunlight falling through the canopy and the warm golden glow coming from inside the egg. Do not use its untextured low-poly shapes, plain colours, mannequin faces or flat grey sky.
+@image1 defines the person's face, hair, body and clothing; do not use its background or framing.
+@image2 defines the baby dragon's head shape, eyes, scales, colours, horns and wings; do not use its background or framing.
+@image1 and @image2 do not change the camera, framing or composition of @video1.
+
+The person in the rust-orange jacket in @video1 is the person from @image1.
+The teal creature in @video1 is the baby dragon from @image2, at the newborn size shown in @video1: when the person kneels, the dragon's head reaches the person's chest.
+The round mossy stone at the end of the stepping-stone path in @video1 is the exposed top of a giant dragon egg buried in the ground. The tall dark egg in @video1 is the same egg: about 1.6 meters tall, a dark shell flecked with bronze, its top covered in moss and soil so that at first it looks like a boulder.
+
+Look: an old-growth forest in the early morning with huge moss-covered trunks, ferns, a shallow clear stream and mossy stepping stones; soft volumetric sunbeams through the canopy, light mist and dust floating in the light; realistic skin, fabric, wet moss, bark, eggshell and scale textures; a natural film colour grade with warm sunlight and cool green shadows; realistic depth of field and subtle film grain, like a feature film.
+
+Shot 1: wide establishing crane-down shot; the person walks across the mossy stepping stones over the stream.
+Shot 2: high follow shot from behind the person's right shoulder; the person watches their footing on the stones ahead, among them one larger round mossy stone.
+Shot 3: low side view; the person's right foot lands on the round stone, the surface cracks and the leg breaks through up to the knee; warm golden light spills out of the hole; startled, the person throws out both arms for balance, braces both hands on the stone, pulls the leg free and backs away, staring at the glowing hole.
+Shot 4: wide side view; the ground trembles, soil and moss slide away and the round stone pushes up out of the earth until a giant egg stands on the forest floor; the person backs away with bent knees, eyes fixed on it.
+Shot 5: low three-quarter angle with the person in the left foreground; golden cracks spread over the shell and pulse like a heartbeat; the shell bursts outward in a flash of light and fragments fall around; the person flinches and shields their face with a forearm; the damp baby dragon rises from the lower half of the shell, opens its mouth in a small first cry, shakes its head and spreads its wings.
+Shot 6: over-the-shoulder shot from behind the person; the baby dragon turns its head toward the person and tilts it with curiosity; the person slowly steps closer, kneels on one knee and holds out the right hand; the dragon stretches its neck and sniffs the hand.
+Shot 7: side two-shot; the dragon pushes its head up into the person's palm and the person gently strokes it with a soft smile; the dragon half closes its eyes, comes closer, sits up and presses its cheek against the person's chest with its eyes closed; the person, now kneeling on both knees, wraps an arm around its neck and bows their head over it; the camera slowly pulls back.
+
+Keep only one person, one egg and one baby dragon. The person keeps the look of @image1 and the dragon keeps the look of @image2 in every shot. Keep all screen directions and left/right positions as in @video1.
+The person does not speak; no narration, no on-screen text. Sound: forest ambience and the stream, footsteps on stone, stone and shell cracking, a deep rumble of the ground, the person's startled breathing, the baby dragon's soft chirps.
+```
+
+**Қазақша мазмұны:** фотореалистік, кино стиліндегі қайта рендер. `@video1`-ден камераның
+орны мен қозғалысы, кадр құрылымы, монтаж уақыты және әрекеттердің реті өзгеріссіз
+алынады. Адамның келбеті `@image1`-ден, айдаһардың келбеті `@image2`-ден алынады.
+Жұмыртқа суретте жоқ болғандықтан, мәтінмен сипатталған. Көрініс: таңғы мүкті орман,
+ағаштар арасынан түскен күн сәулесі, жеңіл тұман, шынайы текстуралар, кино түс-реңі.
 
 ## Қосымша: кейіпкер суреттерін қосу
 
