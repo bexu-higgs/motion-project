@@ -16,7 +16,7 @@ from pathlib import Path
 from telegram import Bot, InputSticker
 from telegram.error import BadRequest, NetworkError, RetryAfter, TimedOut
 
-from .cards import COLORED_WILD_KEYS, FACE_KEYS, OPTION_KEYS, Card, Color, colored_wild_key, grey_key
+from .cards import COLORED_WILD_KEYS, FACE_KEYS, OPTION_KEYS, Card, Color, colored_wild_key, dim_key
 from .config import ASSETS_DIR
 
 log = logging.getLogger(__name__)
@@ -24,18 +24,19 @@ log = logging.getLogger(__name__)
 # Бір жинақта ең көбі 120 статикалық стикер болады, сондықтан екі жинаққа бөлеміз.
 STICKER_SETS: dict[str, tuple[str, ...]] = {
     "cards": FACE_KEYS + COLORED_WILD_KEYS + OPTION_KEYS,
-    "grey": tuple(grey_key(k) for k in FACE_KEYS),
+    # Ескі «grey» (сұр) жинағының орнына — түсі көрінетін күңгірт карталар.
+    "dim": tuple(dim_key(k) for k in FACE_KEYS),
 }
 SET_TITLES = {
     "cards": "UNO қазақша — карталар",
-    "grey": "UNO қазақша — сұр карталар",
+    "dim": "UNO қазақша — жүруге болмайтын карталар",
 }
 OPTION_EMOJI = {"option_draw": "🃏", "option_pass": "⏭", "option_uno": "📢"}
 COLOR_EMOJI = {"red": "🟥", "yellow": "🟨", "green": "🟩", "blue": "🟦"}
 
 
 def sticker_emoji(key: str) -> str:
-    key = key.removeprefix("grey_")
+    key = key.removeprefix("dim_")
     if key in OPTION_EMOJI:
         return OPTION_EMOJI[key]
     for color, emoji in COLOR_EMOJI.items():
@@ -89,8 +90,8 @@ class StickerRegistry:
     def card(self, card: Card) -> str | None:
         return self.get(card.key)
 
-    def grey(self, card: Card) -> str | None:
-        return self.get(grey_key(card.key))
+    def dim(self, card: Card) -> str | None:
+        return self.get(dim_key(card.key))
 
     def colored_wild(self, value: str, color: Color) -> str | None:
         return self.get(colored_wild_key(value, color))
@@ -204,6 +205,9 @@ async def upload_sticker_sets(
             raise RuntimeError(f"{name}: стикерлер саны сәйкес емес")
         for key, sticker in zip(keys, sticker_set.stickers, strict=True):
             registry.ids[key] = sticker.file_id
+    # Ескі нұсқалардан қалған кілттерді (мысалы, сұр карталар) тастаймыз.
+    valid = {key for keys in STICKER_SETS.values() for key in keys}
+    registry.ids = {key: file_id for key, file_id in registry.ids.items() if key in valid}
     registry.save()
     return names
 

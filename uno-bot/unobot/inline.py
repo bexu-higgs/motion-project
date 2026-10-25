@@ -2,7 +2,7 @@
 
 Нәтиже id форматы: "<раунд>|<әрекет>|<аргумент>"
   p — картамен жүру (red_5, wild4), d — карта алу, s — өткізу,
-  u — UNO деу, x — ойнауға болмайтын (сұр) карта: тек ойын жағдайы жіберіледі.
+  u — UNO деу, x — ойнауға болмайтын (күңгірт) карта: тек ойын жағдайы жіберіледі.
 """
 
 from __future__ import annotations
@@ -157,7 +157,7 @@ def build_results(
         results.append(
             _sticker_or_article(
                 result_id(game, "x", card.key),
-                stickers.grey(card),
+                stickers.dim(card),
                 "🚫 " + texts.card_text(card),
                 "Бұл картамен қазір жүруге болмайды",
                 texts.plain_status(game),

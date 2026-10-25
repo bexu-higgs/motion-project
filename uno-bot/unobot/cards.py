@@ -110,12 +110,13 @@ COLORED_WILD_KEYS: tuple[str, ...] = tuple(f"{wild}_{color.value}" for wild in W
 
 OPTION_KEYS: tuple[str, ...] = ("option_draw", "option_pass", "option_uno")
 
-GREY_PREFIX = "grey_"
+DIM_PREFIX = "dim_"
 
 
 def colored_wild_key(value: str, color: Color) -> str:
     return f"{value}_{color.value}"
 
 
-def grey_key(key: str) -> str:
-    return GREY_PREFIX + key
+def dim_key(key: str) -> str:
+    """Ойнауға болмайтын (күңгірт) нұсқаның кілті."""
+    return DIM_PREFIX + key

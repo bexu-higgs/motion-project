@@ -146,10 +146,34 @@ def new_game_keyboard() -> InlineKeyboardMarkup:
 # ------------------------------------------------------- ойын барысын жариялау
 
 
+async def post_lobby(context: ContextTypes.DEFAULT_TYPE, session: Session) -> None:
+    """Тіркелу хабарламасын жіберіп, топта бірден бекіту (pin)."""
+    game = session.game
+    session.lobby_message_id = await send(context, game.chat_id, texts.lobby_text(game), lobby_keyboard(game))
+    try:
+        await context.bot.pin_chat_message(game.chat_id, session.lobby_message_id, disable_notification=True)
+    except TelegramError as exc:
+        # Бекіту үшін бот әкімші болып, «Хабарламаларды бекіту» құқығы болуы керек.
+        log.info("Тіркелу хабарламасы бекітілмеді (%s): %s", game.chat_id, exc)
+        hinted: set[int] = context.bot_data.setdefault("pin_hint_chats", set())
+        if game.chat_id not in hinted:
+            hinted.add(game.chat_id)
+            await send(context, game.chat_id, texts.PIN_HINT)
+
+
+async def unpin_lobby(context: ContextTypes.DEFAULT_TYPE, session: Session) -> None:
+    if session.lobby_message_id is None:
+        return
+    try:
+        await context.bot.unpin_chat_message(session.game.chat_id, message_id=session.lobby_message_id)
+    except TelegramError:
+        pass
+
+
 async def refresh_lobby(context: ContextTypes.DEFAULT_TYPE, session: Session) -> None:
     game = session.game
     if session.lobby_message_id is None:
-        session.lobby_message_id = await send(context, game.chat_id, texts.lobby_text(game), lobby_keyboard(game))
+        await post_lobby(context, session)
         return
     try:
         await context.bot.edit_message_text(
@@ -161,7 +185,7 @@ async def refresh_lobby(context: ContextTypes.DEFAULT_TYPE, session: Session) ->
         )
     except TelegramError as exc:
         if "not modified" not in str(exc).lower():
-            session.lobby_message_id = await send(context, game.chat_id, texts.lobby_text(game), lobby_keyboard(game))
+            await post_lobby(context, session)
 
 
 async def send_status(context: ContextTypes.DEFAULT_TYPE, session: Session, body: str = "") -> None:
@@ -224,6 +248,7 @@ async def announce(context: ContextTypes.DEFAULT_TYPE, session: Session, events:
         return
 
     cancel_turn_timer(context, chat_id)
+    await unpin_lobby(context, session)
     if session.status_message_id is not None:
         try:
             await context.bot.edit_message_reply_markup(chat_id, session.status_message_id, reply_markup=None)
@@ -385,6 +410,7 @@ async def do_leave(
     if not game.started:
         manager.sync(session)
         if not game.players:
+            await unpin_lobby(context, session)
             await close_lobby(context, session, texts.GAME_STOPPED_LOBBY)
         else:
             await refresh_lobby(context, session)
@@ -481,6 +507,7 @@ async def cmd_stop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         return
     cancel_turn_timer(context, chat_id)
     manager.delete(chat_id)
+    await unpin_lobby(context, session)
     if not game.started:
         await close_lobby(context, session, texts.GAME_STOPPED_LOBBY)
         return

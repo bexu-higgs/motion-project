@@ -17,6 +17,7 @@ from telegram import (
     Update,
     User,
 )
+from telegram.error import BadRequest
 
 from unobot import bot as botmod
 from unobot.config import Config
@@ -36,6 +37,8 @@ class FakeBot:
         self.stickers = []
         self.inline_answers = []
         self.callback_answers = []
+        self.pinned = set()
+        self.pin_fails = False
         self._message_id = 100
 
     async def send_message(self, chat_id, text, **kwargs):
@@ -48,6 +51,14 @@ class FakeBot:
 
     async def edit_message_reply_markup(self, chat_id=None, message_id=None, reply_markup=None, **kwargs):
         self.edits.append(SimpleNamespace(text=None, message_id=message_id, markup=reply_markup))
+
+    async def pin_chat_message(self, chat_id, message_id, **kwargs):
+        if self.pin_fails:
+            raise BadRequest("Not enough rights to manage pinned messages in the chat")
+        self.pinned.add(message_id)
+
+    async def unpin_chat_message(self, chat_id, message_id=None, **kwargs):
+        self.pinned.discard(message_id)
 
     async def send_sticker(self, chat_id, sticker, **kwargs):
         self.stickers.append(sticker)
@@ -138,6 +149,7 @@ async def _full_game(tmp_path, filled, seed):
     await botmod.cmd_new(command_update(fake, players[0], "/new"), context)
     assert "Жаңа UNO ойыны" in fake.sent[-1].text
     session = context.bot_data["manager"].get(CHAT_ID)
+    assert fake.pinned == {session.lobby_message_id}  # тіркелу хабарламасы бірден бекітілді
     session.game.rng = random.Random(seed)
     session.game.target_score = 0  # бір раунд — тест жылдам өтсін
 
@@ -187,6 +199,7 @@ async def _full_game(tmp_path, filled, seed):
 
     assert game.phase is Phase.FINISHED
     assert context.bot_data["manager"].get(CHAT_ID) is None
+    assert not fake.pinned  # ойын біткенде бекіту алынды
     assert "ойынды жеңді" in fake.sent[-1].text
 
 
@@ -211,9 +224,9 @@ async def _not_in_game(tmp_path):
 
     await botmod.on_inline_query(inline_update(fake, waiting), context)
     results = fake.inline_answers[-1].results
-    # Кезегі емес ойыншыға барлық карта сұр болып көрсетіледі
+    # Кезегі емес ойыншыға барлық карта күңгірт болып көрсетіледі
     assert results and all("|x|" in r.id for r in results)
-    assert all(r.sticker_file_id.startswith("file-grey_") for r in results)
+    assert all(r.sticker_file_id.startswith("file-dim_") for r in results)
 
     await botmod.on_chosen_result(chosen_update(waiting, f"{game.round_number}|d|"), context)
     assert "кезегіңіз емес" in fake.sent[-1].text
@@ -325,3 +338,19 @@ async def _short_messages(tmp_path):
     text = fake.sent[-1].text
     assert text.startswith("🎨 Түс: 🟩 Жасыл\n")
     assert "Challenge" in text
+
+
+def test_pin_hint_when_bot_is_not_admin(tmp_path):
+    asyncio.run(_pin_hint(tmp_path))
+
+
+async def _pin_hint(tmp_path):
+    fake = FakeBot()
+    fake.pin_fails = True
+    context = make_context(fake, registry_with_stickers(tmp_path, False))
+    await botmod.cmd_new(command_update(fake, USERS[0], "/new"), context)
+    hints = [m for m in fake.sent if "Pin messages" in m.text]
+    assert len(hints) == 1
+    await botmod.cmd_stop(command_update(fake, USERS[0], "/stop"), context)
+    await botmod.cmd_new(command_update(fake, USERS[0], "/new"), context)
+    assert len([m for m in fake.sent if "Pin messages" in m.text]) == 1  # кеңес бір рет қана
