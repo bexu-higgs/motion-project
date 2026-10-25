@@ -12,11 +12,11 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageEnhance, ImageFilter, ImageFont
 
 from .cards import (
+    BUTTON_KEYS,
     COLORED_WILD_KEYS,
     COLORS,
     DRAW_TWO,
     FACE_KEYS,
-    OPTION_KEYS,
     REVERSE,
     SKIP,
     WILD,
@@ -38,7 +38,6 @@ PALETTE = {
 }
 BLACK = (24, 24, 24)
 WHITE = (255, 255, 255)
-SLATE = (69, 90, 100)
 OVAL_ANGLE = -28
 
 FONT_CANDIDATES = (
@@ -160,24 +159,6 @@ def _reverse_layer(size: int, fill) -> Image.Image:
     nx, ny = math.cos(math.radians(45)), math.sin(math.radians(45))
     draw.polygon(_transform(arrow, -45, c - offset * nx, c - offset * ny), fill=fill)
     draw.polygon(_transform(arrow, 135, c + offset * nx, c + offset * ny), fill=fill)
-    return layer
-
-
-def _chevrons_layer(size: int, fill) -> Image.Image:
-    layer = _blank(size, size)
-    draw = ImageDraw.Draw(layer)
-    t = size * 0.17
-    for shift in (-size * 0.2, size * 0.14):
-        x0 = size * 0.32 + shift
-        pts = [
-            (x0, size * 0.18),
-            (x0 + t, size * 0.18),
-            (x0 + t + size * 0.3, size * 0.5),
-            (x0 + t, size * 0.82),
-            (x0, size * 0.82),
-            (x0 + size * 0.3, size * 0.5),
-        ]
-        draw.polygon(pts, fill=fill)
     return layer
 
 
@@ -319,26 +300,60 @@ def render_colored_wild(key: str) -> Image.Image:
     return _render_wild(value, color)
 
 
-def render_option(key: str) -> Image.Image:
-    if key == "option_draw":
-        canvas = _Canvas(BLACK)
-        canvas.oval(Image.new("RGBA", (canvas.w, canvas.h), PALETTE["red"] + (255,)), ow=0.8, oh=0.8)
-        uno = _text_layer("UNO", _s(240), _s(120), PALETTE["yellow"]).rotate(18, expand=True, resample=Image.BICUBIC)
-        canvas.center(uno, outline=6, shadow=7, dy=-_s(30))
-        canvas.banner("КАРТА АЛУ")
-    elif key == "option_pass":
-        canvas = _Canvas(SLATE)
-        canvas.oval(_white(canvas.w, canvas.h), ow=0.8, oh=0.8)
-        canvas.center(_chevrons_layer(_s(190), SLATE), dy=-_s(30))
-        canvas.banner("ӨТКІЗУ")
-    elif key == "option_uno":
-        canvas = _Canvas(PALETTE["red"])
-        canvas.oval(Image.new("RGBA", (canvas.w, canvas.h), PALETTE["yellow"] + (255,)))
-        uno = _text_layer("UNO!", _s(250), _s(120), PALETTE["red"]).rotate(18, expand=True, resample=Image.BICUBIC)
-        canvas.center(uno, outline=6, shadow=8)
+def _card_back() -> Image.Image:
+    """Картаның сырты: қара фон, қызыл сопақша, «UNO» жазуы."""
+    canvas = _Canvas(BLACK)
+    canvas.oval(Image.new("RGBA", (canvas.w, canvas.h), PALETTE["red"] + (255,)), ow=0.8, oh=0.8)
+    uno = _text_layer("UNO", _s(240), _s(120), PALETTE["yellow"]).rotate(18, expand=True, resample=Image.BICUBIC)
+    canvas.center(uno, outline=6, shadow=7)
+    return canvas.result()
+
+
+def _with_outline(layer: Image.Image, width: int, shadow: int = 0) -> Image.Image:
+    pad = width + shadow + 2
+    padded = _blank(layer.width + 2 * pad, layer.height + 2 * pad)
+    padded.paste(layer, (pad, pad))
+    return _outlined(padded, width, shadow)
+
+
+def _paste_center(base: Image.Image, layer: Image.Image, cx: float, cy: float) -> None:
+    base.alpha_composite(layer, (int(cx - layer.width / 2), int(cy - layer.height / 2)))
+
+
+BUTTON_SIZE = 512  # батырма стикерлері — шаршы, фоны мөлдір
+
+
+def render_button(key: str) -> Image.Image:
+    """Карта емес екені бірден көрінетін батырма стикерлері (фонсыз)."""
+    size = _s(BUTTON_SIZE)
+    img = _blank(size, size)
+    if key == "btn_draw":
+        # Бір-бірінің үстінде жатқан карталар және жоғары қараған стрелка — «карта алу».
+        back = _card_back().resize((_s(150), _s(228)), Image.LANCZOS)
+        for i, angle in enumerate((-14, 0, 14)):
+            card = back.rotate(angle, expand=True, resample=Image.BICUBIC)
+            _paste_center(img, card, size / 2 + (i - 1) * _s(62), size * 0.7)
+        arrow_layer = _blank(_s(260), _s(300))
+        points = _arrow_points(_s(280), _s(84), _s(130), _s(230))
+        ImageDraw.Draw(arrow_layer).polygon(_transform(points, -90, _s(130), _s(150)), fill=PALETTE["green"])
+        _paste_center(img, _with_outline(arrow_layer, 9, 10), size / 2, size * 0.3)
+    elif key == "btn_pass":
+        # «Келесі» белгісі (⏭) және «ПАС» жазуы — «кезекті өткізу».
+        icon = _blank(_s(330), _s(250))
+        draw = ImageDraw.Draw(icon)
+        for x0 in (_s(10), _s(120)):
+            draw.polygon([(x0, _s(10)), (x0 + _s(130), _s(125)), (x0, _s(240))], fill=PALETTE["blue"])
+        draw.rectangle((_s(262), _s(10), _s(318), _s(240)), fill=PALETTE["blue"])
+        _paste_center(img, _with_outline(icon, 9, 10), size / 2, size * 0.36)
+        label = _text_layer("ПАС", _s(300), _s(120), WHITE, _label_font)
+        _paste_center(img, _with_outline(label, 8, 8), size / 2, size * 0.8)
+    elif key == "btn_uno":
+        # Тек «UNO!» жазуы — UNO деу.
+        uno = _text_layer("UNO!", _s(470), _s(230), PALETTE["yellow"]).rotate(12, expand=True, resample=Image.BICUBIC)
+        _paste_center(img, _with_outline(uno, 12, 14), size / 2, size / 2)
     else:
         raise ValueError(key)
-    return canvas.result()
+    return img.resize((BUTTON_SIZE, BUTTON_SIZE), Image.LANCZOS)
 
 
 def to_dim(img: Image.Image) -> Image.Image:
@@ -355,13 +370,13 @@ def render(key: str) -> Image.Image:
         return to_dim(render(key[len("dim_") :]))
     if key in COLORED_WILD_KEYS:
         return render_colored_wild(key)
-    if key in OPTION_KEYS:
-        return render_option(key)
+    if key in BUTTON_KEYS:
+        return render_button(key)
     return render_face(key)
 
 
 def all_keys() -> list[str]:
-    return list(FACE_KEYS) + list(COLORED_WILD_KEYS) + list(OPTION_KEYS) + [dim_key(k) for k in FACE_KEYS]
+    return list(FACE_KEYS) + list(COLORED_WILD_KEYS) + list(BUTTON_KEYS) + [dim_key(k) for k in FACE_KEYS]
 
 
 def generate(out_dir: Path = ASSETS_DIR) -> list[Path]:
@@ -386,9 +401,10 @@ def contact_sheet(keys: list[str], out: Path, columns: int = 13, scale: float = 
     rows = math.ceil(len(keys) / columns)
     sheet = Image.new("RGB", (columns * (cw + gap) + gap, rows * (ch + gap) + gap), (236, 239, 241))
     for i, key in enumerate(keys):
-        img = Image.open(ASSETS_DIR / f"{key}.png").convert("RGBA").resize((cw, ch), Image.LANCZOS)
-        x = gap + (i % columns) * (cw + gap)
-        y = gap + (i // columns) * (ch + gap)
+        img = Image.open(ASSETS_DIR / f"{key}.png").convert("RGBA")
+        img.thumbnail((cw, ch), Image.LANCZOS)
+        x = gap + (i % columns) * (cw + gap) + (cw - img.width) // 2
+        y = gap + (i // columns) * (ch + gap) + (ch - img.height) // 2
         sheet.paste(img, (x, y), img)
     sheet.save(out, optimize=True)
 
@@ -397,6 +413,6 @@ if __name__ == "__main__":
     written = generate()
     print(f"{len(written)} сурет жасалды: {ASSETS_DIR}")
     preview_keys = [f"{c.value}_{v}" for c in COLORS for v in ("0", "6", "9", SKIP, REVERSE, DRAW_TWO)]
-    preview_keys += [WILD, WILD_DRAW_FOUR] + list(COLORED_WILD_KEYS) + list(OPTION_KEYS)
+    preview_keys += [WILD, WILD_DRAW_FOUR] + list(COLORED_WILD_KEYS) + list(BUTTON_KEYS)
     preview_keys += ["dim_red_7", "dim_yellow_skip", "dim_wild4"]
     contact_sheet(preview_keys, ASSETS_DIR.parent / "preview.png", columns=12)

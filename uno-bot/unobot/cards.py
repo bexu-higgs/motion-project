@@ -99,7 +99,8 @@ FACE_KEYS: tuple[str, ...] = tuple(Card(color, value).key for color in COLORS fo
 # Түс таңдалған Wild карталары (стикер ретінде ғана): wild_red, wild4_blue ...
 COLORED_WILD_KEYS: tuple[str, ...] = tuple(f"{wild}_{color.value}" for wild in WILDS for color in COLORS)
 
-OPTION_KEYS: tuple[str, ...] = ("option_draw", "option_pass", "option_uno")
+# Карта алу, пас және UNO батырмаларының стикерлері (карта пішінінде емес).
+BUTTON_KEYS: tuple[str, ...] = ("btn_draw", "btn_pass", "btn_uno")
 
 DIM_PREFIX = "dim_"
 

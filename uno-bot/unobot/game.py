@@ -8,7 +8,7 @@
   Challenge жасай алады: кінәлі болса — жүрген адам 4 карта алады, кінәсіз болса —
   Challenge жасаған адам 6 карта алып, кезегін өткізеді.
 * Жүре алмасаң (немесе қаламасаң) бір карта аласың; ол жарамды болса, сол картамен ғана
-  жүруге болады, әйтпесе кезек келесі ойыншыға өтеді.
+  жүруге болады, әйтпесе пас бересің.
 * Соңғының алдындағы картамен жүргенде UNO деу керек. Айтпасаң және келесі ойыншы
   жүргенше біреу ұстап алса — 2 карта аласың.
 * Ойын бір рет ойналады: картасынан бірінші құтылған ойыншы — 1-орын, екінші — 2-орын т.с.с.
@@ -432,13 +432,13 @@ class Game:
             self._advance(1)
             return events
         card = drawn[0]
-        if self.can_play(card) and not auto_pass:
-            self.drawn_card = card
-            events.append(ev("drew", player=player, playable=True))
-        else:
-            events.append(ev("drew", player=player, playable=False))
+        events.append(ev("drew", player=player, playable=self.can_play(card)))
+        if auto_pass:
             events.append(ev("passed", player=player))
             self._advance(1)
+        else:
+            # Кезек өздігінен өтпейді: ойыншы алған картасымен жүреді (жарамды болса) не пас береді.
+            self.drawn_card = card
         return events
 
     def pass_turn(self, user_id: int) -> list[Event]:

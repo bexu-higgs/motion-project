@@ -16,22 +16,24 @@ from pathlib import Path
 from telegram import Bot, InputSticker
 from telegram.error import BadRequest, NetworkError, RetryAfter, TimedOut
 
-from .cards import COLORED_WILD_KEYS, FACE_KEYS, OPTION_KEYS, Card, Color, colored_wild_key, dim_key
+from .cards import BUTTON_KEYS, COLORED_WILD_KEYS, FACE_KEYS, Card, Color, colored_wild_key, dim_key
 from .config import ASSETS_DIR
 
 log = logging.getLogger(__name__)
 
-# Бір жинақта ең көбі 120 статикалық стикер болады, сондықтан екі жинаққа бөлеміз.
+# Бір жинақта ең көбі 120 статикалық стикер болады, сондықтан бірнеше жинаққа бөлеміз.
 STICKER_SETS: dict[str, tuple[str, ...]] = {
-    "cards": FACE_KEYS + COLORED_WILD_KEYS + OPTION_KEYS,
+    "cards": FACE_KEYS + COLORED_WILD_KEYS,
     # Ескі «grey» (сұр) жинағының орнына — түсі көрінетін күңгірт карталар.
     "dim": tuple(dim_key(k) for k in FACE_KEYS),
+    "buttons": BUTTON_KEYS,
 }
 SET_TITLES = {
     "cards": "UNO қазақша — карталар",
     "dim": "UNO қазақша — жүруге болмайтын карталар",
+    "buttons": "UNO қазақша — батырмалар",
 }
-OPTION_EMOJI = {"option_draw": "🃏", "option_pass": "⏭", "option_uno": "📢"}
+OPTION_EMOJI = {"btn_draw": "🃏", "btn_pass": "⏭", "btn_uno": "📢"}
 COLOR_EMOJI = {"red": "🟥", "yellow": "🟨", "green": "🟩", "blue": "🟦"}
 
 
@@ -178,7 +180,12 @@ async def upload_sticker_sets(
             if count is None:
                 raise RuntimeError(f"{name} жинағы жасалмады")
         if count > len(keys):
-            raise RuntimeError(f"{name} жинағында артық стикерлер бар ({count} > {len(keys)}). Оны жойып, қайталаңыз.")
+            # Ескі нұсқада «cards» жинағының соңында карта пішінді батырмалар болған — оларды өшіреміз.
+            extra = (await _call(bot.get_sticker_set, name)).stickers[len(keys) :]
+            log.info("%s: артық %d стикер өшірілуде", name, len(extra))
+            for sticker in extra:
+                await _call(bot.delete_sticker_from_set, sticker.file_id, idempotent=False)
+            count = len(keys)
         failures = 0
         while count < len(keys):
             try:

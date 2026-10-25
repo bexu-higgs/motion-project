@@ -370,11 +370,16 @@ def test_draw_playable_card_and_pass():
     assert c("red_8") in game.players[0].hand
 
 
-def test_draw_unplayable_card_passes_automatically():
+def test_draw_unplayable_card_waits_for_pass():
     game = make_game(3)
     arrange(game, [["blue_1"], ["red_1"], ["red_2"]], top="red_5", deck=["green_9"])
     events = game.draw(1)
-    assert kinds(events) == ["drew", "passed"]
+    assert kinds(events) == ["drew"]
+    assert events[0]["playable"] is False
+    assert game.current_index == 0  # кезек өздігінен өтпейді
+    assert game.drawn_card == c("green_9")
+    assert game.playable_cards(game.players[0]) == []
+    game.pass_turn(1)
     assert game.current_index == 1
 
 
@@ -382,6 +387,10 @@ def test_draw_allowed_even_with_playable_cards():
     game = make_game(3)
     arrange(game, [["red_3", "blue_1"], ["red_1"], ["red_2"]], top="red_5", deck=["green_9"])
     game.draw(1)
+    with pytest.raises(GameError) as err:
+        game.play_card(1, "red_3")  # карта алғаннан кейін тек алған картамен жүруге болады
+    assert err.value.code == "only_drawn_card"
+    game.pass_turn(1)
     assert game.current_index == 1
 
 
