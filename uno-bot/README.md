@@ -51,7 +51,7 @@ Telegram-да @BotFather ботына `/newbot` деп жазып, жаңа бо
 **Linux / macOS** — терминалға мына жолды қойыңыз:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/bexu-higgs/motion-project/ccr-7af9396d-5giyl9/uno-bot/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/bexu-higgs/motion-project/main/uno-bot/install.sh | bash
 ```
 
 Скрипт кодты `~/uno-bot` қалтасына жүктейді, Python кітапханаларын орнатады және баптау шеберін ашады.
@@ -61,9 +61,9 @@ Python 3.10+ керек (Ubuntu/Debian: `sudo apt install python3 python3-venv`,
 
 ```powershell
 cd $HOME
-curl.exe -L -o uno.zip https://codeload.github.com/bexu-higgs/motion-project/zip/refs/heads/ccr-7af9396d-5giyl9
+curl.exe -L -o uno.zip https://codeload.github.com/bexu-higgs/motion-project/zip/refs/heads/main
 tar -xf uno.zip
-cd motion-project-ccr-7af9396d-5giyl9\uno-bot
+cd motion-project-main\uno-bot
 python -m venv .venv
 .venv\Scripts\python -m pip install -r requirements.txt
 .venv\Scripts\python -m unobot.setup

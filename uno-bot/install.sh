@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # UNO ботын бір командамен орнату (Linux / macOS):
-#   curl -fsSL https://raw.githubusercontent.com/bexu-higgs/motion-project/ccr-7af9396d-5giyl9/uno-bot/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/bexu-higgs/motion-project/main/uno-bot/install.sh | bash
 # Қайта іске қоссаңыз — код жаңартылады, .env пен стикерлер сақталады.
 set -euo pipefail
 
 REPO="bexu-higgs/motion-project"
-BRANCH="${UNO_BRANCH:-ccr-7af9396d-5giyl9}"
+BRANCH="${UNO_BRANCH:-main}"
 DIR="${UNO_DIR:-$HOME/uno-bot}"
 
 say() { printf '\n\033[1m%s\033[0m\n' "$*"; }
