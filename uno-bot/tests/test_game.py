@@ -227,17 +227,81 @@ def test_number_card_passes_turn():
     assert game.top_card == c("red_3")
 
 
-def test_wild_requires_color_and_sets_it():
+def test_wild_then_player_chooses_color():
     game = make_game(3)
     arrange(game, [["wild", "blue_1", "red_1"], ["red_1"], ["red_2"]], top="red_5")
+    game.play_card(1, "wild")
+    assert game.phase is Phase.CHOOSE_COLOR
+    assert game.current_index == 0  # түсті жүрген ойыншы таңдайды
     with pytest.raises(GameError) as err:
-        game.play_card(1, "wild")
-    assert err.value.code == "need_color"
-    game.play_card(1, "wild", G)
+        game.choose_color(2, G)
+    assert err.value.code == "not_your_color"
+    with pytest.raises(GameError) as err:
+        game.play_card(1, "blue_1")
+    assert err.value.code == "choose_color_first"
+    events = game.choose_color(1, G)
+    assert kinds(events) == ["color_chosen"]
+    assert game.phase is Phase.PLAYING
     assert game.current_color is G
     assert game.current_index == 1
     assert game.can_play(c("green_4"))
     assert not game.can_play(c("red_4"))
+
+
+def test_wild_with_color_in_one_step():
+    game = make_game(3)
+    arrange(game, [["wild", "blue_1", "red_1"], ["red_1"], ["red_2"]], top="red_5")
+    game.play_card(1, "wild", G)
+    assert game.current_color is G
+    assert game.current_index == 1
+
+
+def test_wild_draw_four_color_then_challenge():
+    game = make_game(3)
+    arrange(game, [["wild4", "red_1", "blue_2"], ["red_1"], ["red_2"]], top="red_5", deck=["green_9"] * 6)
+    game.play_card(1, "wild4")
+    assert game.phase is Phase.CHOOSE_COLOR
+    assert len(game.players[1].hand) == 1  # түс таңдалғанша айыппұл жоқ
+    events = game.choose_color(1, B)
+    assert kinds(events) == ["color_chosen", "wd4_pending"]
+    assert game.phase is Phase.CHALLENGE
+    assert game.current_index == 1
+    events = game.resolve_wd4(2, challenge=True)
+    challenge = next(e for e in events if e.kind == "challenge")
+    assert challenge["guilty"] is True  # қолында қызыл карта бар еді
+    assert challenge["hand"] == [c("red_1"), c("blue_2")]
+    assert game.current_color is B
+
+
+def test_wild_as_last_card_ends_round_without_color():
+    game = make_game(2, target=0)
+    arrange(game, [["wild4"], ["red_1"]], top="red_5", deck=["green_9"] * 6)
+    game.players[0].said_uno = True
+    events = game.play_card(1, "wild4")
+    assert "round_end" in kinds(events)
+    assert game.phase is Phase.FINISHED
+    assert len(game.players[1].hand) == 5
+
+
+def test_timeout_while_choosing_color_applies_card():
+    game = make_game(3)
+    arrange(game, [["wild", "blue_1", "blue_2"], ["red_1"], ["red_2"]], top="red_5")
+    game.play_card(1, "wild")
+    events = game.timeout()
+    assert "color_chosen" in kinds(events)
+    assert game.current_color is B  # қолындағы ең көп түс
+    assert game.current_index == 1
+
+
+def test_player_leaves_while_choosing_color():
+    game = make_game(3)
+    arrange(game, [["wild", "blue_1", "blue_2"], ["red_1"], ["red_2"]], top="red_5")
+    game.play_card(1, "wild")
+    events = game.remove_player(1)
+    assert "color_chosen" in kinds(events)
+    assert game.phase is Phase.PLAYING
+    assert game.current_color is not None
+    assert game.current_player.user_id == 2
 
 
 def test_skip():
@@ -565,7 +629,8 @@ def random_move(game: Game, rng: random.Random):
     playable = game.playable_cards(player)
     if playable and rng.random() < 0.9:
         card = rng.choice(playable)
-        return game.play_card(player.user_id, card.key, rng.choice(COLORS) if card.is_wild else None)
+        color = rng.choice(COLORS) if card.is_wild and rng.random() < 0.3 else None  # әйтпесе батырмамен
+        return game.play_card(player.user_id, card.key, color)
     if game.drawn_card is not None:
         return game.pass_turn(player.user_id)
     if rng.random() < 0.02:

@@ -1,7 +1,7 @@
 """Inline режимі: ойыншының қолындағы карталарды стикер ретінде көрсету.
 
 Нәтиже id форматы: "<раунд>|<әрекет>|<аргумент>"
-  p — картамен жүру (red_5 немесе wild4:blue), d — карта алу, s — өткізу,
+  p — картамен жүру (red_5, wild4), d — карта алу, s — өткізу,
   u — UNO деу, x — ойнауға болмайтын (сұр) карта: тек ойын жағдайы жіберіледі.
 """
 
@@ -15,7 +15,7 @@ from telegram import (
 )
 
 from . import texts
-from .cards import COLORS, Card, Color
+from .cards import Card, Color
 from .game import Game, Phase, Player
 from .stickers import StickerRegistry
 
@@ -139,27 +139,16 @@ def build_results(
             )
 
     for card in playable:
-        if card.is_wild:
-            for color in COLORS:
-                results.append(
-                    _sticker_or_article(
-                        result_id(game, "p", f"{card.key}:{color.value}"),
-                        stickers.colored_wild(card.value, color),
-                        f"{texts.card_text(card)} → {texts.color_text(color)}",
-                        "Картамен жүріп, жаңа түсті таңдау",
-                        f"{texts.card_text(card)} → {texts.color_text(color)}",
-                    )
-                )
-        else:
-            results.append(
-                _sticker_or_article(
-                    result_id(game, "p", card.key),
-                    stickers.card(card),
-                    texts.card_text(card),
-                    "Осы картамен жүру",
-                    texts.card_text(card),
-                )
+        # Wild пен Wild Draw Four бір рет көрсетіледі; түсті жүрген соң топтағы батырмамен таңдайды.
+        results.append(
+            _sticker_or_article(
+                result_id(game, "p", card.key),
+                stickers.card(card),
+                texts.card_text(card),
+                "Жүрген соң түс таңдайсыз" if card.is_wild else "Осы картамен жүру",
+                texts.card_text(card),
             )
+        )
 
     playable_keys = {c.key for c in playable}
     for card in _unique(player.hand):

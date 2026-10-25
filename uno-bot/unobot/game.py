@@ -94,6 +94,17 @@ class PendingWildDrawFour:
     previous_color: Color | None
 
 
+@dataclass
+class PendingColor:
+    """Wild жүрілді, жүрген ойыншы түс таңдауын күтудеміз."""
+
+    player_id: int
+    card: Card
+    legal: bool  # Wild Draw Four ережеге сай жүрілді ме
+    hand: list[Card]  # жүрген сәттегі қол (Challenge үшін)
+    previous_color: Color | None
+
+
 class Game:
     def __init__(
         self,
@@ -116,6 +127,7 @@ class Game:
         self.dealer_index = 0
         self.drawn_card: Card | None = None
         self.pending_wd4: PendingWildDrawFour | None = None
+        self.pending_color: PendingColor | None = None
         self.uno_vulnerable_id: int | None = None
         self.round_number = 0
         self.version = 0  # кез келген өзгерісте артады
@@ -243,6 +255,7 @@ class Game:
         self.direction = 1
         self.drawn_card = None
         self.pending_wd4 = None
+        self.pending_color = None
         self.uno_vulnerable_id = None
         for player in self.players:
             player.hand = []
@@ -349,8 +362,6 @@ class Game:
             raise GameError("only_drawn_card")
         if not self.can_play(card):
             raise GameError("cannot_play")
-        if card.is_wild and color is None:
-            raise GameError("need_color")
 
         self._close_uno_window()
         player.timeouts = 0
@@ -359,7 +370,10 @@ class Game:
         player.hand.remove(card)
         legal_wd4 = not any(c.color == previous_color for c in player.hand)
         self.discard.append(card)
-        self.current_color = color if card.is_wild else card.color
+        if not card.is_wild:
+            self.current_color = card.color
+        elif color is not None:
+            self.current_color = color
         events.append(ev("played", player=player, card=card, color=self.current_color))
 
         if len(player.hand) == 1 and not player.said_uno:
@@ -371,6 +385,22 @@ class Game:
             self._touch()
             return events
 
+        if card.is_wild and color is None:
+            # Түсті топтағы батырмалар арқылы таңдайды; карта әсері сосын орындалады.
+            self.pending_color = PendingColor(player.user_id, card, legal_wd4, player.sorted_hand(), previous_color)
+            self.phase = Phase.CHOOSE_COLOR
+            self._touch()
+            return events
+
+        events += self._apply_effect(player, card, legal_wd4, player.sorted_hand(), previous_color)
+        self._touch()
+        return events
+
+    def _apply_effect(
+        self, player: Player, card: Card, legal_wd4: bool, hand: list[Card], previous_color: Color | None
+    ) -> list[Event]:
+        """Жүрілген картаның әсері және кезекті келесі ойыншыға беру."""
+        events: list[Event] = []
         if card.value == SKIP:
             events.append(ev("skipped", player=self.next_player))
             self._advance(2)
@@ -392,7 +422,7 @@ class Game:
             self.pending_wd4 = PendingWildDrawFour(
                 player_id=player.user_id,
                 legal=legal_wd4,
-                hand=player.sorted_hand(),
+                hand=hand,
                 previous_color=previous_color,
             )
             self._advance(1)
@@ -400,7 +430,6 @@ class Game:
             events.append(ev("wd4_pending", player=player, target=self.current_player))
         else:
             self._advance(1)
-        self._touch()
         return events
 
     def draw(self, user_id: int) -> list[Event]:
@@ -444,7 +473,7 @@ class Game:
         if self.phase is not Phase.CHOOSE_COLOR:
             raise GameError("no_color_choice")
         if player is not self.current_player:
-            raise GameError("not_your_turn", player=self.current_player)
+            raise GameError("not_your_color", player=self.current_player)
         player.timeouts = 0
         events = self._choose_color(player, color)
         self._touch()
@@ -453,7 +482,12 @@ class Game:
     def _choose_color(self, player: Player, color: Color) -> list[Event]:
         self.current_color = color
         self.phase = Phase.PLAYING
-        return [ev("color_chosen", player=player, color=color)]
+        events = [ev("color_chosen", player=player, color=color)]
+        pending = self.pending_color
+        if pending is not None:
+            self.pending_color = None
+            events += self._apply_effect(player, pending.card, pending.legal, pending.hand, pending.previous_color)
+        return events
 
     def resolve_wd4(self, user_id: int, challenge: bool) -> list[Event]:
         """Wild Draw Four-ға жауап: challenge=True — Challenge, False — 4 карта алу."""
@@ -617,6 +651,12 @@ class Game:
                 # Challenge күтіп тұрған ойыншы шықты — айыппұл күшін жояды.
                 self.pending_wd4 = None
                 self.phase = Phase.PLAYING
+            elif self.pending_color is not None:
+                # Wild жүрген ойыншы түс таңдамай шықты — түсті кездейсоқ таңдаймыз.
+                self.pending_color = None
+                self.current_color = self.rng.choice(COLORS)
+                self.phase = Phase.PLAYING
+                events.append(ev("color_chosen", player=None, color=self.current_color))
             events.append(ev("turn_passed", player=self.current_player))
         return events
 
@@ -635,6 +675,7 @@ class Game:
         winner.score += points
         self.uno_vulnerable_id = None
         self.pending_wd4 = None
+        self.pending_color = None
         self.drawn_card = None
         events.append(ev("round_end", winner=winner, points=points, hands=hands, round=self.round_number))
         if self.target_score <= 0 or winner.score >= self.target_score:

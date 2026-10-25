@@ -166,7 +166,7 @@ async def refresh_lobby(context: ContextTypes.DEFAULT_TYPE, session: Session) ->
 
 async def send_status(context: ContextTypes.DEFAULT_TYPE, session: Session, body: str = "") -> None:
     game = session.game
-    text = f"{body}\n\n{texts.turn_text(game)}" if body else texts.turn_text(game)
+    text = f"{body}\n{texts.turn_prompt(game)}" if body else texts.turn_prompt(game)
     old = session.status_message_id
     session.status_message_id = await send(context, game.chat_id, text, turn_keyboard(game))
     if old is not None:
@@ -192,8 +192,10 @@ async def send_card_sticker(context: ContextTypes.DEFAULT_TYPE, chat_id: int, ca
     if sticker_id:
         try:
             await context.bot.send_sticker(chat_id, sticker_id)
+            return
         except TelegramError:
             log.warning("Стикер жіберілмеді: %s", card.key)
+    await send(context, chat_id, f"🃏 {texts.card_text(card)}")
 
 
 async def announce(context: ContextTypes.DEFAULT_TYPE, session: Session, events: list[Event]) -> None:
@@ -205,16 +207,18 @@ async def announce(context: ContextTypes.DEFAULT_TYPE, session: Session, events:
     start = next((i for i, e in enumerate(events) if e.kind == "round_start"), None)
     body_events = events
     if start is not None:
-        before, after = events[:start], events[start:]
-        if before:
-            await send(context, chat_id, texts.events_text(before, game))
-        cut = next(i for i, e in enumerate(after) if e.kind == "first_card") + 1
-        await send(context, chat_id, texts.events_text(after[:cut], game))
-        await send_card_sticker(context, chat_id, after[cut - 1]["card"])
-        body_events = after[cut:]
+        # Раунд нәтижесі мен жаңа раундтың басталуы — бір хабарлама, сосын бірінші картаның стикері.
+        cut = next(i for i, e in enumerate(events) if e.kind == "first_card") + 1
+        await send(context, chat_id, texts.events_text(events[:cut], game))
+        await send_card_sticker(context, chat_id, events[cut - 1]["card"])
+        body_events = events[cut:]
     body = texts.events_text(body_events, game)
 
     if game.running:
+        if game.drawn_card is not None and not body:
+            # Ойыншы карта алды және сол картамен жүре алады — кезек ауысқан жоқ, жаңа хабарлама керек емес.
+            schedule_turn_timer(context, session)
+            return
         await send_status(context, session, body)
         schedule_turn_timer(context, session)
         return
@@ -656,8 +660,8 @@ async def on_chosen_result(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         elif action == "s":
             events = game.pass_turn(user.id)
         elif action == "u":
-            events = game.say_uno(user.id)
-            await send(context, game.chat_id, texts.events_text(events, game))
+            # Чатта ойыншының «UNO!» стикері көрініп тұр — бот қосымша жазбайды.
+            game.say_uno(user.id)
             await update_status_keyboard(context, session)
             return
         else:

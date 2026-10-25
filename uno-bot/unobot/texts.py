@@ -134,7 +134,7 @@ HELP = (
     "Кезегіңіз келгенде «🃏 Карталарым» батырмасын басыңыз немесе чатқа "
     "<code>@{bot} </code> деп жазыңыз. Ашылған стикерлердің ішінен картаны таңдаңыз:\n"
     "• жарқын карталармен жүруге болады, сұр карталармен — болмайды;\n"
-    "• Wild карталары төрт түсте көрсетіледі — қалаған түсті таңдаңыз;\n"
+    "• Wild немесе +4 жүрсеңіз, топта төрт түсті батырма шығады — біреуін таңдаңыз;\n"
     "• «КАРТА АЛУ» — алу үйіндісінен бір карта алу, «ӨТКІЗУ» — кезекті өткізу;\n"
     "• «UNO!» — соңғының алдындағы картамен жүрер алдында UNO деу."
 )
@@ -202,7 +202,7 @@ ERRORS = {
     "card_not_in_hand": "Бұл карта қолыңызда жоқ.",
     "only_drawn_card": "Карта алғаннан кейін тек сол алған картаңызбен жүруге болады.",
     "cannot_play": "Бұл картамен жүруге болмайды: түсі, саны немесе белгісі сәйкес келмейді.",
-    "need_color": "Wild картасы үшін түс таңдау керек.",
+    "not_your_color": "Түсті {player} таңдайды.",
     "already_drawn": "Сіз бұл кезекте карта алып қойдыңыз. Алған картаңызбен жүріңіз немесе өткізіңіз.",
     "draw_first": "Өткізу үшін алдымен бір карта алу керек.",
     "no_color_choice": "Қазір түс таңдау қажет емес.",
@@ -257,120 +257,72 @@ def lobby_closed_text(game: Game) -> str:
 
 # ---------------------------------------------------------------- оқиғалар
 
+# Жүрістен кейінгі хабарлама қысқа болуы керек: жүрілген карта стикерден көрініп тұр,
+# сондықтан тек маңызды оқиғалар бір жолмен жазылады, соңында — «<келесі ойыншы> жүреді:».
+
 PENALTY_TEXT = {
-    "draw2": "➕ {player} 2 карта алып, кезегін өткізеді.",
-    "wd4": "➕ {player} 4 карта алып, кезегін өткізеді.",
-    "challenge_failed": "➕ {player} 6 карта алып, кезегін өткізеді.",
-    "challenge_guilty": "➕ {player} айып ретінде 4 карта алады.",
-    "uno": "➕ {player} айып ретінде 2 карта алады.",
-    "final": "➕ {player} соңғы карта бойынша {count} карта алады — олар да ұпайға есептеледі.",
+    "draw2": "➕ {player} 2 карта алды",
+    "wd4": "➕ {player} 4 карта алды",
+    "challenge_failed": "➕ {player} 6 карта алды",
+    "challenge_guilty": "➕ {player} 4 карта алды",
+    "uno": None,  # uno_caught жолында айтылады
+    "final": "➕ {player} {count} карта алды",
 }
 
 REMOVED_TEXT = {
-    "leave": "🚪 {player} ойыннан шықты.",
-    "kicked": "🚫 {player} ойыннан шығарылды.",
-    "timeout": "😴 {player} " + str(MAX_TIMEOUTS) + " рет қатарынан жүрмегені үшін ойыннан шығарылды.",
+    "leave": "🚪 {player} ойыннан шықты",
+    "kicked": "🚫 {player} ойыннан шығарылды",
+    "timeout": "😴 {player} " + str(MAX_TIMEOUTS) + " рет жүрмегені үшін ойыннан шығарылды",
 }
 
 
 def event_text(event: Event, game: Game) -> str | None:
     k, d = event.kind, event.data
     if k == "round_start":
-        return f"🎲 <b>{d['round']}-раунд басталды!</b> Таратушы: {name(d['dealer'])}. Әр ойыншыға 7 карта таратылды."
-    if k == "start_wd4_returned":
-        return "↩️ Wild Draw Four бірінші карта бола алмайды — ол дестеге қайтарылып, карталар араластырылды."
-    if k == "first_card":
-        return f"🃏 Бірінші карта: {card_text(d['card'])}"
+        return f"🎲 <b>{d['round']}-раунд басталды!</b>"
     if k == "start_reverse":
-        return f"🔄 Reverse: таратушы {name(d['player'])} бірінші жүреді, бағыт — сағат тіліне қарсы."
-    if k == "start_wild":
-        return f"🌈 Wild: {name(d['player'])} бастапқы түсті таңдайды."
-    if k == "skipped":
-        return f"⛔ {name(d['player'])} кезегін өткізіп жібереді."
-    if k == "played":
-        text = f"🃏 {name(d['player'])} жүрді: {card_text(d['card'])}"
-        if d["card"].is_wild:
-            text += f" → жаңа түс: {color_text(d['color'])}"
-        return text
-    if k == "uno_vulnerable":
-        p = name(d["player"])
-        return (
-            f"⚠️ {p} қолында 1 карта қалды, бірақ UNO демеді! «📢 UNO!» батырмасын кім бірінші басады? "
-            f"{p} үлгерсе — құтылады, басқа ойыншы үлгерсе — {p} 2 карта алады."
-        )
+        return "🔄 Бағыт кері"
+    if k in ("skipped", "reverse_as_skip"):
+        return f"⛔ {name(d['player'])} кезегін өткізеді"
     if k == "reversed":
-        return f"🔄 Бағыт өзгерді: енді {direction_text(d['direction'])}."
-    if k == "reverse_as_skip":
-        return f"🔄 Екі ойыншыда Reverse Skip сияқты: {name(d['player'])} кезегін өткізеді."
+        return "🔄 Бағыт өзгерді"
     if k == "penalty":
-        return PENALTY_TEXT[d["reason"]].format(player=name(d["player"]), count=d["count"])
-    if k == "drew":
-        return f"🃏 {name(d['player'])} бір карта алды."
-    if k == "passed":
-        return f"⏭ {name(d['player'])} кезегін өткізді."
+        template = PENALTY_TEXT[d["reason"]]
+        return template.format(player=name(d["player"]), count=d["count"]) if template else None
     if k == "color_chosen":
-        return f"🎨 {name(d['player'])} түсті таңдады: {color_text(d['color'])}."
-    if k == "wd4_pending":
-        return None  # шешім сұрағы кезек хабарламасында (turn_text) көрсетіледі
+        return f"🎨 Түс: {color_text(d['color'])}"
     if k == "challenge":
-        challenger, player = name(d["challenger"]), name(d["player"])
         if d["guilty"]:
-            return (
-                f"⚔️ {challenger} Challenge жасады — <b>сәтті!</b> {player} қолында "
-                f"{color_text(d['color'])} түсті карта бар еді, Wild Draw Four ережеге қайшы жүрілді. "
-                f"Кезек {challenger} ойыншысында қалады."
-            )
-        return f"⚔️ {challenger} Challenge жасады — <b>сәтсіз!</b> {player} ережені бұзған жоқ."
+            return f"⚔️ Challenge сәтті: {name(d['player'])} ережені бұзды"
+        return "⚔️ Challenge сәтсіз"
+    if k == "uno_vulnerable":
+        return f"⚠️ {name(d['player'])} UNO демеді! Бірінші болып «📢 UNO!» басыңыз"
     if k == "uno_said":
-        return f"📢 {name(d['player'])}: «UNO!»"
+        return f"📢 {name(d['player'])}: UNO!"
     if k == "uno_caught":
-        return f"🚨 {name(d['catcher'])} ұстап алды: {name(d['player'])} уақытында UNO демеді!"
+        return f"🚨 {name(d['player'])} UNO демеді — 2 карта алды"
     if k == "deck_reshuffled":
-        return "♻️ Алу үйіндісі таусылды — тасталған карталар араластырылып, жаңа үйінді жасалды."
+        return "♻️ Карталар қайта араластырылды"
     if k == "deck_empty":
-        return "🈳 Алуға карта қалмады."
+        return "🈳 Алуға карта қалмады"
     if k == "timeout":
-        return f"⏰ {name(d['player'])} уақытында жүрмеді — бот оның орнына әрекет жасады."
+        return f"⏰ {name(d['player'])} уақытында жүрмеді"
     if k == "player_removed":
         return REMOVED_TEXT[d["reason"]].format(player=name(d["player"]))
     if k == "host_changed":
-        return f"👑 Жаңа ойын иесі: {name(d['player'])}."
-    if k == "turn_passed":
-        return None
+        return f"👑 Жаңа ойын иесі: {name(d['player'])}"
     if k == "game_aborted":
         text = "🛑 Ойыншылар саны жеткіліксіз — ойын аяқталды."
         if d["winner"] is not None:
             text += f"\n🏆 Жеңімпаз: {name(d['winner'])}"
         return text
     if k == "round_end":
-        return round_end_text(event, game)
+        return f"🏁 {name(d['winner'])} раундты жеңді! +{d['points']} ұпай\n\n{scoreboard(game)}"
     if k == "game_end":
         winner = d["winner"]
-        return (
-            f"🎉🏆 <b>{escape(winner.name)} ойынды жеңді!</b> Жиналған ұпай: {winner.score}. Құттықтаймыз!\n"
-            "Жаңа ойын бастау: /new"
-        )
+        return f"🏆 <b>{escape(winner.name)} ойынды жеңді!</b> Ұпай: {winner.score}\nЖаңа ойын: /new"
+    # played, drew, passed, first_card, wd4_pending, start_wild … — стикерден не батырмадан көрінеді
     return None
-
-
-def round_end_text(event: Event, game: Game) -> str:
-    d = event.data
-    winner = d["winner"]
-    lines = [
-        f"🏁 {name(winner)} барлық картасынан құтылып, <b>{d['round']}-раундты</b> жеңді!",
-        f"Қарсыластардың карталарынан <b>+{d['points']}</b> ұпай алды.",
-    ]
-    hands = d["hands"]
-    if hands:
-        lines += ["", "🂠 Қолда қалған карталар:"]
-        for player in game.players:
-            if player.user_id in hands:
-                cards = hands[player.user_id]
-                total = sum(c.points for c in cards)
-                shown = " ".join(card_short(c) for c in cards) or "—"
-                lines.append(f"• {name(player)}: {shown} ({total} ұпай)")
-    lines += ["", scoreboard(game)]
-    return "\n".join(lines)
 
 
 def scoreboard(game: Game) -> str:
@@ -396,6 +348,16 @@ def turn_order(game: Game) -> list[Player]:
 
 def order_line(game: Game) -> str:
     return " → ".join(f"{escape(p.name)} · {len(p.hand)}" for p in turn_order(game))
+
+
+def turn_prompt(game: Game) -> str:
+    """Жүрістен кейінгі қысқа хабарлама: кімнің кезегі және не істеу керек."""
+    player = game.current_player
+    if game.phase is Phase.CHOOSE_COLOR:
+        return f"🎨 {mention(player)}, түс таңдаңыз:"
+    if game.phase is Phase.CHALLENGE:
+        return f"{mention(player)} жүреді: ⚔️ Challenge немесе ✅ 4 карта алу?"
+    return f"{mention(player)} жүреді:"
 
 
 def turn_text(game: Game) -> str:

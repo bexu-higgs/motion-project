@@ -266,3 +266,62 @@ async def _turn_timeout(tmp_path):
     assert game.current_player is not sleeper
     assert sleeper.timeouts == 1
     assert any("уақытында жүрмеді" in m.text for m in fake.sent)
+
+
+def test_short_turn_messages_and_wild_color_buttons(tmp_path):
+    asyncio.run(_short_messages(tmp_path))
+
+
+async def _short_messages(tmp_path):
+    from unobot.cards import Card, Color
+
+    fake = FakeBot()
+    context = make_context(fake, registry_with_stickers(tmp_path, True))
+    await botmod.cmd_new(command_update(fake, USERS[0], "/new"), context)
+    await botmod.cmd_join(command_update(fake, USERS[1], "/join"), context)
+    await botmod.cmd_join(command_update(fake, USERS[2], "/join"), context)
+    session = context.bot_data["manager"].get(CHAT_ID)
+    session.game.rng = random.Random(2)
+    await botmod.cmd_begin(command_update(fake, USERS[0], "/begin"), context)
+    game = session.game
+    # Қолды және үстіңгі картаны белгілейміз
+    game.phase = Phase.PLAYING
+    game.pending_color = None
+    game.discard.append(Card(Color.RED, "5"))
+    game.current_color = Color.RED
+    game.current_index = 0
+    game.direction = 1
+    game.players[0].hand = [Card(Color.RED, "7"), Card(None, "wild4"), Card(Color.BLUE, "1"), Card(Color.BLUE, "2")]
+
+    def user(i):
+        return USERS[i]
+
+    # Inline тізімде +4 тек бір рет, түсті нұсқаларсыз
+    await botmod.on_inline_query(inline_update(fake, user(0)), context)
+    ids = [r.id for r in fake.inline_answers[-1].results]
+    assert sum("|p|wild4" in i for i in ids) == 1
+    assert not any(":" in i for i in ids)
+
+    # Қарапайым жүрістен кейін — тек «<келесі ойыншы> жүреді:»
+    await botmod.on_chosen_result(chosen_update(user(0), f"{game.round_number}|p|red_7"), context)
+    assert fake.sent[-1].text == f'<a href="tg://user?id={USERS[1].id}">{USERS[1].first_name}</a> жүреді:'
+
+    # +4 жүрілгенде топқа 4 түсті батырма шығады
+    game.current_index = 0
+    await botmod.on_chosen_result(chosen_update(user(0), f"{game.round_number}|p|wild4"), context)
+    prompt = fake.sent[-1]
+    assert "түс таңдаңыз" in prompt.text
+    color_buttons = [b.callback_data for row in prompt.markup.inline_keyboard for b in row if b.callback_data]
+    assert color_buttons == ["color:red", "color:yellow", "color:green", "color:blue"]
+
+    # Басқа ойыншы түс таңдай алмайды
+    await botmod.on_callback(callback_update(fake, user(1), "color:green"), context)
+    assert fake.callback_answers[-1].show_alert
+    assert game.phase is Phase.CHOOSE_COLOR
+
+    await botmod.on_callback(callback_update(fake, user(0), "color:green"), context)
+    assert game.current_color is Color.GREEN
+    assert game.phase is Phase.CHALLENGE
+    text = fake.sent[-1].text
+    assert text.startswith("🎨 Түс: 🟩 Жасыл\n")
+    assert "Challenge" in text
