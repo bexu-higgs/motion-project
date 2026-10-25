@@ -34,8 +34,8 @@ class NoShuffle(random.Random):
         return 0
 
 
-def make_game(n: int = 3, target: int = 500) -> Game:
-    game = Game(chat_id=1, host_id=1, target_score=target, rng=NoShuffle())
+def make_game(n: int = 3) -> Game:
+    game = Game(chat_id=1, host_id=1, rng=NoShuffle())
     for uid in range(1, n + 1):
         game.add_player(uid, f"P{uid}")
     return game
@@ -84,16 +84,6 @@ def test_deck_has_108_official_cards():
     assert counts[WILD_DRAW_FOUR] == 4
 
 
-def test_card_points():
-    assert c("red_7").points == 7
-    assert c("blue_0").points == 0
-    assert c("green_skip").points == 20
-    assert c("yellow_reverse").points == 20
-    assert c("red_draw2").points == 20
-    assert c("wild").points == 50
-    assert c("wild4").points == 50
-
-
 # ---------------------------------------------------------------- бастау
 
 
@@ -136,7 +126,7 @@ def test_start_deals_seven_and_left_of_dealer_starts(monkeypatch):
     assert game.top_card == c("red_5")
     assert game.dealer_index == 0
     assert game.current_index == 1
-    assert kinds(events)[:2] == ["round_start", "first_card"]
+    assert kinds(events)[:2] == ["game_start", "first_card"]
     assert total_cards(game) == 108
 
 
@@ -273,14 +263,21 @@ def test_wild_draw_four_color_then_challenge():
     assert game.current_color is B
 
 
-def test_wild_as_last_card_ends_round_without_color():
-    game = make_game(2, target=0)
-    arrange(game, [["wild4"], ["red_1"]], top="red_5", deck=["green_9"] * 6)
+def test_wild_as_last_card_player_still_chooses_color():
+    game = make_game(3)
+    arrange(game, [["wild4"], ["red_1", "red_2"], ["red_3", "red_4"]], top="red_5", deck=["green_9"] * 6)
     game.players[0].said_uno = True
-    events = game.play_card(1, "wild4")
-    assert "round_end" in kinds(events)
-    assert game.phase is Phase.FINISHED
-    assert len(game.players[1].hand) == 5
+    game.play_card(1, "wild4")
+    assert game.phase is Phase.CHOOSE_COLOR
+    events = game.choose_color(1, B)
+    assert kinds(events) == ["color_chosen", "wd4_pending", "player_finished"]
+    assert [p.user_id for p in game.places] == [1]
+    assert game.phase is Phase.CHALLENGE
+    assert game.current_player.user_id == 2
+    # Соңғы карта болғандықтан Wild Draw Four әрқашан заңды
+    game.resolve_wd4(2, challenge=True)
+    assert len(game.players[0].hand) == 8
+    assert game.current_player.user_id == 3
 
 
 def test_timeout_while_choosing_color_applies_card():
@@ -509,53 +506,64 @@ def test_uno_window_closes_when_next_player_acts():
     assert len(game.players[0].hand) == 1
 
 
-# ------------------------------------------------------------------ раунд
+# ------------------------------------------------------------- орындар
 
 
-def test_round_end_scoring_and_next_round():
+def test_first_out_takes_first_place_and_game_continues():
     game = make_game(3)
-    arrange(
-        game,
-        [["red_3"], ["blue_7", "wild", "green_skip"], ["yellow_4", "wild4"]],
-        top="red_5",
-    )
+    arrange(game, [["red_3"], ["blue_7", "wild"], ["yellow_4", "wild4"]], top="red_5")
     game.players[0].said_uno = True
     events = game.play_card(1, "red_3")
-    round_end = next(e for e in events if e.kind == "round_end")
-    assert round_end["points"] == 7 + 50 + 20 + 4 + 50
-    assert game.players[0].score == 131
-    assert "round_start" in kinds(events)
-    assert game.round_number == 2
-    assert game.dealer_index == 1  # таратушы сол жаққа ауысады
-    assert all(len(p.hand) == 7 for p in game.players)
-    assert total_cards(game) == 108
+    finished = next(e for e in events if e.kind == "player_finished")
+    assert finished["place"] == 1
+    assert game.running
+    assert [p.user_id for p in game.players] == [2, 3]
+    assert game.current_player.user_id == 2
 
 
-def test_last_card_draw_two_counts_for_next_player():
-    game = make_game(3, target=1000)
-    arrange(game, [["red_draw2"], ["blue_7"], ["yellow_4"]], top="red_5", deck=["green_9", "green_8"])
-    events = game.play_card(1, "red_draw2")
-    penalty = next(e for e in events if e.kind == "penalty")
-    assert penalty["reason"] == "final"
-    round_end = next(e for e in events if e.kind == "round_end")
-    assert round_end["points"] == 7 + 9 + 8 + 4
-
-
-def test_game_ends_when_target_reached():
-    game = make_game(2, target=100)
-    arrange(game, [["red_3"], ["wild", "wild4"]], top="red_5")
-    game.players[0].score = 10
-    events = game.play_card(1, "red_3")
-    assert kinds(events)[-1] == "game_end"
+def test_game_continues_until_one_player_left():
+    game = make_game(3)
+    arrange(game, [["red_3"], ["red_7"], ["yellow_4", "green_4"]], top="red_5")
+    for player in game.players:
+        player.said_uno = True
+    game.play_card(1, "red_3")  # 1-орын
+    assert game.running
+    assert game.current_player.user_id == 2
+    events = game.play_card(2, "red_7")  # 2-орын, 3-ойыншы жалғыз қалды
+    assert kinds(events)[-2:] == ["player_finished", "game_end"]
     assert game.phase is Phase.FINISHED
-    assert game.winner is game.players[0]
+    assert [p.user_id for p in game.places] == [1, 2, 3]
+    assert game.winner.user_id == 1
 
 
-def test_single_round_mode():
-    game = make_game(2, target=0)
-    arrange(game, [["red_3"], ["red_1"]], top="red_5")
+def test_two_players_last_card_ends_game():
+    game = make_game(2)
+    arrange(game, [["red_3"], ["wild", "wild4"]], top="red_5")
+    game.players[0].said_uno = True
     events = game.play_card(1, "red_3")
+    assert kinds(events)[-2:] == ["player_finished", "game_end"]
+    assert [p.user_id for p in events[-1]["places"]] == [1, 2]
+    assert game.phase is Phase.FINISHED
+
+
+def test_last_card_skip_still_skips():
+    game = make_game(4)
+    arrange(game, [["red_skip"], ["red_1", "red_2"], ["red_3", "red_4"], ["red_6", "red_7"]], top="red_5")
+    game.players[0].said_uno = True
+    events = game.play_card(1, "red_skip")
+    assert kinds(events) == ["played", "skipped", "player_finished"]
+    assert game.current_player.user_id == 3
+    assert [p.user_id for p in game.players] == [2, 3, 4]
+
+
+def test_leave_after_someone_finished_ends_with_places():
+    game = make_game(3)
+    arrange(game, [["red_3"], ["blue_7", "wild"], ["yellow_4", "wild4"]], top="red_5")
+    game.players[0].said_uno = True
+    game.play_card(1, "red_3")
+    events = game.remove_player(3)
     assert kinds(events)[-1] == "game_end"
+    assert [p.user_id for p in game.places] == [1, 2]
 
 
 # ------------------------------------------------------ шығу және уақыт
@@ -644,7 +652,7 @@ def test_random_games_keep_invariants(seed):
 
     rng = random.Random(seed)
     n = 2 + seed % 9
-    game = Game(chat_id=1, host_id=1, target_score=200, rng=random.Random(seed))
+    game = Game(chat_id=1, host_id=1, rng=random.Random(seed))
     for uid in range(1, n + 1):
         game.add_player(uid, f"P{uid}")
     events = game.start(1)

@@ -11,8 +11,8 @@
   жүруге болады, әйтпесе кезек келесі ойыншыға өтеді.
 * Соңғының алдындағы картамен жүргенде UNO деу керек. Айтпасаң және келесі ойыншы
   жүргенше біреу ұстап алса — 2 карта аласың.
-* Раунд жеңімпазы қарсыластардың қолындағы карталардың ұпайын алады; 500 ұпай жинаған
-  бірінші ойыншы жеңеді.
+* Ойын бір рет ойналады: картасынан бірінші құтылған ойыншы — 1-орын, екінші — 2-орын т.с.с.
+  Ойын бір ғана ойыншы қалғанша жалғасады, ол соңғы орынды алады.
 """
 
 from __future__ import annotations
@@ -38,8 +38,6 @@ from .cards import (
 MIN_PLAYERS = 2
 MAX_PLAYERS = 10
 HAND_SIZE = 7
-DEFAULT_TARGET = 500
-TARGET_CHOICES = (500, 300, 200, 100, 0)  # 0 — бір раунд
 MAX_TIMEOUTS = 3
 
 
@@ -78,7 +76,6 @@ class Player:
     user_id: int
     name: str
     hand: list[Card] = field(default_factory=list)
-    score: int = 0
     said_uno: bool = False
     timeouts: int = 0
 
@@ -110,12 +107,10 @@ class Game:
         self,
         chat_id: int,
         host_id: int,
-        target_score: int = DEFAULT_TARGET,
         rng: random.Random | None = None,
     ) -> None:
         self.chat_id = chat_id
         self.host_id = host_id
-        self.target_score = target_score
         self.rng = rng or random.Random()
         self.players: list[Player] = []
         self.phase = Phase.LOBBY
@@ -129,10 +124,12 @@ class Game:
         self.pending_wd4: PendingWildDrawFour | None = None
         self.pending_color: PendingColor | None = None
         self.uno_vulnerable_id: int | None = None
-        self.round_number = 0
+        # Inline нәтижелерін осы ойынға байлау үшін (алдыңғы ойынның ескі таңдауы өтпейді).
+        self.game_id = self.rng.randrange(1, 10**9)
         self.version = 0  # кез келген өзгерісте артады
         self.turn_serial = 0  # кезек күйі өзгергенде артады (UNO айту/ұстау есепке алынбайды)
         self.winner: Player | None = None
+        self.places: list[Player] = []  # картасынан құтылу реті: 1-орын, 2-орын …
 
     # ------------------------------------------------------------------ күй
 
@@ -224,16 +221,6 @@ class Game:
         self._touch()
         return player
 
-    def set_target(self, user_id: int, target: int) -> None:
-        if user_id != self.host_id:
-            raise GameError("host_only")
-        if self.started:
-            raise GameError("already_started")
-        if target < 0:
-            raise GameError("bad_target")
-        self.target_score = target
-        self._touch()
-
     def start(self, user_id: int) -> list[Event]:
         if user_id != self.host_id:
             raise GameError("host_only")
@@ -243,12 +230,11 @@ class Game:
             raise GameError("not_enough_players", min=MIN_PLAYERS)
         # Ресми ережеде алғашқы таратушыны карта суыру арқылы анықтайды — біз кездейсоқ таңдаймыз.
         self.dealer_index = self.rng.randrange(len(self.players))
-        events = self._start_round()
+        events = self._deal()
         self._touch()
         return events
 
-    def _start_round(self) -> list[Event]:
-        self.round_number += 1
+    def _deal(self) -> list[Event]:
         self.deck = new_deck()
         self.rng.shuffle(self.deck)
         self.discard = []
@@ -265,7 +251,7 @@ class Game:
             for offset in range(1, n + 1):
                 self.players[(self.dealer_index + offset) % n].hand.append(self.deck.pop())
 
-        events = [ev("round_start", round=self.round_number, dealer=self.dealer)]
+        events = [ev("game_start", dealer=self.dealer)]
         top = self.deck.pop()
         while top.value == WILD_DRAW_FOUR:
             # Wild Draw Four бастапқы карта бола алмайды: дестеге қайтарып, араластырамыз.
@@ -380,11 +366,6 @@ class Game:
             self.uno_vulnerable_id = player.user_id
             events.append(ev("uno_vulnerable", player=player))
 
-        if not player.hand:
-            events += self._finish_round(player, card)
-            self._touch()
-            return events
-
         if card.is_wild and color is None:
             # Түсті топтағы батырмалар арқылы таңдайды; карта әсері сосын орындалады.
             self.pending_color = PendingColor(player.user_id, card, legal_wd4, player.sorted_hand(), previous_color)
@@ -393,6 +374,7 @@ class Game:
             return events
 
         events += self._apply_effect(player, card, legal_wd4, player.sorted_hand(), previous_color)
+        events += self._retire_if_out(player)
         self._touch()
         return events
 
@@ -487,6 +469,7 @@ class Game:
         if pending is not None:
             self.pending_color = None
             events += self._apply_effect(player, pending.card, pending.legal, pending.hand, pending.previous_color)
+            events += self._retire_if_out(player)
         return events
 
     def resolve_wd4(self, user_id: int, challenge: bool) -> list[Event]:
@@ -634,9 +617,12 @@ class Game:
             events.append(ev("host_changed", player=self.players[0]))
 
         if len(self.players) < MIN_PLAYERS:
-            self.phase = Phase.FINISHED
-            self.winner = self.players[0] if self.players else None
-            events.append(ev("game_aborted", winner=self.winner))
+            if self.places:
+                events += self._end_game()
+            else:
+                self.phase = Phase.FINISHED
+                self.winner = self.players[0] if self.players else None
+                events.append(ev("game_aborted", winner=self.winner))
             return events
 
         n = len(self.players)
@@ -660,32 +646,34 @@ class Game:
             events.append(ev("turn_passed", player=self.current_player))
         return events
 
-    # -------------------------------------------------------------- раунд
+    # ------------------------------------------------------------- аяқталу
 
-    def _finish_round(self, winner: Player, last_card: Card) -> list[Event]:
-        events: list[Event] = []
-        # Соңғы карта Draw Two не Wild Draw Four болса, келесі ойыншы бәрібір карта алады.
-        if last_card.value in (DRAW_TWO, WILD_DRAW_FOUR):
-            victim = self.next_player
-            count = 2 if last_card.value == DRAW_TWO else 4
-            self._draw(victim, count, events)
-            events.append(ev("penalty", player=victim, count=count, reason="final"))
-        hands = {p.user_id: p.sorted_hand() for p in self.players if p is not winner}
-        points = sum(card.points for p in self.players if p is not winner for card in p.hand)
-        winner.score += points
+    def _retire_if_out(self, player: Player) -> list[Event]:
+        """Картасынан құтылған ойыншы келесі орынды алып, кезектен шығады."""
+        if player.hand or player not in self.players:
+            return []
+        idx = self.players.index(player)
+        self.players.pop(idx)
+        self.places.append(player)
+        if self.uno_vulnerable_id == player.user_id:
+            self.uno_vulnerable_id = None
+        events = [ev("player_finished", player=player, place=len(self.places))]
+        if len(self.players) == 1:
+            return events + self._end_game()
+        # Карта әсерінен кейін кезек басқа ойыншыда (кемінде 3 ойыншы қалған кезде ол өзіне оралмайды).
+        if idx < self.current_index:
+            self.current_index -= 1
+        if idx <= self.dealer_index:
+            self.dealer_index = (self.dealer_index - 1) % len(self.players)
+        return events
+
+    def _end_game(self) -> list[Event]:
+        """Соңғы қалған ойыншы соңғы орынды алады — ойын аяқталды."""
+        self.places += self.players
         self.uno_vulnerable_id = None
         self.pending_wd4 = None
         self.pending_color = None
         self.drawn_card = None
-        events.append(ev("round_end", winner=winner, points=points, hands=hands, round=self.round_number))
-        if self.target_score <= 0 or winner.score >= self.target_score:
-            self.phase = Phase.FINISHED
-            self.winner = winner
-            events.append(ev("game_end", winner=winner))
-        else:
-            self.dealer_index = (self.dealer_index + 1) % len(self.players)
-            events += self._start_round()
-        return events
-
-    def standings(self) -> list[Player]:
-        return sorted(self.players, key=lambda p: -p.score)
+        self.phase = Phase.FINISHED
+        self.winner = self.places[0]
+        return [ev("game_end", places=list(self.places))]

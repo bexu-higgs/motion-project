@@ -1,4 +1,4 @@
-"""UNO карталары: түстер, мәндер, 108 картадан тұратын десте және ұпайлар."""
+"""UNO карталары: түстер, мәндер және 108 картадан тұратын десте."""
 
 from __future__ import annotations
 
@@ -58,15 +58,6 @@ class Card:
         if self.color is None:
             return self.value
         return f"{self.color.value}_{self.value}"
-
-    @property
-    def points(self) -> int:
-        """Ресми ереже бойынша ұпай: сан — өз мәні, әрекет карталары — 20, Wild — 50."""
-        if self.is_number:
-            return int(self.value)
-        if self.value in ACTIONS:
-            return 20
-        return 50
 
     @property
     def sort_key(self) -> tuple[int, int]:
