@@ -34,7 +34,6 @@ from .config import Config, load_config
 from .game import DEFAULT_TARGET, TARGET_CHOICES, Event, Game, GameError, Phase
 from .inline import MAX_RESULTS, build_results, parse_play_arg, parse_result_id
 from .manager import GameManager, Session
-from .pack import load_pack, render_preview, summary
 from .stickers import StickerRegistry, set_links, upload_sticker_sets
 
 log = logging.getLogger(__name__)
@@ -512,35 +511,6 @@ async def cmd_kick(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         await reply_error(context, chat_id, user, error)
 
 
-async def cmd_pack(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Дайын пакты қайта жүктеп, әр стикердің нөмірі мен картасы жазылған суретті жіберу."""
-    config = config_of(context)
-    user = update.effective_user
-    if config.admin_id is None or user.id != config.admin_id:
-        await update.effective_message.reply_html(texts.STICKERS_ADMIN_ONLY)
-        return
-    if not config.sticker_pack:
-        await update.effective_message.reply_html(texts.PACK_DISABLED)
-        return
-    await update.effective_message.reply_html(texts.PACK_LOADING.format(pack=config.sticker_pack))
-    try:
-        sticker_set, report = await load_pack(
-            context.bot, stickers_of(context), config.sticker_pack, config.sticker_map
-        )
-        preview = await render_preview(context.bot, sticker_set, report)
-    except Exception as exc:  # noqa: BLE001 — қатені әкімшіге көрсетеміз
-        log.exception("Пакты жүктеу сәтсіз")
-        await update.effective_message.reply_text(texts.PACK_FAIL.format(pack=config.sticker_pack, error=exc))
-        return
-    await context.bot.send_document(
-        update.effective_chat.id,
-        preview,
-        filename=f"{config.sticker_pack}_preview.png",
-        caption=texts.PACK_PREVIEW_CAPTION,
-    )
-    await update.effective_message.reply_text(summary(report))
-
-
 async def cmd_setup_stickers(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     config = config_of(context)
     user = update.effective_user
@@ -741,14 +711,8 @@ async def post_init(app: Application) -> None:
     await app.bot.set_my_commands([BotCommand(cmd, desc) for cmd, desc in texts.COMMANDS])
     registry: StickerRegistry = app.bot_data["stickers"]
     registry.bind(app.bot.username)
-    config: Config = app.bot_data["config"]
-    if config.sticker_pack:
-        try:
-            _, report = await load_pack(app.bot, registry, config.sticker_pack, config.sticker_map)
-            log.info("Дайын пак жүктелді:\n%s", summary(report))
-        except Exception:  # noqa: BLE001
-            log.exception("%s пагын жүктеу сәтсіз — боттың өз стикерлері қолданылады", config.sticker_pack)
     missing = registry.missing()
+    config: Config = app.bot_data["config"]
     if not missing:
         log.info("Стикерлер жүктелген (%d)", len(registry.ids))
     elif config.admin_id:
@@ -785,7 +749,6 @@ def build_application(config: Config) -> Application:
     app.add_handler(CommandHandler("stop", cmd_stop))
     app.add_handler(CommandHandler("kick", cmd_kick))
     app.add_handler(CommandHandler("setup_stickers", cmd_setup_stickers))
-    app.add_handler(CommandHandler("pack", cmd_pack))
     app.add_handler(CallbackQueryHandler(on_callback))
     app.add_handler(InlineQueryHandler(on_inline_query))
     app.add_handler(ChosenInlineResultHandler(on_chosen_result))

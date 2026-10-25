@@ -68,7 +68,7 @@ def _font(size: int) -> ImageFont.FreeTypeFont:
     return _load_font(FONT_CANDIDATES, size)
 
 
-def label_font(size: int) -> ImageFont.FreeTypeFont:
+def _label_font(size: int) -> ImageFont.FreeTypeFont:
     return _load_font(LABEL_FONT_CANDIDATES, size)
 
 
@@ -275,7 +275,7 @@ class _Canvas:
         y0 = self.h - _s(MARGIN) - bh - _s(22)
         draw = ImageDraw.Draw(self.img)
         draw.rounded_rectangle((x0, y0, x0 + bw, y0 + bh), radius=_s(18), fill=WHITE, outline=BLACK, width=_s(4))
-        label = _text_layer(text, bw - _s(28), bh - _s(22), BLACK, label_font)
+        label = _text_layer(text, bw - _s(28), bh - _s(22), BLACK, _label_font)
         self.img.alpha_composite(label, (x0 + _s(14), y0 + _s(11)))
 
     def result(self) -> Image.Image:

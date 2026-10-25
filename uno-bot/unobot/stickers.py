@@ -48,21 +48,13 @@ def set_name(kind: str, bot_username: str, prefix: str = "unokz") -> str:
     return f"{prefix}_{kind}_by_{bot_username}"
 
 
-ALL_KEYS: frozenset[str] = frozenset(key for keys in STICKER_SETS.values() for key in keys)
-
-
 class StickerRegistry:
-    """Карта кілті → стикер file_id.
-
-    Алдымен дайын пактағы (STICKER_PACK, мысалы UnoWarStickers) стикер ізделеді,
-    ол жоқ болса — боттың өз жинақтарындағысы.
-    """
+    """Карта кілті → стикер file_id."""
 
     def __init__(self, path: Path) -> None:
         self.path = path
         self.bot_username: str | None = None
-        self.ids: dict[str, str] = {}  # боттың өз жинақтары (data/stickers.json)
-        self.pack_ids: dict[str, str] = {}  # дайын пак — әр іске қосылғанда Telegram-нан жүктеледі
+        self.ids: dict[str, str] = {}
         self.load()
 
     def load(self) -> None:
@@ -89,13 +81,10 @@ class StickerRegistry:
         self.bot_username = bot_username
 
     def missing(self) -> list[str]:
-        """Ешбір жерде стикері жоқ кілттер."""
-        return [
-            key for keys in STICKER_SETS.values() for key in keys if key not in self.pack_ids and key not in self.ids
-        ]
+        return [key for keys in STICKER_SETS.values() for key in keys if key not in self.ids]
 
     def get(self, key: str) -> str | None:
-        return self.pack_ids.get(key) or self.ids.get(key)
+        return self.ids.get(key)
 
     def card(self, card: Card) -> str | None:
         return self.get(card.key)

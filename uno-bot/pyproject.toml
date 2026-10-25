@@ -3,7 +3,7 @@ name = "uno-kz-bot"
 version = "1.0.0"
 description = "Қазақ тіліндегі UNO Telegram боты"
 requires-python = ">=3.10"
-dependencies = ["python-telegram-bot[job-queue,rate-limiter]>=22.0,<23", "Pillow>=10.1"]
+dependencies = ["python-telegram-bot[job-queue,rate-limiter]>=22.0,<23"]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
