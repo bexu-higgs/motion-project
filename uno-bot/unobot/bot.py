@@ -758,7 +758,7 @@ def build_application(config: Config) -> Application:
 
 
 def main() -> None:
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s", force=True)
     logging.getLogger("httpx").setLevel(logging.WARNING)
     config = load_config()
     app = build_application(config)

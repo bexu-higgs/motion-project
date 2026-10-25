@@ -39,44 +39,63 @@ Telegram топтарына арналған UNO ойынының боты. Бо
 
 Толық мәтін ботта: `/rules`.
 
-## Орнату
+## Орнату — бәрі терминалда
 
-### 1. @BotFather баптаулары
+### 1. @BotFather-да бот жасау
 
-1. `/newbot` — жаңа бот жасап, **токенді** алыңыз.
-2. `/setinline` — inline режимін қосыңыз (placeholder: `Карта таңдаңыз…`).
-3. `/setinlinefeedback` → **Enabled** — *міндетті!* Онсыз бот ойыншылар қай картаны таңдағанын білмейді.
-4. Бот топтарға қосыла алатынына көз жеткізіңіз (`/setjoingroups` → Enable, әдепкі бойынша қосулы).
+Telegram-да @BotFather ботына `/newbot` деп жазып, жаңа бот жасаңыз — ол **токен** береді.
+Қалған баптауларды (inline режимі, әкімші ID-і, стикерлер) терминалдағы шебер өзі сұрап, тексереді.
 
-### 2. Іске қосу
+### 2. Бір командамен орнату
 
-Python 3.10 немесе одан жаңа нұсқасы керек.
+**Linux / macOS** — терминалға мына жолды қойыңыз:
 
 ```bash
-cd uno-bot
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env      # BOT_TOKEN және ADMIN_ID жазыңыз
-python -m unobot
+curl -fsSL https://raw.githubusercontent.com/bexu-higgs/motion-project/ccr-7af9396d-5giyl9/uno-bot/install.sh | bash
 ```
 
-### 3. Стикерлер
+Скрипт кодты `~/uno-bot` қалтасына жүктейді, Python кітапханаларын орнатады және баптау шеберін ашады.
+Python 3.10+ керек (Ubuntu/Debian: `sudo apt install python3 python3-venv`, macOS: `brew install python`).
 
-Telegram-да стикердің `file_id`-і тек бір ботқа жарамды, сондықтан бот стикер жинақтарын өзі жасайды:
+**Windows** — PowerShell-ге кезекпен:
 
-1. `.env` ішіне өз Telegram ID-іңізді `ADMIN_ID` ретінде жазыңыз (оны @userinfobot көрсетеді).
-2. Ботқа **жеке чатта** `/start` деп жазыңыз — Telegram жинақты тек ботты бастаған адамның атына жасайды.
-3. Бот іске қосылғанда стикерлерді автоматты жүктейді (Telegram шектеулеріне байланысты бірнеше минут).
-   Не болмаса ботқа жеке чатта `/setup_stickers` жіберіңіз, немесе:
-   ```bash
-   python -m unobot.stickers --owner <ADMIN_ID>
-   ```
+```powershell
+cd $HOME
+curl.exe -L -o uno.zip https://codeload.github.com/bexu-higgs/motion-project/zip/refs/heads/ccr-7af9396d-5giyl9
+tar -xf uno.zip
+cd motion-project-ccr-7af9396d-5giyl9\uno-bot
+python -m venv .venv
+.venv\Scripts\python -m pip install -r requirements.txt
+.venv\Scripts\python -m unobot.setup
+```
 
-Нәтижесінде `unokz_cards_by_<бот>` және `unokz_grey_by_<бот>` жинақтары жасалып, `file_id`-лер
-`data/stickers.json` файлына сақталады. Стикерлер жүктелмесе де бот жұмыс істейді — карталар
-мәтін түрінде көрсетіледі.
+Python-ды https://www.python.org/downloads/ сайтынан орнатыңыз («Add python.exe to PATH» белгісін қойыңыз).
 
-### 4. Ойнау
+### 3. Баптау шебері
+
+Шебер терминалда кезекпен сұрайды:
+
+1. **Токен** — BotFather берген токенді қойыңыз, шебер оны тексереді.
+2. **Inline режимі** — өшік болса, @BotFather-да `/setinline` жасауды сұрап, қосылғанын өзі тексереді.
+   Сосын `/setinlinefeedback` → **Enabled** жасауды еске салады (бұл міндетті).
+3. **Әкімші** — ботқа Telegram-да `/start` деп жазасыз, шебер сіздің ID-іңізді өзі анықтайды.
+4. **Жүріс уақыты** — Enter бассаңыз, 90 секунд.
+5. **Стикерлер** — 119 стикерді Telegram-ға жүктейді (2–5 минут).
+
+Соңында ботты бірден іске қосуды ұсынады. Шеберді қайта іске қосуға болады: `.venv/bin/python -m unobot.setup`
+(бұрынғы жауаптар Enter арқылы сақталады).
+
+### Кейін іске қосу
+
+```bash
+~/uno-bot/start.sh            # Linux / macOS
+```
+
+Windows-та `uno-bot` қалтасындағы `start.bat` файлын ашыңыз. Бот жұмыс істеп тұруы үшін терминал
+ашық тұруы керек; тоқтату — `Ctrl+C`. Кодты жаңарту үшін орнату командасын қайта іске қосыңыз —
+`.env` пен стикерлер сақталады.
+
+### Ойнау
 
 1. Ботты топқа қосыңыз.
 2. `/new` — ойын құру, `/join` немесе «➕ Қосылу» — қосылу.
@@ -118,6 +137,8 @@ Telegram-да стикердің `file_id`-і тек бір ботқа жара�
 
 ```
 uno-bot/
+├── install.sh         # бір командамен орнату (Linux / macOS)
+├── start.sh / start.bat  # ботты іске қосу
 ├── assets/cards/      # 119 стикер суреті (PNG, 336×512)
 ├── unobot/
 │   ├── cards.py       # карталар, 108 карталық десте, ұпайлар
@@ -128,7 +149,8 @@ uno-bot/
 │   ├── manager.py     # чаттардағы ойындар
 │   ├── stickers.py    # стикер жинақтарын жасау және file_id тізілімі
 │   ├── images.py      # карта суреттерін салу (Pillow)
-│   └── config.py      # баптаулар
+│   ├── config.py      # баптаулар
+│   └── setup.py       # терминалдағы баптау шебері
 └── tests/             # ережелер мен бот ағынының тесттері
 ```
 
