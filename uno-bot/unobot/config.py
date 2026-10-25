@@ -8,6 +8,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 ASSETS_DIR = ROOT / "assets" / "cards"
+DEFAULT_STICKER_PACK = "UnoWarStickers"
 
 
 @dataclass
@@ -17,6 +18,8 @@ class Config:
     turn_timeout: int
     stickers_file: Path
     sticker_prefix: str
+    sticker_pack: str | None = None  # дайын пак, мысалы UnoWarStickers
+    sticker_map: Path | None = None  # пак сәйкестендіру файлы (әдепкі: unobot/packs/<пак>.json)
 
 
 def load_env_file(path: Path) -> None:
@@ -40,10 +43,13 @@ def load_config() -> Config:
     stickers_file = Path(os.environ.get("STICKERS_FILE", ROOT / "data" / "stickers.json"))
     if not stickers_file.is_absolute():
         stickers_file = ROOT / stickers_file
+    sticker_map = os.environ.get("STICKER_MAP", "").strip()
     return Config(
         token=token,
         admin_id=int(admin) if admin else None,
         turn_timeout=int(os.environ.get("TURN_TIMEOUT", "90")),
         stickers_file=stickers_file,
         sticker_prefix=os.environ.get("STICKER_PREFIX", "unokz").strip() or "unokz",
+        sticker_pack=os.environ.get("STICKER_PACK", DEFAULT_STICKER_PACK).strip() or None,
+        sticker_map=(ROOT / sticker_map) if sticker_map else None,
     )
