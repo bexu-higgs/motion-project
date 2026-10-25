@@ -1,6 +1,6 @@
 """Inline режимі: ойыншының қолындағы карталарды стикер ретінде көрсету.
 
-Нәтиже id форматы: "<раунд>|<әрекет>|<аргумент>"
+Нәтиже id форматы: "<ойын id>|<әрекет>|<аргумент>"
   p — картамен жүру (red_5, wild4), d — карта алу, s — өткізу,
   u — UNO деу, x — ойнауға болмайтын (күңгірт) карта: тек ойын жағдайы жіберіледі.
 """
@@ -23,7 +23,7 @@ MAX_RESULTS = 50
 
 
 def result_id(game: Game, action: str, arg: str = "") -> str:
-    return f"{game.round_number}|{action}|{arg}"
+    return f"{game.game_id}|{action}|{arg}"
 
 
 def parse_result_id(value: str) -> tuple[int, str, str] | None:

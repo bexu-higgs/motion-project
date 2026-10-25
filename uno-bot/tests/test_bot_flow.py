@@ -151,7 +151,6 @@ async def _full_game(tmp_path, filled, seed):
     session = context.bot_data["manager"].get(CHAT_ID)
     assert fake.pinned == {session.lobby_message_id}  # тіркелу хабарламасы бірден бекітілді
     session.game.rng = random.Random(seed)
-    session.game.target_score = 0  # бір раунд — тест жылдам өтсін
 
     for user in players[1:]:
         await botmod.on_callback(callback_update(fake, user, "lobby:join"), context)
@@ -165,7 +164,7 @@ async def _full_game(tmp_path, filled, seed):
     await botmod.on_callback(callback_update(fake, players[0], "lobby:begin"), context)
     game = session.game
     assert game.started
-    assert any("1-раунд басталды" in m.text for m in fake.sent)
+    assert any("Ойын басталды" in m.text for m in fake.sent)
     if filled:
         assert fake.stickers, "бірінші картаның стикері жіберілуі керек"
 
@@ -200,7 +199,7 @@ async def _full_game(tmp_path, filled, seed):
     assert game.phase is Phase.FINISHED
     assert context.bot_data["manager"].get(CHAT_ID) is None
     assert not fake.pinned  # ойын біткенде бекіту алынды
-    assert "ойынды жеңді" in fake.sent[-1].text
+    assert "Ойын аяқталды" in fake.sent[-1].text
 
 
 def test_not_in_game_inline_and_wrong_turn(tmp_path):
@@ -228,7 +227,7 @@ async def _not_in_game(tmp_path):
     assert results and all("|x|" in r.id for r in results)
     assert all(r.sticker_file_id.startswith("file-dim_") for r in results)
 
-    await botmod.on_chosen_result(chosen_update(waiting, f"{game.round_number}|d|"), context)
+    await botmod.on_chosen_result(chosen_update(waiting, f"{game.game_id}|d|"), context)
     assert "кезегіңіз емес" in fake.sent[-1].text
 
     await botmod.cmd_stop(command_update(fake, USERS[1], "/stop"), context)
@@ -316,12 +315,12 @@ async def _short_messages(tmp_path):
     assert not any(":" in i for i in ids)
 
     # Қарапайым жүрістен кейін — тек «<келесі ойыншы> жүреді:»
-    await botmod.on_chosen_result(chosen_update(user(0), f"{game.round_number}|p|red_7"), context)
+    await botmod.on_chosen_result(chosen_update(user(0), f"{game.game_id}|p|red_7"), context)
     assert fake.sent[-1].text == f'<a href="tg://user?id={USERS[1].id}">{USERS[1].first_name}</a> жүреді:'
 
     # +4 жүрілгенде топқа 4 түсті батырма шығады
     game.current_index = 0
-    await botmod.on_chosen_result(chosen_update(user(0), f"{game.round_number}|p|wild4"), context)
+    await botmod.on_chosen_result(chosen_update(user(0), f"{game.game_id}|p|wild4"), context)
     prompt = fake.sent[-1]
     assert "түс таңдаңыз" in prompt.text
     color_buttons = [b.callback_data for row in prompt.markup.inline_keyboard for b in row if b.callback_data]

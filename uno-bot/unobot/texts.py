@@ -74,16 +74,11 @@ def direction_text(direction: int) -> str:
     return "сағат тілімен ↻" if direction == 1 else "сағат тіліне қарсы ↺"
 
 
-def target_text(target: int) -> str:
-    return "бір раунд" if target <= 0 else f"{target} ұпай"
-
-
 # ------------------------------------------------------------------ батырмалар
 
 BTN_JOIN = "➕ Қосылу"
 BTN_LEAVE = "🚪 Шығу"
 BTN_BEGIN = "▶️ Бастау"
-BTN_TARGET = "🎯 Мақсат: {target}"
 BTN_CARDS = "🃏 Карталарым"
 BTN_UNO = "📢 UNO!"
 BTN_CHALLENGE = "⚔️ Challenge"
@@ -97,8 +92,7 @@ COMMANDS = [
     ("join", "Ойынға қосылу"),
     ("leave", "Ойыннан шығу"),
     ("begin", "Ойынды бастау (ойын иесі)"),
-    ("status", "Ойын жағдайы мен ұпайлар"),
-    ("target", "Мақсат ұпайын өзгерту"),
+    ("status", "Ойын жағдайы"),
     ("kick", "Ойыншыны шығару (ойын иесі)"),
     ("stop", "Ойынды тоқтату"),
     ("rules", "UNO ережелері"),
@@ -124,8 +118,7 @@ HELP = (
     "/join — ойынға қосылу\n"
     "/leave — ойыннан шығу\n"
     "/begin — ойынды бастау (ойын иесі)\n"
-    "/target 500 — мақсат ұпайын өзгерту (0 — бір раунд)\n"
-    "/status — ойын жағдайы мен ұпайлар\n"
+    "/status — ойын жағдайы\n"
     "/kick — ойыншыны шығару (оның хабарламасына жауап ретінде, ойын иесі)\n"
     "/stop — ойынды тоқтату (ойын иесі немесе топ әкімшісі)\n"
     "/rules — UNO ережелері\n"
@@ -141,8 +134,8 @@ HELP = (
 
 RULES = (
     "📖 <b>UNO ережелері</b>\n\n"
-    "<b>Мақсат.</b> Қолыңыздағы барлық картадан бірінші құтылу. Раунд жеңімпазы қарсыластарының "
-    "қолында қалған карталардың ұпайын алады. Белгіленген ұпайды (әдетте 500) бірінші жинаған ойыншы жеңеді.\n\n"
+    "<b>Мақсат.</b> Қолыңыздағы барлық картадан бірінші құтылу. Бірінші құтылған ойыншы — 1-орын, "
+    "екіншісі — 2-орын, тағы солай. Ойын бір ғана ойыншы қалғанша жалғасады, ол соңғы орынды алады.\n\n"
     "<b>Десте — 108 карта.</b>\n"
     "• 4 түс: 🟥 Қызыл, 🟨 Сары, 🟩 Жасыл, 🟦 Көк\n"
     "• Әр түсте бір 0 және 1–9 сандары екі-екіден\n"
@@ -173,13 +166,7 @@ RULES = (
     "• кінәлі болса — 4 картаны өзі алады, ал Challenge жасаған ойыншы әдеттегідей жүреді;\n"
     "• кінәсіз болса — Challenge жасаған ойыншы 6 карта алып, кезегін өткізеді.\n\n"
     "<b>UNO!</b> Соңғының алдындағы картамен жүргенде «UNO!» деу керек. Айтпасаңыз және келесі ойыншы "
-    "жүргенше басқа біреу «📢 UNO!» батырмасын сізден бұрын басып үлгерсе — айып ретінде 2 карта аласыз.\n\n"
-    "<b>Ұпай есебі.</b>\n"
-    "• Сан карталары — өз мәні\n"
-    "• Skip, Reverse, Draw Two — 20 ұпай\n"
-    "• Wild, Wild Draw Four — 50 ұпай\n"
-    "Соңғы карта Draw Two немесе Wild Draw Four болса, келесі ойыншы карталарды бәрібір алады "
-    "және олар да есептеледі. Әр раундтан кейін таратушы сол жаққа ауысады."
+    "жүргенше басқа біреу «📢 UNO!» батырмасын сізден бұрын басып үлгерсе — айып ретінде 2 карта аласыз."
 )
 
 # ------------------------------------------------------------------- қателер
@@ -191,7 +178,6 @@ ERRORS = {
     "game_full": "Ойын толы ({max} ойыншы).",
     "host_only": "Бұны тек ойын иесі жасай алады.",
     "admin_only": "Бұны тек ойын иесі немесе топ әкімшісі жасай алады.",
-    "bad_target": "Мақсат ұпайы қате. Мысалы: /target 500 (0 — бір раунд).",
     "not_enough_players": "Ойынды бастау үшін кемінде {min} ойыншы керек.",
     "not_started": "Ойын әлі басталған жоқ.",
     "game_over": "Ойын аяқталды.",
@@ -237,7 +223,6 @@ def lobby_text(game: Game) -> str:
     lines = [
         "🃏 <b>Жаңа UNO ойыны!</b>",
         f"👑 Ойын иесі: {name(host)}",
-        f"🎯 Мақсат: {target_text(game.target_score)}",
         "",
         f"👥 Ойыншылар ({len(game.players)}/{MAX_PLAYERS}):",
     ]
@@ -252,7 +237,7 @@ def lobby_text(game: Game) -> str:
 
 def lobby_closed_text(game: Game) -> str:
     names = ", ".join(name(p) for p in game.players)
-    return f"🃏 <b>UNO ойыны басталды!</b>\n👥 Ойыншылар: {names}\n🎯 Мақсат: {target_text(game.target_score)}"
+    return f"🃏 <b>UNO ойыны басталды!</b>\n👥 Ойыншылар: {names}"
 
 
 # ---------------------------------------------------------------- оқиғалар
@@ -266,7 +251,6 @@ PENALTY_TEXT = {
     "challenge_failed": "➕ {player} 6 карта алды",
     "challenge_guilty": "➕ {player} 4 карта алды",
     "uno": None,  # uno_caught жолында айтылады
-    "final": "➕ {player} {count} карта алды",
 }
 
 REMOVED_TEXT = {
@@ -278,8 +262,8 @@ REMOVED_TEXT = {
 
 def event_text(event: Event, game: Game) -> str | None:
     k, d = event.kind, event.data
-    if k == "round_start":
-        return f"🎲 <b>{d['round']}-раунд басталды!</b>"
+    if k == "game_start":
+        return "🎲 <b>Ойын басталды!</b>"
     if k == "start_reverse":
         return "🔄 Бағыт кері"
     if k in ("skipped", "reverse_as_skip"):
@@ -316,21 +300,17 @@ def event_text(event: Event, game: Game) -> str | None:
         if d["winner"] is not None:
             text += f"\n🏆 Жеңімпаз: {name(d['winner'])}"
         return text
-    if k == "round_end":
-        return f"🏁 {name(d['winner'])} раундты жеңді! +{d['points']} ұпай\n\n{scoreboard(game)}"
+    if k == "player_finished":
+        return f"🏅 {name(d['player'])} картасынан құтылды — {d['place']}-орын!"
     if k == "game_end":
-        winner = d["winner"]
-        return f"🏆 <b>{escape(winner.name)} ойынды жеңді!</b> Ұпай: {winner.score}\nЖаңа ойын: /new"
+        return f"🏁 <b>Ойын аяқталды!</b>\n{places_text(d['places'])}\n\nЖаңа ойын: /new"
     # played, drew, passed, first_card, wd4_pending, start_wild … — стикерден не батырмадан көрінеді
     return None
 
 
-def scoreboard(game: Game) -> str:
-    medals = {0: "🥇", 1: "🥈", 2: "🥉"}
-    lines = [f"📊 <b>Ұпайлар</b> (мақсат: {target_text(game.target_score)}):"]
-    for i, player in enumerate(game.standings()):
-        lines.append(f"{medals.get(i, f'{i + 1}.')} {name(player)} — {player.score}")
-    return "\n".join(lines)
+def places_text(places: list[Player]) -> str:
+    medals = {1: "🥇", 2: "🥈", 3: "🥉"}
+    return "\n".join(f"{medals.get(i, f'{i}.')} {name(p)}" for i, p in enumerate(places, 1))
 
 
 def events_text(events: list[Event], game: Game) -> str:
@@ -385,8 +365,11 @@ def status_text(game: Game) -> str:
     if not game.started:
         return lobby_text(game)
     if game.phase is Phase.FINISHED:
-        return "🏁 Ойын аяқталды.\n\n" + scoreboard(game)
-    return f"🎲 <b>{game.round_number}-раунд</b>\n" + turn_text(game) + "\n\n" + scoreboard(game)
+        return "🏁 <b>Ойын аяқталды!</b>\n" + places_text(game.places)
+    text = turn_text(game)
+    if game.places:
+        text += "\n\n🏅 Картасынан құтылғандар:\n" + places_text(game.places)
+    return text
 
 
 def plain_status(game: Game) -> str:
@@ -395,7 +378,7 @@ def plain_status(game: Game) -> str:
         return "🃏 UNO ойыны әлі басталған жоқ."
     top = game.top_card
     lines = [
-        f"ℹ️ UNO · {game.round_number}-раунд",
+        "ℹ️ UNO",
         f"Кезек: {game.current_player.name}",
         f"Үстіңгі карта: {card_text(top)}",
     ]
@@ -437,12 +420,11 @@ INLINE_UNO_TITLE = "UNO!"
 # ---------------------------------------------------------------- басқалар
 
 GAME_CREATED_IN_OTHER = "Бұл чатта ойын құрылып қойған."
-GAME_STOPPED = "🛑 Ойынды {who} тоқтатты.\n\n{scores}"
+GAME_STOPPED = "🛑 Ойынды {who} тоқтатты."
 GAME_STOPPED_LOBBY = "🛑 Ойын тоқтатылды."
 JOINED = "{player} ойынға қосылды!"
 JOINED_ALERT = "Сіз ойынға қосылдыңыз!"
 LEFT_ALERT = "Сіз ойыннан шықтыңыз."
-TARGET_SET = "🎯 Мақсат өзгерді: {target}."
 STARTED_ALERT = "Ойын басталды!"
 STALE = ERRORS["stale"]
 TURN_REMINDER = "⏳ {player}, кезегіңіз! {seconds} секунд қалды."

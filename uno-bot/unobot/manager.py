@@ -26,12 +26,12 @@ class GameManager:
         chat_id = self.user_chat.get(user_id)
         return self.sessions.get(chat_id) if chat_id is not None else None
 
-    def create(self, chat_id: int, host_id: int, host_name: str, target: int) -> Session:
+    def create(self, chat_id: int, host_id: int, host_name: str) -> Session:
         existing = self.sessions.get(chat_id)
         if existing and existing.game.phase is not Phase.FINISHED:
             raise GameError("game_exists")
         self._check_free(host_id, chat_id)
-        game = Game(chat_id, host_id, target_score=target)
+        game = Game(chat_id, host_id)
         game.add_player(host_id, host_name)
         session = Session(game)
         self.sessions[chat_id] = session

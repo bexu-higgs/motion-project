@@ -31,7 +31,7 @@ from telegram.ext import (
 from . import texts
 from .cards import COLORS, Color
 from .config import Config, load_config
-from .game import DEFAULT_TARGET, TARGET_CHOICES, Event, Game, GameError, Phase
+from .game import Event, Game, GameError, Phase
 from .inline import MAX_RESULTS, build_results, parse_play_arg, parse_result_id
 from .manager import GameManager, Session
 from .stickers import StickerRegistry, set_links, upload_sticker_sets
@@ -105,17 +105,13 @@ async def send(context: ContextTypes.DEFAULT_TYPE, chat_id: int, text: str, mark
 
 
 def lobby_keyboard(game: Game) -> InlineKeyboardMarkup:
-    target = texts.BTN_TARGET.format(target=texts.target_text(game.target_score))
     return InlineKeyboardMarkup(
         [
             [
                 InlineKeyboardButton(texts.BTN_JOIN, callback_data="lobby:join"),
                 InlineKeyboardButton(texts.BTN_LEAVE, callback_data="lobby:leave"),
             ],
-            [
-                InlineKeyboardButton(target, callback_data="lobby:target"),
-                InlineKeyboardButton(texts.BTN_BEGIN, callback_data="lobby:begin"),
-            ],
+            [InlineKeyboardButton(texts.BTN_BEGIN, callback_data="lobby:begin")],
         ]
     )
 
@@ -228,10 +224,10 @@ async def announce(context: ContextTypes.DEFAULT_TYPE, session: Session, events:
     chat_id = game.chat_id
     manager_of(context).sync(session)
 
-    start = next((i for i, e in enumerate(events) if e.kind == "round_start"), None)
+    start = next((i for i, e in enumerate(events) if e.kind == "game_start"), None)
     body_events = events
     if start is not None:
-        # Раунд нәтижесі мен жаңа раундтың басталуы — бір хабарлама, сосын бірінші картаның стикері.
+        # «Ойын басталды!» хабарламасы, сосын бірінші картаның стикері.
         cut = next(i for i, e in enumerate(events) if e.kind == "first_card") + 1
         await send(context, chat_id, texts.events_text(events[:cut], game))
         await send_card_sticker(context, chat_id, events[cut - 1]["card"])
@@ -355,7 +351,7 @@ async def cmd_new(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 async def create_game(context: ContextTypes.DEFAULT_TYPE, chat_id: int, user: User) -> None:
     manager = manager_of(context)
     try:
-        session = manager.create(chat_id, user.id, display_name(user), DEFAULT_TARGET)
+        session = manager.create(chat_id, user.id, display_name(user))
     except GameError as exc:
         await reply_error(context, chat_id, user, exc)
         return
@@ -460,27 +456,6 @@ async def begin_game(context: ContextTypes.DEFAULT_TYPE, chat_id: int, user_id: 
     return None
 
 
-async def cmd_target(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if not is_group(update):
-        await update.effective_message.reply_html(texts.NOT_GROUP_CMD)
-        return
-    chat_id, user = update.effective_chat.id, update.effective_user
-    session = manager_of(context).get(chat_id)
-    if session is None:
-        await reply_error(context, chat_id, user, "no_game")
-        return
-    if not context.args or not context.args[0].isdigit():
-        await reply_error(context, chat_id, user, "bad_target")
-        return
-    try:
-        session.game.set_target(user.id, int(context.args[0]))
-    except GameError as exc:
-        await reply_error(context, chat_id, user, exc)
-        return
-    await refresh_lobby(context, session)
-    await send(context, chat_id, texts.TARGET_SET.format(target=texts.target_text(session.game.target_score)))
-
-
 async def cmd_status(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     session = manager_of(context).get(update.effective_chat.id)
     if session is None:
@@ -516,7 +491,7 @@ async def cmd_stop(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
             await context.bot.edit_message_reply_markup(chat_id, session.status_message_id, reply_markup=None)
         except TelegramError:
             pass
-    text = texts.GAME_STOPPED.format(who=texts.name_user(user), scores=texts.scoreboard(game))
+    text = texts.GAME_STOPPED.format(who=texts.name_user(user))
     await send(context, chat_id, text, new_game_keyboard())
 
 
@@ -632,18 +607,6 @@ async def on_lobby_button(context: ContextTypes.DEFAULT_TYPE, query, session: Se
     elif action == "begin":
         error = await begin_game(context, chat_id, user.id)
         await query.answer(texts.error_text(error) if error else texts.STARTED_ALERT, show_alert=bool(error))
-    elif action == "target":
-        if game.started:
-            await query.answer(texts.error_text("already_started"), show_alert=True)
-            return
-        index = TARGET_CHOICES.index(game.target_score) if game.target_score in TARGET_CHOICES else -1
-        try:
-            game.set_target(user.id, TARGET_CHOICES[(index + 1) % len(TARGET_CHOICES)])
-        except GameError as exc:
-            await query.answer(texts.error_text(exc), show_alert=True)
-            return
-        await query.answer(texts.TARGET_SET.format(target=texts.target_text(game.target_score)))
-        await refresh_lobby(context, session)
     else:
         await query.answer()
 
@@ -671,11 +634,11 @@ async def on_chosen_result(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     parsed = parse_result_id(chosen.result_id)
     if session is None or parsed is None:
         return
-    round_number, action, arg = parsed
+    game_id, action, arg = parsed
     game = session.game
     if action == "x":
         return
-    if round_number != game.round_number:
+    if game_id != game.game_id:
         await reply_error(context, game.chat_id, user, "stale")
         return
     try:
@@ -775,7 +738,6 @@ def build_application(config: Config) -> Application:
     app.add_handler(CommandHandler("join", cmd_join))
     app.add_handler(CommandHandler("leave", cmd_leave))
     app.add_handler(CommandHandler("begin", cmd_begin))
-    app.add_handler(CommandHandler("target", cmd_target))
     app.add_handler(CommandHandler("status", cmd_status))
     app.add_handler(CommandHandler("stop", cmd_stop))
     app.add_handler(CommandHandler("kick", cmd_kick))
