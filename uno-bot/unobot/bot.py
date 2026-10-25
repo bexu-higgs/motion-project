@@ -186,7 +186,7 @@ async def refresh_lobby(context: ContextTypes.DEFAULT_TYPE, session: Session) ->
 
 async def send_status(context: ContextTypes.DEFAULT_TYPE, session: Session, body: str = "") -> None:
     game = session.game
-    text = f"{body}\n{texts.turn_prompt(game)}" if body else texts.turn_prompt(game)
+    text = "\n".join(part for part in (body, texts.turn_prompt(game)) if part)
     old = session.status_message_id
     session.status_message_id = await send(context, game.chat_id, text, turn_keyboard(game))
     if old is not None:
@@ -235,10 +235,6 @@ async def announce(context: ContextTypes.DEFAULT_TYPE, session: Session, events:
     body = texts.events_text(body_events, game)
 
     if game.running:
-        if game.drawn_card is not None and not body:
-            # Ойыншы карта алды және сол картамен жүре алады — кезек ауысқан жоқ, жаңа хабарлама керек емес.
-            schedule_turn_timer(context, session)
-            return
         await send_status(context, session, body)
         schedule_turn_timer(context, session)
         return

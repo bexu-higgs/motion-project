@@ -73,7 +73,7 @@ def _header(game: Game, player: Player) -> str:
     if game.phase is Phase.CHOOSE_COLOR:
         return texts.INLINE_CHOOSE_COLOR
     if game.drawn_card is not None:
-        return texts.INLINE_DRAWN
+        return texts.INLINE_DRAWN if game.can_play(game.drawn_card) else texts.INLINE_DRAWN_PASS
     return texts.INLINE_YOUR_TURN.format(top=top)
 
 
@@ -111,7 +111,7 @@ def build_results(
             results.append(
                 _sticker_or_article(
                     result_id(game, "d"),
-                    stickers.option("option_draw"),
+                    stickers.option("btn_draw"),
                     "🃏 " + texts.INLINE_DRAW_TITLE,
                     "Алу үйіндісінен бір карта алу",
                     "🃏 " + texts.INLINE_DRAW_TITLE,
@@ -121,7 +121,7 @@ def build_results(
             results.append(
                 _sticker_or_article(
                     result_id(game, "s"),
-                    stickers.option("option_pass"),
+                    stickers.option("btn_pass"),
                     "⏭ " + texts.INLINE_PASS_TITLE,
                     "Кезекті келесі ойыншыға беру",
                     "⏭ " + texts.INLINE_PASS_TITLE,
@@ -131,7 +131,7 @@ def build_results(
             results.append(
                 _sticker_or_article(
                     result_id(game, "u"),
-                    stickers.option("option_uno"),
+                    stickers.option("btn_uno"),
                     "📢 " + texts.INLINE_UNO_TITLE,
                     "Соңғының алдындағы картамен жүрер алдында басыңыз",
                     "📢 UNO!",

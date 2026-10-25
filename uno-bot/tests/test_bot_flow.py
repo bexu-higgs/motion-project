@@ -353,3 +353,57 @@ async def _pin_hint(tmp_path):
     await botmod.cmd_stop(command_update(fake, USERS[0], "/stop"), context)
     await botmod.cmd_new(command_update(fake, USERS[0], "/new"), context)
     assert len([m for m in fake.sent if "Pin messages" in m.text]) == 1  # кеңес бір рет қана
+
+
+def test_draw_posts_message_and_waits_for_play_or_pass(tmp_path):
+    asyncio.run(_draw_flow(tmp_path))
+
+
+async def _draw_flow(tmp_path):
+    from unobot.cards import Card, Color
+
+    fake = FakeBot()
+    context = make_context(fake, registry_with_stickers(tmp_path, True))
+    await botmod.cmd_new(command_update(fake, USERS[0], "/new"), context)
+    await botmod.cmd_join(command_update(fake, USERS[1], "/join"), context)
+    await botmod.cmd_join(command_update(fake, USERS[2], "/join"), context)
+    session = context.bot_data["manager"].get(CHAT_ID)
+    session.game.rng = random.Random(3)
+    await botmod.cmd_begin(command_update(fake, USERS[0], "/begin"), context)
+    game = session.game
+    game.phase = Phase.PLAYING
+    game.pending_color = None
+    game.discard.append(Card(Color.RED, "5"))
+    game.current_color = Color.RED
+    game.current_index = 0
+    game.direction = 1
+    game.players[0].hand = [Card(Color.BLUE, "1"), Card(Color.GREEN, "2")]
+
+    for drawn, playable in ((Card(Color.GREEN, "9"), False), (Card(Color.RED, "8"), True)):
+        game.current_index = 0
+        game.drawn_card = None
+        game.deck.append(drawn)
+        await botmod.on_chosen_result(chosen_update(USERS[0], f"{game.game_id}|d|"), context)
+        message = fake.sent[-1]
+        assert message.text == f"🃏 <b>{USERS[0].first_name}</b> 1 карта алды"
+        buttons = [b.text for row in message.markup.inline_keyboard for b in row]
+        assert buttons == ["🃏 Карталарым"]
+        assert game.current_player.user_id == USERS[0].id  # кезек өздігінен өтпеді
+
+        await botmod.on_inline_query(inline_update(fake, USERS[0]), context)
+        ids = [r.id for r in fake.inline_answers[-1].results]
+        assert f"{game.game_id}|s|" in ids  # «ПАС» батырмасы
+        assert (f"{game.game_id}|p|{drawn.key}" in ids) is playable
+        assert fake.inline_answers[-1].results[0].sticker_file_id == "file-btn_pass"
+
+    # Жарамды алған картамен жүру
+    await botmod.on_chosen_result(chosen_update(USERS[0], f"{game.game_id}|p|red_8"), context)
+    assert fake.sent[-1].text.endswith("жүреді:")
+    assert game.current_player.user_id == USERS[1].id
+
+    # Пас беру
+    game.deck.append(Card(Color.YELLOW, "3"))
+    await botmod.on_chosen_result(chosen_update(USERS[1], f"{game.game_id}|d|"), context)
+    await botmod.on_chosen_result(chosen_update(USERS[1], f"{game.game_id}|s|"), context)
+    assert game.current_player.user_id == USERS[2].id
+    assert fake.sent[-1].text == f'<a href="tg://user?id={USERS[2].id}">{USERS[2].first_name}</a> жүреді:'
