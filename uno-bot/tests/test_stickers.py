@@ -24,7 +24,7 @@ def test_every_sticker_image_exists_and_fits_telegram_limits():
 
 def test_sticker_emoji():
     assert sticker_emoji("red_5") == "🟥"
-    assert sticker_emoji("grey_blue_skip") == "🟦"
+    assert sticker_emoji("dim_blue_skip") == "🟦"
     assert sticker_emoji("wild4_green") == "🟩"
     assert sticker_emoji("wild") == "🌈"
     assert sticker_emoji("option_uno") == "📢"
@@ -61,7 +61,7 @@ def test_upload_creates_sets_and_maps_file_ids(tmp_path, monkeypatch):
     bot = FakeStickerBot(fail_once_at=30)
     registry = StickerRegistry(tmp_path / "stickers.json")
     names = asyncio.run(upload_sticker_sets(bot, 42, registry))
-    assert set(names) == {"cards", "grey"}
+    assert set(names) == {"cards", "dim"}
     assert not registry.missing()
     for kind, keys in STICKER_SETS.items():
         assert len(bot.sets[names[kind]]) == len(keys)  # TimedOut кезінде қайталанбады
@@ -76,3 +76,19 @@ def test_upload_creates_sets_and_maps_file_ids(tmp_path, monkeypatch):
 
 async def _no_sleep(*args, **kwargs):
     return None
+
+
+def test_upgrade_from_grey_set_uploads_only_dim_cards(tmp_path, monkeypatch):
+    monkeypatch.setattr(stickers_module.asyncio, "sleep", _no_sleep)
+    bot = FakeStickerBot()
+    cards_set = "unokz_cards_by_uno_kz_bot"
+    bot.sets[cards_set] = [sticker_emoji(k) for k in STICKER_SETS["cards"]]  # бұрын жүктелген
+    registry = StickerRegistry(tmp_path / "stickers.json")
+    registry.bot_username = "uno_kz_bot"
+    registry.ids = {"grey_red_5": "old-grey"}
+    assert len(registry.missing()) == len(STICKER_SETS["cards"]) + len(STICKER_SETS["dim"])
+    asyncio.run(upload_sticker_sets(bot, 42, registry))
+    assert len(bot.sets[cards_set]) == len(STICKER_SETS["cards"])  # қайта жүктелмеді
+    assert len(bot.sets["unokz_dim_by_uno_kz_bot"]) == len(STICKER_SETS["dim"])
+    assert not registry.missing()
+    assert "grey_red_5" not in registry.ids

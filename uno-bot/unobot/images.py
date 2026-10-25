@@ -9,7 +9,7 @@ from __future__ import annotations
 import math
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageFilter, ImageFont, ImageOps
+from PIL import Image, ImageDraw, ImageEnhance, ImageFilter, ImageFont
 
 from .cards import (
     COLORED_WILD_KEYS,
@@ -22,7 +22,7 @@ from .cards import (
     WILD,
     WILD_DRAW_FOUR,
     WILDS,
-    grey_key,
+    dim_key,
 )
 from .config import ASSETS_DIR
 
@@ -341,18 +341,18 @@ def render_option(key: str) -> Image.Image:
     return canvas.result()
 
 
-def to_grey(img: Image.Image) -> Image.Image:
-    """Ойнауға болмайтын карталарға арналған сұр нұсқа."""
+def to_dim(img: Image.Image) -> Image.Image:
+    """Ойнауға болмайтын карталарға арналған күңгірт нұсқа: түсі көрінеді, бірақ солғын."""
     alpha = img.getchannel("A")
-    grey = ImageOps.grayscale(img.convert("RGB")).convert("RGB")
-    grey = Image.blend(grey, Image.new("RGB", grey.size, WHITE), 0.45)
-    grey.putalpha(alpha)
-    return grey
+    rgb = ImageEnhance.Color(img.convert("RGB")).enhance(0.85)
+    rgb = ImageEnhance.Brightness(rgb).enhance(0.68)
+    rgb.putalpha(alpha)
+    return rgb
 
 
 def render(key: str) -> Image.Image:
-    if key.startswith("grey_"):
-        return to_grey(render(key[len("grey_") :]))
+    if key.startswith("dim_"):
+        return to_dim(render(key[len("dim_") :]))
     if key in COLORED_WILD_KEYS:
         return render_colored_wild(key)
     if key in OPTION_KEYS:
@@ -361,7 +361,7 @@ def render(key: str) -> Image.Image:
 
 
 def all_keys() -> list[str]:
-    return list(FACE_KEYS) + list(COLORED_WILD_KEYS) + list(OPTION_KEYS) + [grey_key(k) for k in FACE_KEYS]
+    return list(FACE_KEYS) + list(COLORED_WILD_KEYS) + list(OPTION_KEYS) + [dim_key(k) for k in FACE_KEYS]
 
 
 def generate(out_dir: Path = ASSETS_DIR) -> list[Path]:
@@ -369,8 +369,8 @@ def generate(out_dir: Path = ASSETS_DIR) -> list[Path]:
     cache: dict[str, Image.Image] = {}
     paths = []
     for key in all_keys():
-        if key.startswith("grey_"):
-            img = to_grey(cache[key[len("grey_") :]])
+        if key.startswith("dim_"):
+            img = to_dim(cache[key[len("dim_") :]])
         else:
             img = cache[key] = render(key)
         path = out_dir / f"{key}.png"
@@ -398,5 +398,5 @@ if __name__ == "__main__":
     print(f"{len(written)} сурет жасалды: {ASSETS_DIR}")
     preview_keys = [f"{c.value}_{v}" for c in COLORS for v in ("0", "6", "9", SKIP, REVERSE, DRAW_TWO)]
     preview_keys += [WILD, WILD_DRAW_FOUR] + list(COLORED_WILD_KEYS) + list(OPTION_KEYS)
-    preview_keys += ["grey_red_7", "grey_wild4"]
+    preview_keys += ["dim_red_7", "dim_yellow_skip", "dim_wild4"]
     contact_sheet(preview_keys, ASSETS_DIR.parent / "preview.png", columns=12)
