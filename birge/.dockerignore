@@ -1,0 +1,8 @@
+**/node_modules
+**/dist
+**/.expo
+data
+e2e/artifacts
+apps/app/ios
+apps/app/android
+.env
