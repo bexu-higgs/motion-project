@@ -1,0 +1,20 @@
+# LiveKit SFU баптаулары. Кілттер LIVEKIT_KEYS айнымалысы арқылы беріледі (docker-compose.yml).
+port: 7880
+bind_addresses:
+  - ''
+rtc:
+  tcp_port: 7881
+  port_range_start: 50000
+  port_range_end: 60000
+  use_external_ip: true
+room:
+  # Бір бөлмеде ең көбі 50 адам.
+  max_participants: 50
+  empty_timeout: 300
+  departure_timeout: 20
+turn:
+  # Мобильді желілер мен қатаң NAT артындағы қолданушылар үшін.
+  enabled: true
+  udp_port: 3478
+logging:
+  level: info

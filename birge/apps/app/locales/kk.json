@@ -1,0 +1,10 @@
+{
+  "ios": {
+    "CFBundleDisplayName": "Birge",
+    "NSMicrophoneUsageDescription": "Birge микрофонды тек сіз бөлмедегілермен сөйлесу үшін қосқанда ғана пайдаланады.",
+    "NSCameraUsageDescription": "Birge камераны пайдаланбайды. Бұл жазба дауыстық чат кітапханасына қажет, рұқсат ешқашан сұралмайды."
+  },
+  "android": {
+    "app_name": "Birge"
+  }
+}

@@ -1,0 +1,73 @@
+# Продакшнға орнату: Postgres + Birge сервері (веб-нұсқамен) + LiveKit (дауыс, экран бөлісу) + Caddy (HTTPS).
+# 1) cp .env.example .env және мәндерді толтырыңыз
+# 2) DNS: APP_DOMAIN және LIVEKIT_DOMAIN осы сервердің IP-іне бағытталсын
+# 3) docker compose up -d --build
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: birge
+      POSTGRES_DB: birge
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U birge']
+      interval: 5s
+      retries: 10
+
+  app:
+    build:
+      context: .
+      args:
+        EXPO_PUBLIC_OPERATOR_NAME: ${OPERATOR_NAME:-Birge}
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      TRUST_PROXY: '1'
+      DATABASE_URL: postgres://birge:${POSTGRES_PASSWORD}@postgres:5432/birge
+      PUBLIC_URL: https://${APP_DOMAIN}
+      LIVEKIT_URL: wss://${LIVEKIT_DOMAIN}
+      LIVEKIT_API_URL: http://host.docker.internal:7880
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    volumes:
+      - appdata:/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # LiveKit UDP порттарымен жұмыс істейді, сондықтан хост желісінде тұрады.
+  livekit:
+    image: livekit/livekit-server:v1.13
+    restart: unless-stopped
+    network_mode: host
+    command: --config /etc/livekit.yaml
+    environment:
+      LIVEKIT_KEYS: '${LIVEKIT_API_KEY}: ${LIVEKIT_API_SECRET}'
+    volumes:
+      - ./deploy/livekit.yaml:/etc/livekit.yaml:ro
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    ports:
+      - '80:80'
+      - '443:443'
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN}
+      LIVEKIT_DOMAIN: ${LIVEKIT_DOMAIN}
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy:/data
+    depends_on:
+      - app
+
+volumes:
+  pgdata:
+  appdata:
+  caddy:

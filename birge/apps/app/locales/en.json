@@ -1,0 +1,10 @@
+{
+  "ios": {
+    "CFBundleDisplayName": "Birge",
+    "NSMicrophoneUsageDescription": "Birge uses the microphone only when you turn it on to talk with people in your room.",
+    "NSCameraUsageDescription": "Birge does not use the camera. This entry is required by the voice chat library and is never requested."
+  },
+  "android": {
+    "app_name": "Birge"
+  }
+}

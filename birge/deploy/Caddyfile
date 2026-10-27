@@ -1,0 +1,13 @@
+# Let's Encrypt сертификаттарын Caddy өзі алады.
+{$APP_DOMAIN} {
+	encode zstd gzip
+	# Үлкен файлдарды жүктеу үшін шектеуді сервердің MAX_UPLOAD_MB-ы басқарады.
+	request_body {
+		max_size 5GB
+	}
+	reverse_proxy app:4000
+}
+
+{$LIVEKIT_DOMAIN} {
+	reverse_proxy host.docker.internal:7880
+}

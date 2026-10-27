@@ -1,0 +1,24 @@
+{
+  "name": "birge",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Birge — бірге кино көруге, музыка тыңдауға арналған онлайн-кинотеатр (iOS, Android, Web)",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:server": "npm run dev -w @birge/server",
+    "dev:app": "npm run start -w @birge/app",
+    "build:web": "npm run export:web -w @birge/app",
+    "build:server": "npm run build -w @birge/server",
+    "build": "npm run build:web && npm run build:server",
+    "start": "npm run start -w @birge/server",
+    "test": "npm run test -w @birge/shared && npm run test -w @birge/server",
+    "typecheck": "npm run typecheck -w @birge/shared && npm run typecheck -w @birge/server && npm run typecheck -w @birge/app",
+    "e2e": "node e2e/run.mjs"
+  },
+  "engines": {
+    "node": ">=20.19"
+  }
+}
