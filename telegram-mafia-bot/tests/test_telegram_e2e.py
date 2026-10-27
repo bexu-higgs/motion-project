@@ -15,6 +15,7 @@ from aiogram import methods as m
 from aiogram import types as t
 from aiogram.client.default import DefaultBotProperties
 from aiogram.client.session.base import BaseSession
+from aiogram.exceptions import TelegramForbiddenError
 
 from mafia_bot.config import Settings
 from mafia_bot.economy import PACKAGES_BY_ID
@@ -64,11 +65,14 @@ class FakeTelegram(BaseSession):
         self.calls: list = []
         self.ids = itertools.count(10_000)
         self.bot_is_admin = True
+        self.blocked: set[int] = set()  # ботты бұғаттаған пайдаланушылар
 
     async def make_request(self, bot, method, timeout=None):
         self.calls.append(method)
         if isinstance(method, m.GetMe):
             return t.User(id=BOT_ID, is_bot=True, first_name="Mafia", username="mafia_test_bot")
+        if isinstance(method, m.SendMessage) and method.chat_id in self.blocked:
+            raise TelegramForbiddenError(method=method, message="Forbidden: bot was blocked by the user")
         if isinstance(method, (m.SendMessage, m.SendInvoice)):
             return t.Message(message_id=next(self.ids), date=now(), chat=chat(method.chat_id),
                              text=getattr(method, "text", None) or method.title)
@@ -446,6 +450,33 @@ async def test_admin_switches_balym_on_and_off(harness):
     await h.click(1, 1, "rules:balance")
     page = [c for c in tg.calls if isinstance(c, m.EditMessageText)][-1].text
     assert "💋" in page and "Балым жалеп" in page
+
+
+async def test_admin_messages_the_diamond_user(harness):
+    h = harness
+    tg = h.tg
+    # Әкімші емес (тіпті GETDIAMONDS_IDS-тегі адамның өзі де) — жауап жоқ, ешкімге хат кетпейді.
+    for uid in (3, 6):
+        before = len(tg.sent())
+        await h.text(uid, uid, "/message сәлем")
+        assert len(tg.sent()) == before
+    await h.text(1, 1, "/message")
+    assert "Қолданылуы" in tg.sent(1)[-1].text and not tg.sent(6)
+    await h.text(1, 1, "/message Сәлем!\nЕкінші жол <b>қалың емес</b> & 100%")
+    assert tg.sent(6)[-1].text == "ADMIN: Сәлем!\nЕкінші жол &lt;b&gt;қалың емес&lt;/b&gt; &amp; 100%"
+    assert "✅ Хат жіберілді: <code>6</code>" in tg.sent(1)[-1].text
+    await h.text(1, 1, "/message 100 сом")  # қысқа сан — ID емес, хаттың бір бөлігі
+    assert tg.sent(6)[-1].text == "ADMIN: 100 сом"
+    await h.text(1, 1, "/message 6 тек саған")
+    assert tg.sent(6)[-1].text == "ADMIN: тек саған"
+    before = len(tg.sent(6))
+    await h.text(1, 1, "/message 123456789 бөгде адамға")
+    assert "тізімінде жоқ" in tg.sent(1)[-1].text and len(tg.sent(6)) == before
+    await h.text(1, GROUP, "/message топтан")  # тек жеке чатта
+    assert len(tg.sent(6)) == before
+    tg.blocked.add(6)
+    await h.text(1, 1, "/message жетпейді")
+    assert "❌ Жетпеді: <code>6</code>" in tg.sent(1)[-1].text
 
 
 async def test_players_gift_diamonds(harness):
