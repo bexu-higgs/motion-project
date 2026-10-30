@@ -1,0 +1,6 @@
+# build outputs and downloads
+.cache/
+
+# the portrait is personal: generate it locally with tools/cutout.py
+scene/assets/portrait-cutout.png
+out/

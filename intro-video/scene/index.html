@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="kk">
+<head>
+<meta charset="utf-8">
+<title>Айназ — интро</title>
+<style>
+  @font-face { font-family: "Cormorant"; src: url(fonts/CormorantGaramond-SemiBold.ttf); font-weight: 600; }
+  @font-face { font-family: "Cormorant"; src: url(fonts/CormorantGaramond-Bold.ttf); font-weight: 700; }
+  @font-face { font-family: "Cormorant"; src: url(fonts/CormorantGaramond-SemiBoldItalic.ttf); font-weight: 600; font-style: italic; }
+  @font-face { font-family: "Cormorant"; src: url(fonts/CormorantGaramond-MediumItalic.ttf); font-weight: 500; font-style: italic; }
+  @font-face { font-family: "Playfair"; src: url(fonts/PlayfairDisplay-Bold.ttf); font-weight: 700; }
+  @font-face { font-family: "Playfair"; src: url(fonts/PlayfairDisplay-ExtraBold.ttf); font-weight: 800; }
+  @font-face { font-family: "Playfair"; src: url(fonts/PlayfairDisplay-SemiBoldItalic.ttf); font-weight: 600; font-style: italic; }
+  @font-face { font-family: "Montserrat"; src: url(fonts/Montserrat-Medium.ttf); font-weight: 500; }
+  @font-face { font-family: "Montserrat"; src: url(fonts/Montserrat-SemiBold.ttf); font-weight: 600; }
+  @font-face { font-family: "Montserrat"; src: url(fonts/Montserrat-Bold.ttf); font-weight: 700; }
+
+  :root {
+    --ink: #2a1704;
+    --ink-soft: #5a3a0e;
+    --cream: #fff6dc;
+    --teal: #087f98;
+  }
+  html, body { margin: 0; background: #120a02; }
+  body.preview { display: grid; place-items: center; min-height: 100vh; }
+  body.preview #stage { transform-origin: center; }
+  #stage { position: relative; width: 1920px; height: 1080px; overflow: hidden; background: #b88a33; }
+  #stage > * { position: absolute; }
+  canvas { left: 0; top: 0; }
+  .layer { left: 0; top: 0; width: 1920px; height: 1080px; }
+
+  /* ornaments */
+  #rosette, #frame { left: 0; top: 0; overflow: visible; pointer-events: none; }
+
+  /* portrait */
+  #girl { left: 905px; top: -196px; width: 975px; height: 1344px; transform-origin: 512px 900px; will-change: transform, opacity, filter; }
+  #girl img { width: 100%; height: 100%; display: block;
+    filter: drop-shadow(0 0 28px rgba(255, 236, 180, .55)) drop-shadow(0 28px 34px rgba(60, 30, 0, .35)); }
+  #girlGlow { left: 1085px; top: 120px; width: 700px; height: 700px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(255,250,228,.85) 0%, rgba(255,240,196,.35) 40%, rgba(255,230,170,0) 70%); }
+
+  /* name */
+  .txt { white-space: nowrap; color: var(--ink); }
+  #men { left: 152px; top: 280px; font: italic 600 64px/1 Cormorant; color: var(--ink-soft); }
+  #surname { left: 156px; top: 372px; font: 600 50px/1 Montserrat; letter-spacing: .3em; }
+  #surname span, #men span, #caption span { display: inline-block; }
+  #firstname { left: 132px; top: 418px; font: italic 600 228px/1.15 Playfair; padding: 0 40px 0 10px;
+    background: linear-gradient(100deg, #2a1704 0%, #4a2a07 38%, #fff3c6 48%, #4a2a07 58%, #2a1704 100%);
+    background-size: 300% 100%; -webkit-background-clip: text; background-clip: text; color: transparent;
+    filter: drop-shadow(0 3px 0 rgba(255, 240, 200, .45)) drop-shadow(0 14px 18px rgba(70, 35, 0, .25)); }
+  #divider { left: 150px; top: 720px; overflow: visible; }
+
+  /* date */
+  #dateLabel { left: 158px; top: 300px; font: 600 26px/1 Montserrat; letter-spacing: .45em; color: var(--ink-soft); }
+  #year { left: 142px; top: 340px; height: 250px; display: flex; font: 700 212px/250px Playfair;
+    font-variant-numeric: lining-nums tabular-nums; color: var(--ink);
+    -webkit-mask-image: linear-gradient(transparent 0%, #000 16%, #000 84%, transparent 100%);
+    filter: drop-shadow(0 3px 0 rgba(255, 240, 200, .45)); }
+  #year .reel { overflow: hidden; height: 250px; }
+  #year .strip { display: flex; flex-direction: column; }
+  #year .strip div { height: 250px; text-align: center; }
+  #yearSuffix { left: 770px; top: 478px; font: italic 600 70px/1 Cormorant; color: var(--ink-soft); }
+  #monthLine { left: 156px; top: 612px; font: italic 600 96px/1 Cormorant; color: var(--ink); }
+  #monthLine b { font: 700 118px/1 Playfair; color: var(--teal); display: inline-block; margin: 0 6px;
+    filter: drop-shadow(0 2px 0 rgba(255, 240, 200, .6)); }
+  #dateRule { left: 158px; top: 760px; height: 3px; width: 620px; transform-origin: left center;
+    background: linear-gradient(90deg, #5a3a0e, rgba(90, 58, 14, 0)); }
+
+  /* map labels */
+  .label { left: 0; top: 0; display: flex; align-items: center; gap: 14px; padding: 14px 26px 14px 20px;
+    background: rgba(38, 22, 4, .9); border: 2px solid #e8c172; border-radius: 40px;
+    font: 700 30px/1 Montserrat; letter-spacing: .2em; color: #ffe7a8; white-space: nowrap;
+    box-shadow: 0 14px 30px rgba(30, 15, 0, .35); transform-origin: left center; }
+  .label i { width: 14px; height: 14px; background: #e8c172; transform: rotate(45deg); flex: none; }
+  .label small { display: block; font: 500 19px/1 Montserrat; letter-spacing: .14em; color: #f3d9a0; margin-top: 8px; }
+
+  /* photo cards */
+  .card { left: 1190px; top: 230px; width: 620px; padding: 14px 14px 0; background: #fbf5e6; border-radius: 6px;
+    box-shadow: 0 0 0 2px #d8b260, 0 34px 60px rgba(40, 20, 0, .5); transform-origin: 50% 60%; }
+  .card .ph { position: relative; overflow: hidden; border-radius: 3px; }
+  .card img { display: block; width: 592px; object-fit: cover; }
+  .card .flash { position: absolute; inset: 0; background: #fff; }
+  .card .cap { font: italic 600 46px/76px Cormorant; color: #3a2408; text-align: center; }
+
+  /* caption */
+  #caption { left: 120px; top: 900px; font: italic 600 72px/1 Cormorant; color: var(--cream);
+    text-shadow: 0 3px 18px rgba(20, 10, 0, .6); }
+  #captionRule { left: 124px; top: 990px; height: 2px; width: 700px; transform-origin: left center;
+    background: linear-gradient(90deg, #ffe7a8, rgba(255, 231, 168, 0)); }
+
+  #vignette { background: radial-gradient(ellipse at 50% 45%, rgba(0,0,0,0) 55%, rgba(40, 20, 0, .55) 100%); }
+  #grain { mix-blend-mode: overlay; opacity: .12; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="bg" width="1920" height="1080"></canvas>
+  <svg id="frame" class="layer" viewBox="0 0 1920 1080"></svg>
+  <div id="girlGlow"></div>
+  <svg id="rosette" class="layer" viewBox="0 0 1920 1080"><g id="rosetteG"></g></svg>
+  <canvas id="map" width="1920" height="1080"></canvas>
+  <div id="girl"><img id="girlImg" src="assets/portrait-cutout.png" alt=""></div>
+
+  <div id="men" class="txt">Мен —</div>
+  <div id="surname" class="txt"></div>
+  <div id="firstname" class="txt">Айназ</div>
+  <svg id="divider" width="600" height="30" viewBox="0 0 600 30">
+    <path id="divL" d="M0 15 H270" stroke="#4a2c07" stroke-width="2.5" fill="none"/>
+    <path id="divR" d="M330 15 H600" stroke="#4a2c07" stroke-width="2.5" fill="none"/>
+    <path id="divD" d="M300 2 L313 15 L300 28 L287 15 Z" fill="#4a2c07"/>
+  </svg>
+
+  <div id="dateLabel" class="txt">ТУҒАН КҮНІ</div>
+  <div id="year" class="txt"></div>
+  <div id="yearSuffix" class="txt">-ші жылы</div>
+  <div id="monthLine" class="txt">қыркүйектің<b>2</b>-сі</div>
+  <div id="dateRule"></div>
+
+  <div id="labelOblast" class="label"><i></i><span>АЛМАТЫ ОБЛЫСЫ</span></div>
+  <div id="labelDistrict" class="label"><i></i><span>КЕГЕН АУДАНЫ</span></div>
+  <div id="labelVillage" class="label"><i></i><span>КЕГЕН АУЫЛЫ<small id="coords"></small></span></div>
+
+  <div id="cardDistrict" class="card"><div class="ph"><img src="assets/places/kegen-district-arch.jpg" style="height:395px" alt=""><div class="flash"></div></div><div class="cap">Кеген ауданы</div></div>
+  <div id="cardVillage" class="card"><div class="ph"><img src="assets/places/kegen-village-stele.jpg" style="height:436px" alt=""><div class="flash"></div></div><div class="cap">Кеген ауылы</div></div>
+
+  <div id="caption" class="txt"></div>
+  <div id="captionRule"></div>
+
+  <canvas id="fx" width="1920" height="1080"></canvas>
+  <div id="vignette" class="layer"></div>
+  <canvas id="grain" width="1920" height="1080"></canvas>
+  <canvas id="veil" width="1920" height="1080"></canvas>
+</div>
+
+<script src="js/cues.js"></script>
+<script src="js/anim.js"></script>
+<script src="js/timeline.js"></script>
+<script src="js/ornament.js"></script>
+<script src="js/map.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
