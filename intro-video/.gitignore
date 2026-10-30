@@ -4,3 +4,4 @@
 # the portrait is personal: generate it locally with tools/cutout.py
 scene/assets/portrait-cutout.png
 out/
+__pycache__/
