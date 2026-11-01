@@ -38,13 +38,15 @@
     rec: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="6.5" fill="#ff3b30"/></svg>',
     redo: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 12a7.5 7.5 0 1 0 2.4-5.5M4.5 4v4.5H9" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>',
     wind: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8.5h10.5a2.75 2.75 0 1 0-2.75-2.75M3 12.5h15a3 3 0 1 1-3 3M3 16.5h6.5" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"/></svg>',
+    mic: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8.5" y="2.5" width="7" height="12.5" rx="3.5" fill="currentColor"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3.5" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>',
+    check: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
     grid: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="2.2" fill="currentColor"/><rect x="13" y="4" width="7" height="7" rx="2.2" fill="currentColor" opacity=".55"/><rect x="4" y="13" width="7" height="7" rx="2.2" fill="currentColor" opacity=".55"/><rect x="13" y="13" width="7" height="7" rx="2.2" fill="currentColor"/></svg>'
   };
 
   /* ---------- Сақтау (тек осы құрылғыда) ---------- */
   var Store = {
     key: 'soz-alemi:v1',
-    d: { stars: { 1: [], 2: [], 3: [] }, sound: true },
+    d: { stars: { 1: [], 2: [], 3: [] }, sound: true, voice: true, micOk: false },
     load: function () {
       try {
         var raw = localStorage.getItem(this.key);
@@ -52,6 +54,8 @@
           var p = JSON.parse(raw);
           if (p && p.stars) { for (var k in this.d.stars) if (Array.isArray(p.stars[k])) this.d.stars[k] = p.stars[k]; }
           if (p && typeof p.sound === 'boolean') this.d.sound = p.sound;
+          if (p && typeof p.voice === 'boolean') this.d.voice = p.voice;
+          if (p && typeof p.micOk === 'boolean') this.d.micOk = p.micOk;
         }
       } catch (e) { /* localStorage жоқ — ештеңе етпейміз */ }
     },
@@ -402,66 +406,218 @@
   }
 
   /* ==========================================================
+     Микрофон: ортақ көмекшілер
+     ========================================================== */
+  var Speech = window.SozSpeech || { supported: false };
+  var speechBroken = false;
+  function voiceOn() { return !!Speech.supported && !speechBroken && Store.d.voice !== false; }
+  function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+  function sentenceOf(t) {
+    t = String(t || '').replace(/\s+/g, ' ').trim();
+    if (!t) return '';
+    t = cap(t);
+    return /[.!?…]$/.test(t) ? t : t + '.';
+  }
+  var SPEECH_ERR = {
+    'not-allowed': 'Микрофонға рұқсат берілмеді. Мекенжай жолағындағы құлып белгісін басып, микрофонға рұқсат беріңіз.',
+    'service-not-allowed': 'Бұл браузерде дауыс тану өшірулі. Google Chrome немесе Microsoft Edge-те ашып көріңіз.',
+    'language-not-supported': 'Бұл браузер қазақша дауысты танымайды. Google Chrome немесе Microsoft Edge-те ашып көріңіз.',
+    'network': 'Дауысты тану үшін интернет қажет.',
+    'audio-capture': 'Микрофон табылмады.'
+  };
+  function speechError(code) {
+    if (code === 'language-not-supported' || code === 'service-not-allowed' || code === 'start-failed') speechBroken = true;
+    return SPEECH_ERR[code] || 'Дауысты тану іске қосылмады. «Айттым» батырмасын қолданыңыз.';
+  }
+  function listenHTML() {
+    return '<div class="listen" role="status"><span class="wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>' +
+      '<span data-ref="lstatus">Тыңдап тұрмын… Асықпа</span></div>' +
+      '<p class="heard-live" data-ref="live"></p>';
+  }
+  function verdictHTML(kind, code, title, text) {
+    return '<div class="verdict ' + kind + '">' + emo(code, '', true) + '<div><b>' + title + '</b><span>' + text + '</span></div></div>';
+  }
+  function withMic(then) { if (Store.d.micOk) then(); else openMicConsent(then); }
+  function refreshVoice() { if (cur && cur._refresh) cur._refresh(); }
+
+  /* Бір жауапты тыңдау (1-деңгей және 3-деңгейдің сұрақтары).
+     Бала сөйлеп болған соң 3,5 секунд үнсіздіктен кейін ғана тоқтайды — асықтырмаймыз. */
+  function listenOnce(box, o) {
+    var quietT = 0, done = false;
+    box.innerHTML = listenHTML();
+    var lis = Speech.listen({
+      continuous: true,
+      onState: function (s) { var st = $('[data-ref=lstatus]', box); if (st && s === 'speech') st.textContent = 'Естіп тұрмын…'; },
+      onAlts: function (alts) {
+        if (done || !o.match) return;
+        var hit = o.match(alts);
+        if (hit) { done = true; clearTimeout(quietT); lis.abort(); o.onMatch(hit); }
+      },
+      onText: function (finals, interim) {
+        if (done) return;
+        var live = $('[data-ref=live]', box);
+        if (live) live.textContent = finals.concat(interim ? [interim] : []).join(' ');
+        clearTimeout(quietT);
+        if (finals.length && !interim) quietT = setTimeout(function () { lis.stop(); }, 3500);
+      },
+      onError: function (code) {
+        if (done) return;
+        box.innerHTML = verdictHTML('try', '1f914', 'Микрофон жұмыс істемеді', esc(speechError(code)));
+      },
+      onEnd: function (info) {
+        clearTimeout(quietT);
+        if (done) return;
+        done = true;
+        o.onEnd(info);
+      }
+    });
+    return {
+      stop: function () { clearTimeout(quietT); lis.stop(); },
+      abort: function () { clearTimeout(quietT); done = true; lis.abort(); }
+    };
+  }
+
+  function openMicConsent(then) {
+    var m = h('<div class="modal breath" data-scope role="dialog" aria-modal="true" aria-labelledby="mic-title">' +
+      '<div class="breath-card glass consent">' +
+      '<button class="icon-btn close" data-act="close" aria-label="Жабу">' + I.close + '</button>' +
+      '<div class="consent-emo">' + emo('1f3a4', '', true) + '</div>' +
+      '<h2 id="mic-title">Микрофонды қосамыз ба?</h2>' +
+      '<p class="b-sub">Сайт баланың дауысын тыңдап, айтқан сөзін таниды және мәтін етіп жазып шығарады.</p>' +
+      '<p class="consent-note">' + emo('1f468_200d_1f469_200d_1f467', '', true) + '<span><b>Ата-анаға:</b> дауысты тану үшін браузер дыбысты өз қызметіне жібереді (Chrome — Google, Edge — Microsoft, Safari — Apple). Сайттың өзі дыбысты да, мәтінді де сақтамайды.</span></p>' +
+      btn('ok', I.mic + 'Иә, қосу', 'btn-primary') +
+      btn('no', 'Микрофонсыз ойнау', 'btn-glass glass') +
+      '</div></div>');
+    m._acts = {
+      close: function () { closeModal(); },
+      ok: function () { Store.d.micOk = true; Store.save(); closeModal(true); then(); },
+      no: function () { Store.d.voice = false; Store.save(); closeModal(); refreshVoice(); toast('1f3a4', 'Микрофонсыз ойнаймыз'); }
+    };
+    openModal(m, '[data-act=ok]');
+  }
+
+  /* ==========================================================
      3. 1-деңгей — «Суретті ата»
      ========================================================== */
   function screenL1() {
     var L = C.levels[0];
     var el = taskShell(L);
     var stage = $('[data-ref=stage]', el), actions = $('[data-ref=actions]', el), dots = $('[data-ref=dots]', el);
-    var i = 0, hint = 0, said = false;
+    var i = 0, hint = 0, said = false, misses = 0, lis = null;
+
+    function hintBtn() { return btn('hint', emo('1f4a1', '', true) + 'Көмек', 'btn-glass glass'); }
+    function setAsk(again) {
+      actions.innerHTML = hintBtn() + (voiceOn()
+        ? btn('mic', I.mic + (again ? 'Тағы айту' : 'Айту'), 'btn-primary', 'pulse')
+        : btn('said', emo('1f3a4', '', true) + 'Айттым!', 'btn-primary', 'pulse'));
+      syncUI();
+    }
+    function syncUI() {
+      var hb = $('[data-act=hint]', actions); if (hb) hb.disabled = hint >= 2;
+      var m = $('[data-ref=manual]', stage); if (m) m.hidden = said || !voiceOn();
+    }
+    function stopListening() { if (lis) { lis.abort(); lis = null; } }
 
     function render(animate) {
-      var it = L.items[i]; hint = 0; said = false;
+      stopListening();
+      var it = L.items[i]; hint = 0; said = false; misses = 0;
       setDots(dots, L.items.length, i);
       swapStage(stage,
         '<button class="pic" data-act="poke" aria-label="Сурет">' +
         '<span class="rays"></span><span class="halo"></span>' + emo(it.e, 'pic-emo') + '<span class="pic-shadow"></span></button>' +
         '<h2 class="question">' + it.q + '</h2>' +
         '<div data-ref="hint"></div>' +
-        '<div data-ref="answer"></div>', animate);
-      actions.innerHTML =
-        btn('hint', emo('1f4a1', '', true) + 'Көмек', 'btn-glass glass') +
-        btn('said', emo('1f3a4', '', true) + 'Айттым!', 'btn-primary', 'pulse');
+        '<div data-ref="mic" class="mic-box"></div>' +
+        '<div data-ref="answer"></div>' +
+        '<button class="link-btn manual" data-act="said" data-ref="manual">' + I.check + 'Айттым (микрофонсыз)</button>', animate)
+        .then(syncUI);
+      setAsk(false);
     }
 
-    el._acts.poke = function () {
-      var p = $('.pic-emo', stage); if (!p) return;
-      Sound.pop(); p.classList.remove('poke'); void p.offsetWidth; p.classList.add('poke');
-    };
-    el._acts.hint = function (b) {
+    function showHint() {
       var it = L.items[i], box = $('[data-ref=hint]', stage);
-      hint = Math.min(2, hint + 1);
+      if (!box || hint >= 2) return;
+      hint++;
       Sound.soft();
       if (hint === 1) {
         box.innerHTML = '<div class="hint">' + emo('1f4a1') + 'Алғашқы дыбысы: <b>«' + cap(it.a.charAt(0)) + '…»</b></div>';
       } else {
         box.innerHTML = '<div class="hint">' + emo('1f425') + 'Бірге айтайық: <span class="syl">' +
           it.syl.map(function (s) { return '<span>' + s + '</span>'; }).join('<i>–</i>') + '</span></div>';
-        b.disabled = true;
       }
       hydrate(box);
-    };
-    el._acts.said = function () {
-      if (said) return; said = true;
+      syncUI();
+    }
+
+    function showAnswer(head, heard) {
+      said = true;
       var it = L.items[i];
       $('[data-ref=hint]', stage).innerHTML = '';
+      $('[data-ref=mic]', stage).innerHTML = '';
       var ans = $('[data-ref=answer]', stage);
-      ans.innerHTML = '<div class="answer">' + praiseHTML() +
+      ans.innerHTML = '<div class="answer">' + head +
+        (heard ? '<p class="note">' + emo('1f442', '', true) + 'Мен естідім: «' + esc(heard) + '»</p>' : '') +
         '<div class="answer-word">Бұл — <b>' + it.a + '</b>!</div>' +
         '<div class="syl">' + it.syl.map(function (s) { return '<span>' + s + '</span>'; }).join('<i>·</i>') + '</div></div>';
       hydrate(ans);
+      syncUI();
       giveStar(L, i, $('.pic', stage));
       var last = i === L.items.length - 1;
       actions.innerHTML =
         btn('listen', emo('1f50a', '', true) + 'Тыңда', 'btn-glass glass tts') +
         btn('next', last ? emo('1f3c1', '', true) + 'Аяқтау' : 'Келесі ' + I.next);
       scrollIntoViewSoft(ans);
+    }
+
+    function startListening() {
+      if (said || lis) return;
+      var it = L.items[i], box = $('[data-ref=mic]', stage);
+      actions.innerHTML = hintBtn() + btn('micStop', '<span class="rec-dot"></span>Болды', 'btn-primary');
+      syncUI();
+      lis = listenOnce(box, {
+        match: function (alts) { return Speech.matches(alts, it.accept || [it.a]); },
+        onMatch: function (heard) {
+          lis = null;
+          showAnswer('<span class="praise">' + emo('2705', '', true) + 'Дұрыс! ' + pick(C.praise) + '</span>', heard);
+        },
+        onEnd: function (info) {
+          lis = null;
+          if (said || !el.isConnected) return;
+          if (info.error) { setAsk(true); return; }
+          if (!info.heard) {
+            box.innerHTML = verdictHTML('try', '1f442', 'Естімей қалдым', 'Микрофонға жақынырақ келіп, тағы айтып көр.');
+          } else {
+            misses++;
+            box.innerHTML = verdictHTML('try', '1f914', 'Әзірге дұрыс емес',
+              'Мен «' + esc(info.finals.join(' ')) + '» деп естідім. Тағы бір рет айтып көр!');
+            if (misses >= 2) showHint();
+          }
+          Sound.soft();
+          setAsk(true);
+          scrollIntoViewSoft(box);
+        }
+      });
+    }
+
+    el._acts.poke = function () {
+      var p = $('.pic-emo', stage); if (!p) return;
+      Sound.pop(); p.classList.remove('poke'); void p.offsetWidth; p.classList.add('poke');
+    };
+    el._acts.hint = function () { showHint(); };
+    el._acts.mic = function () { withMic(startListening); };
+    el._acts.micStop = function () { if (lis) lis.stop(); };
+    el._acts.said = function () {
+      if (said) return;
+      stopListening();
+      showAnswer(praiseHTML(), null);
     };
     el._acts.listen = function () { Voice.say(L.items[i].a); };
     el._acts.next = function () {
       if (i < L.items.length - 1) { i++; render(true); try { el.scrollTo({ top: 0, behavior: 'smooth' }); } catch (e) { } }
       else go(function () { return screenDone(L); });
     };
+    el._refresh = function () { if (!said && !lis) setAsk(misses > 0); };
+    el._leave = stopListening;
     render(false);
     return el;
   }
@@ -624,9 +780,11 @@
     var L = C.levels[2];
     var el = taskShell(L);
     var stage = $('[data-ref=stage]', el), actions = $('[data-ref=actions]', el), dots = $('[data-ref=dots]', el);
-    var step = 0, count = 0, said = false, reading = false;
+    var step = 0, count = 0, said = false, reading = false, ideasShown = false;
+    var lines = [], answers = [], lis = null, dict = null;
     var rec = { mr: null, chunks: [], url: null, stream: null, audio: null };
     var STEPS = 2 + L.questions.length; // басы + сұрақтар + әңгіме
+    var FINAL = STEPS - 1;
 
     function scene() {
       return '<div class="scene" aria-label="Айдос пен күшік">' +
@@ -636,18 +794,56 @@
         emo('1f98b', 's-fly') + emo('1f337', 's-flower') + emo('1f33c', 's-flower f2') +
         '</div>';
     }
+    function total() { return lines.length + count; }
+    function stopAll() {
+      if (lis) { lis.abort(); lis = null; }
+      if (dict) { dict.abort(); dict = null; }
+    }
+
+    /* --- Сұрақ қадамының батырмалары --- */
+    function qActions(again) {
+      actions.innerHTML = btn('ideas', emo('1f4a1', '', true) + 'Ой-көмекші', 'btn-glass glass') + (voiceOn()
+        ? btn('mic', I.mic + (again ? 'Тағы айту' : 'Айту'), 'btn-primary', 'pulse')
+        : btn('said', emo('1f3a4', '', true) + 'Айттым!', 'btn-primary', 'pulse'));
+      syncQ();
+    }
+    function syncQ() {
+      var ib = $('[data-act=ideas]', actions); if (ib) ib.disabled = ideasShown;
+      var m = $('[data-ref=manual]', stage); if (m) m.hidden = said || !voiceOn();
+    }
+
+    /* --- Соңғы қадам: санағыш қатары --- */
+    function rowHTML() {
+      if (voiceOn()) {
+        return '<button class="c-undo glass" data-act="minus" aria-label="Бір сөйлемді алып тастау">−1</button>' +
+          '<button class="c-btn" data-act="dictate" data-ref="micbtn" aria-label="Микрофон">' + I.mic + '<small>Айту</small></button>' +
+          '<button class="c-undo glass" data-act="plus" aria-label="Сөйлемді қолмен санау">+1</button>';
+      }
+      return '<button class="c-undo glass" data-act="minus" aria-label="Бір сөйлемді алып тастау">−1</button>' +
+        '<button class="c-btn" data-act="plus" aria-label="Мен бір сөйлем айттым"><b>+1</b><small>сөйлем</small></button>' +
+        '<span style="width:52px"></span>';
+    }
+    function storyBoxHTML() {
+      return '<div class="story-box" data-ref="sbox"' + (voiceOn() || lines.length ? '' : ' hidden') + '>' +
+        '<div class="sb-head">' + emo('1f4dd', '', true) + '<b>Менің әңгімем</b></div>' +
+        '<ol class="sb-lines" data-ref="lines"></ol>' +
+        '<p class="sb-live" data-ref="live"></p>' +
+        '<p class="sb-empty" data-ref="empty">Микрофонды басып, әңгімеңді айт — сөздерің осында жазылып шығады.</p>' +
+        '</div>';
+    }
 
     function render(animate) {
-      said = false; reading = false; Voice.stop();
+      stopAll();
+      said = false; reading = false; ideasShown = false; Voice.stop();
       setDots(dots, STEPS, step);
-      var html, acts;
+      var html, acts = null;
       if (step === 0) {
         html = scene() +
           '<div class="story" data-ref="story"><small>Басталуы</small>«' +
           L.story.map(function (s, k) { return '<span data-k="' + k + '">' + s + '</span>'; }).join(' ') + '»</div>';
         acts = btn('read', emo('1f50a', '', true) + 'Оқып беру', 'btn-glass glass tts') +
           btn('readDone', emo('1f4d6', '', true) + 'Оқыдым', 'btn-primary', 'pulse');
-      } else if (step <= L.questions.length) {
+      } else if (step < FINAL) {
         var q = L.questions[step - 1];
         html = '<div class="q-card">' +
           '<span class="q-label">' + step + '-сұрақ</span>' +
@@ -655,42 +851,44 @@
           '<h2 class="question">' + q.q + '</h2>' +
           '<p class="tip" data-ref="tip">' + emo('1f422') + pick(C.calm) + '</p>' +
           '<div data-ref="ideas" style="width:100%"></div>' +
+          '<div data-ref="mic" class="mic-box"></div>' +
           '<div data-ref="answer"></div>' +
+          '<button class="link-btn manual" data-act="said" data-ref="manual">' + I.check + 'Айттым (микрофонсыз)</button>' +
           '</div>';
-        acts = btn('ideas', emo('1f4a1', '', true) + 'Ой-көмекші', 'btn-glass glass') +
-          btn('said', emo('1f3a4', '', true) + 'Айттым!', 'btn-primary', 'pulse');
       } else {
-        count = 0;
+        count = 0; lines = [];
         html = '<div class="q-card">' +
           '<span class="q-label">Соңғы қадам</span>' +
           '<div class="q-mini">' + emo('1f466', '', true) + emo('2764_fe0f') + emo('1f436', '', true) + '</div>' +
           '<h2 class="question">Енді бүкіл әңгімені айтып бер!</h2>' +
           '<p class="tip">' + emo('1f4da') + L.task + '</p>' +
-          '<div class="recap"><ul>' + L.questions.map(function (q, k) { return '<li><i>' + (k + 1) + '</i>' + q.q + '</li>'; }).join('') + '</ul></div>' +
+          '<div class="recap"><ul>' + L.questions.map(function (q, k) {
+            return '<li><i>' + (k + 1) + '</i><div>' + q.q + (answers[k] ? '<em>' + esc(answers[k]) + '</em>' : '') + '</div></li>';
+          }).join('') + '</ul></div>' +
+          storyBoxHTML() +
           '<div class="counter">' +
           '<div class="c-slots" data-ref="cslots">' + Array.apply(null, Array(L.maxSentences)).map(function (_, k) {
             return '<span class="c-slot' + (k < L.minSentences ? ' goal' : '') + '">' + emo('2b50', '', true) + '</span>';
           }).join('') + '</div>' +
-          '<div class="c-row"><button class="c-undo glass" data-act="minus" aria-label="Бір сөйлемді алып тастау">−1</button>' +
-          '<button class="c-btn" data-act="plus" aria-label="Мен бір сөйлем айттым"><b>+1</b><small>сөйлем</small></button>' +
-          '<span style="width:52px"></span></div>' +
-          '<p class="c-msg" data-ref="cmsg">Әр сөйлем айтқан сайын «+1» бас</p>' +
+          '<div class="c-row" data-ref="crow">' + rowHTML() + '</div>' +
+          '<p class="c-msg" data-ref="cmsg"></p>' +
           '</div>' +
           (canRecord() ? '<div class="rec glass">' + emo('1f399_fe0f', '', true) +
-            '<div class="rec-info"><b>Әңгімеңді жазып ал</b><span>Кейін өзің тыңдай аласың. Жазба тек осы құрылғыда қалады.</span></div>' +
+            '<div class="rec-info"><b>Әңгімеңді дыбысқа жазып ал</b><span>Кейін өзің тыңдай аласың. Жазба тек осы құрылғыда қалады.</span></div>' +
             '<div class="rec-ctrl" data-ref="recctrl"></div></div>' : '') +
           '</div>';
         acts = btn('finish', emo('1f3c1', '', true) + 'Аяқтау', 'btn-primary');
       }
       swapStage(stage, html, animate).then(function () {
-        if (step === STEPS - 1) { renderRec(); var f = $('[data-act=finish]', actions); if (f) f.disabled = true; }
+        if (step === FINAL) { renderRec(); renderLines(); paintCounter(); }
+        else if (step > 0) syncQ();
       });
-      actions.innerHTML = acts;
-      if (step === STEPS - 1) { var f0 = $('[data-act=finish]', actions); if (f0) f0.disabled = true; }
+      if (acts) actions.innerHTML = acts; else qActions(false);
+      if (step === FINAL) { var f0 = $('[data-act=finish]', actions); if (f0) f0.disabled = true; }
     }
 
     function advance() {
-      if (step < STEPS - 1) { step++; render(true); try { el.scrollTo({ top: 0, behavior: 'smooth' }); } catch (e) { } }
+      if (step < FINAL) { step++; render(true); try { el.scrollTo({ top: 0, behavior: 'smooth' }); } catch (e) { } }
     }
 
     el._acts.read = function () {
@@ -708,14 +906,14 @@
       giveStar(L, 0, $('.scene', stage));
       setTimeout(advance, RM ? 0 : 650);
     };
-    el._acts.ideas = function (b) {
+    el._acts.ideas = function () {
       var q = L.questions[step - 1], box = $('[data-ref=ideas]', stage);
       Sound.soft();
       box.innerHTML = '<p class="ideas-label">Мына суреттер көмектеседі — біреуін таңда немесе өзің ойла:</p>' +
         '<div class="ideas">' + q.ideas.map(function (d) {
           return '<button class="idea" data-act="idea" data-t="' + d[1] + '">' + emo(d[0], '', true) + '<span>' + d[1] + '</span></button>';
         }).join('') + '</div>';
-      b.disabled = true;
+      ideasShown = true; syncQ();
       scrollIntoViewSoft(box);
     };
     el._acts.idea = function (b) {
@@ -723,38 +921,138 @@
       Sound.pop();
       Voice.say(b.dataset.t);
     };
-    el._acts.said = function () {
-      if (said) return; said = true;
+
+    /* --- Сұраққа жауап --- */
+    function answered(text) {
+      said = true;
+      var k = step - 1;
+      if (text) answers[k] = sentenceOf(text);
+      $('[data-ref=mic]', stage).innerHTML = '';
       var ans = $('[data-ref=answer]', stage);
-      ans.innerHTML = '<div class="answer">' + praiseHTML() + '<p class="note">' + emo('1f425', '', true) + 'Қандай қызық ой!</p></div>';
+      ans.innerHTML = '<div class="answer">' + praiseHTML() +
+        (text ? '<div class="said-text"><small>' + emo('1f4dd', '', true) + 'Сенің жауабың</small>«' + esc(answers[k]) + '»</div>' : '') +
+        '<p class="note">' + emo('1f425', '', true) + 'Қандай қызық ой!</p></div>';
       hydrate(ans);
+      syncQ();
       giveStar(L, step, $('.q-num', stage));
       actions.innerHTML = btn('next', 'Келесі ' + I.next);
       scrollIntoViewSoft(ans);
+    }
+    el._acts.said = function () {
+      if (said) return;
+      if (lis) { lis.abort(); lis = null; }
+      answered('');
     };
+    el._acts.mic = function () { withMic(startAnswer); };
+    el._acts.micStop = function () { if (lis) lis.stop(); };
+    function startAnswer() {
+      if (said || lis) return;
+      var box = $('[data-ref=mic]', stage);
+      actions.innerHTML = btn('ideas', emo('1f4a1', '', true) + 'Ой-көмекші', 'btn-glass glass') +
+        btn('micStop', '<span class="rec-dot"></span>Болды', 'btn-primary');
+      syncQ();
+      lis = listenOnce(box, {
+        onEnd: function (info) {
+          lis = null;
+          if (said || !el.isConnected) return;
+          if (info.error) { qActions(true); return; }
+          var text = info.finals.join(' ').trim();
+          if (text) { answered(text); return; }
+          box.innerHTML = verdictHTML('try', '1f442', 'Естімей қалдым', 'Микрофонға жақынырақ келіп, тағы айтып көр.');
+          Sound.soft();
+          qActions(true);
+        }
+      });
+    }
     el._acts.next = function () { advance(); };
 
+    /* --- Соңғы қадам: әңгіме --- */
     var MSG = ['Әр сөйлем айтқан сайын «+1» бас', 'Керемет бастама!', 'Жарайсың! Әрі қарай…', 'Тамаша! 3 сөйлем — мақсат орындалды!', 'Ғажап! Тағы айтасың ба?', 'Керемет әңгіме! 5 сөйлем!'];
     function paintCounter() {
-      $$('.c-slot', stage).forEach(function (s, k) { s.classList.toggle('on', k < count); });
-      $('[data-ref=cmsg]', stage).textContent = MSG[count];
-      var plus = $('[data-act=plus]', stage); if (plus) plus.disabled = count >= L.maxSentences;
-      var f = $('[data-act=finish]', actions); if (f) { f.disabled = count < L.minSentences; f.classList.toggle('pulse', count >= L.minSentences); }
+      var t = total();
+      $$('.c-slot', stage).forEach(function (s, k) { s.classList.toggle('on', k < t); });
+      var msg = $('[data-ref=cmsg]', stage);
+      if (msg) msg.textContent = t === 0 && voiceOn() ? 'Микрофонды басып, әңгімеңді айтып бер' : MSG[Math.min(t, MSG.length - 1)];
+      var plus = $('[data-act=plus]', stage); if (plus) plus.disabled = t >= L.maxSentences;
+      var f = $('[data-act=finish]', actions); if (f) { f.disabled = t < L.minSentences; f.classList.toggle('pulse', t >= L.minSentences); }
     }
-    el._acts.plus = function () {
-      if (count >= L.maxSentences) return;
-      count++;
+    function bumped(prev) {
+      var t = total(), anchor = $('.c-btn', stage);
       Sound.pop();
       paintCounter();
-      if (count === L.minSentences) { celebrate($('.c-btn', stage)); toast('1f31f', 'Мақсат орындалды!'); }
-      else if (count === L.maxSentences) { celebrate($('.c-btn', stage), true); }
+      if (prev < L.minSentences && t >= L.minSentences) { celebrate(anchor); toast('1f31f', 'Мақсат орындалды!'); }
+      else if (prev < L.maxSentences && t >= L.maxSentences) { celebrate(anchor, true); }
+    }
+    function renderLines() {
+      var ol = $('[data-ref=lines]', stage); if (!ol) return;
+      ol.innerHTML = lines.map(function (t, k) {
+        return '<li><span>' + esc(t) + '</span><button class="sb-x" data-act="delLine" data-k="' + k + '" aria-label="Бұл сөйлемді өшіру">×</button></li>';
+      }).join('');
+      var empty = $('[data-ref=empty]', stage); if (empty) empty.hidden = lines.length > 0;
+      var box = $('[data-ref=sbox]', stage); if (box) box.hidden = !(voiceOn() || lines.length);
+    }
+    function paintMic() {
+      var b = $('[data-ref=micbtn]', stage); if (!b) return;
+      b.classList.toggle('on', !!dict);
+      b.innerHTML = (dict ? I.stop + '<small>Болды</small>' : I.mic + '<small>Айту</small>');
+      b.setAttribute('aria-label', dict ? 'Тыңдауды тоқтату' : 'Микрофон');
+    }
+    el._acts.plus = function () {
+      if (total() >= L.maxSentences) return;
+      var prev = total(); count++; bumped(prev);
     };
-    el._acts.minus = function () { if (count > 0) { count--; Sound.soft(); paintCounter(); } };
+    el._acts.minus = function () {
+      if (count > 0) count--;
+      else if (lines.length) { lines.pop(); renderLines(); }
+      else return;
+      Sound.soft(); paintCounter();
+    };
+    el._acts.delLine = function (b) {
+      lines.splice(+b.dataset.k, 1);
+      renderLines(); Sound.soft(); paintCounter();
+    };
+    el._acts.dictate = function () {
+      if (dict) { dict.stop(); return; }
+      withMic(startDictation);
+    };
+    function startDictation() {
+      if (dict) return;
+      stopRecording(true); renderRec();
+      var live = $('[data-ref=live]', stage), empty = $('[data-ref=empty]', stage);
+      if (empty) empty.textContent = 'Тыңдап тұрмын… Асықпа, әр сөйлемнен кейін сәл тоқта.';
+      var mine = dict = Speech.listen({
+        continuous: true,
+        restart: true,
+        onText: function (finals, interim) { if (live) live.textContent = interim; },
+        onFinal: function (text) {
+          var s = sentenceOf(text); if (!s) return;
+          var prev = total();
+          lines.push(s);
+          renderLines();
+          if (live) live.textContent = '';
+          bumped(prev);
+        },
+        onError: function (code) {
+          if (empty) { empty.textContent = speechError(code); empty.hidden = false; }
+        },
+        onEnd: function () {
+          if (dict === mine) dict = null;
+          if (!el.isConnected) return;
+          if (live) live.textContent = '';
+          if (empty && !speechBroken) empty.textContent = 'Микрофонды басып, әңгімеңді айт — сөздерің осында жазылып шығады.';
+          if (speechBroken) { var row = $('[data-ref=crow]', stage); if (row) row.innerHTML = rowHTML(); }
+          paintMic(); paintCounter();
+        }
+      });
+      paintMic();
+    }
     el._acts.finish = function () {
-      if (count < L.minSentences) return;
+      if (total() < L.minSentences) return;
+      stopAll();
       stopRecording(true);
-      Store.star(L.id, STEPS - 1);
-      go(function () { return screenDone(L); });
+      Store.star(L.id, FINAL);
+      var story = { answers: answers.slice(), lines: lines.slice() };
+      go(function () { return screenDone(L, story); });
     };
 
     /* --- Дыбыс жазу (міндетті емес) --- */
@@ -768,6 +1066,7 @@
     }
     el._acts.recStart = function () {
       stopRecording(true);
+      if (dict) { dict.abort(); dict = null; paintMic(); }
       navigator.mediaDevices.getUserMedia({ audio: true }).then(function (stream) {
         rec.stream = stream; rec.chunks = [];
         if (rec.url) { URL.revokeObjectURL(rec.url); rec.url = null; }
@@ -791,7 +1090,16 @@
       rec.mr = null;
       if (silent) releaseStream();
     }
+
+    el._refresh = function () {
+      if (step > 0 && step < FINAL && !said && !lis) qActions(false);
+      if (step === FINAL && !dict) {
+        var row = $('[data-ref=crow]', stage); if (row) row.innerHTML = rowHTML();
+        renderLines(); paintCounter();
+      }
+    };
     el._leave = function () {
+      stopAll();
       stopRecording(true);
       if (rec.audio) rec.audio.pause();
       if (rec.url) { URL.revokeObjectURL(rec.url); rec.url = null; }
@@ -804,7 +1112,7 @@
   /* ==========================================================
      6. Нәтиже беті
      ========================================================== */
-  function screenDone(L) {
+  function screenDone(L, story) {
     var n = Store.count(L.id);
     var all = C.levels.every(function (l) { return Store.count(l.id) >= STARS_PER_LEVEL; });
     var nextL = C.levels[L.id] || null;
@@ -819,6 +1127,7 @@
         return s;
       })() + '</div>' +
       '<div class="crit glass">' + emo('2705', '', true) + '<span>' + L.criterion + '</span></div>' +
+      storyOutHTML(L, story) +
       (all ? '<div class="master glass">' + emo('1f973') + ' Барлық деңгей орындалды! Сен — нағыз сөз шебері!</div>' : '') +
       '<div class="done-actions">' +
       (nextL ? btn('nextLevel', 'Келесі деңгей ' + I.next, 'btn-primary', 'pulse') : btn('levels', I.grid + 'Деңгейлерге', 'btn-primary')) +
@@ -831,8 +1140,43 @@
     el._acts.again = function () { openLevel(L.id, 'back'); };
     el._acts.levels = function () { go(screenLevels, 'back'); };
     el._acts.home = function () { go(screenHome, 'back'); };
+    el._acts.copy = function () { copyText(storyText(L, story)); };
     setTimeout(function () { Sound.fanfare(); confetti(170); }, 250);
     return el;
+  }
+
+  function hasStory(story) { return !!(story && (story.lines.length || story.answers.some(Boolean))); }
+  function storyOutHTML(L, story) {
+    if (!hasStory(story)) return '';
+    var ans = L.questions.map(function (q, k) {
+      return story.answers[k] ? '<li><small>' + q.q + '</small>' + esc(story.answers[k]) + '</li>' : '';
+    }).join('');
+    return '<div class="story-out glass">' +
+      '<div class="sb-head">' + emo('1f4dd', '', true) + '<b>Сенің әңгімең</b></div>' +
+      (story.lines.length ? '<p class="so-text"><span class="so-start">' + L.story.join(' ') + '</span> ' + esc(story.lines.join(' ')) + '</p>' : '') +
+      (ans ? '<ul class="so-ans">' + ans + '</ul>' : '') +
+      btn('copy', I.check + 'Мәтінді көшіру', 'btn-glass glass btn-sm') +
+      '</div>';
+  }
+  function storyText(L, story) {
+    var out = ['«' + L.title + '»', '', 'Басталуы: ' + L.story.join(' ')];
+    L.questions.forEach(function (q, k) { if (story.answers[k]) out.push((k + 1) + '. ' + q.q + ' — ' + story.answers[k]); });
+    if (story.lines.length) out.push('', 'Баланың әңгімесі: ' + story.lines.join(' '));
+    return out.join('\n');
+  }
+  function copyText(text) {
+    function fallback() {
+      try {
+        var ta = document.createElement('textarea'); ta.value = text; ta.setAttribute('readonly', '');
+        ta.style.cssText = 'position:fixed;opacity:0;top:0;left:0'; document.body.appendChild(ta); ta.select();
+        var ok = document.execCommand('copy'); ta.remove();
+        toast(ok ? '2705' : '1f914', ok ? 'Мәтін көшірілді' : 'Көшіру мүмкін болмады');
+      } catch (e) { toast('1f914', 'Көшіру мүмкін болмады'); }
+    }
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(function () { toast('2705', 'Мәтін көшірілді'); }, fallback);
+      else fallback();
+    } catch (e) { fallback(); }
   }
 
   /* ==========================================================
@@ -919,11 +1263,12 @@
       '<h3>' + emo('1f9e9', '', true) + 'Сайт қалай жұмыс істейді?</h3>' +
       '<ol>' +
       '<li><b>«Бастау»</b> батырмасын басыңыз — тіркелу, логин, құпиясөз қажет емес.</li>' +
-      '<li>Бала тапсырманы <b>дауыстап</b> орындайды. Жауабын айтқаннан кейін <b>«Айттым!»</b> батырмасы басылады.</li>' +
+      '<li>Бала тапсырманы <b>дауыстап</b> орындайды. Микрофон қосулы болса, сайт айтылған сөзді өзі таниды; микрофонсыз болса, жауаптан кейін <b>«Айттым!»</b> батырмасы басылады.</li>' +
       '<li><b>«Көмек»</b> батырмасы алғашқы дыбысты, буындарды немесе ой-көмекші суреттерді көрсетеді.</li>' +
       '<li>Уақыт өлшенбейді, «қате» деген белгі жоқ — әр талпыныс мадақталады.</li>' +
-      '<li>Жұлдыздар тек осы құрылғыда сақталады, ешқайда жіберілмейді.</li>' +
+      '<li>Жұлдыздар тек осы құрылғыда сақталады. Мәтінге айналған жауаптар сақталмайды — бетті жапқанда өшеді.</li>' +
       '</ol>' +
+      micCardHTML() +
       '<div class="card warn"><h3>' + emo('1f422', '', true) + 'Ескерту</h3><p>' + C.note + '</p></div>' +
       '<h3>' + emo('1f4a1', '', true) + 'Пайдалы кеңестер</h3>' +
       '<ul>' +
@@ -932,6 +1277,17 @@
       '<li>Жылдамдыққа емес, тапсырманың орындалуына назар аударыңыз.</li>' +
       '<li>Сабақ алдында «Тыныс алу жаттығуын» бірге орындаңыз.</li>' +
       '</ul>';
+  }
+  function micCardHTML() {
+    var on = voiceOn();
+    return '<div class="card"><h3>' + emo('1f3a4', '', true) + 'Микрофон және дауысты тану</h3>' +
+      '<p>1-деңгейде сайт баланың айтқан сөзін тыңдап, <b>«Дұрыс!»</b> немесе <b>«Әзірге дұрыс емес — тағы айтып көр»</b> деп көрсетеді. 3-деңгейде баланың жауаптары мен әңгімесі мәтін болып жазылып шығады, соңында оны көшіріп алуға болады.</p>' +
+      '<p>Дауысты тану үшін браузер дыбысты өз қызметіне жібереді (Chrome — Google, Edge — Microsoft, Safari — Apple). Сайттың өзі дыбысты да, мәтінді де сақтамайды. Ең жақсы жұмыс істейтін браузер — <b>Google Chrome</b> (Android және компьютер).</p>' +
+      '<p><b>Маңызды:</b> бағдарлама тұтығып немесе созып айтылған сөзді кейде дұрыс танымауы мүмкін. Нәтижені үлкен адам бақылап отырғаны жөн: бала сөзді айтып, бірақ сайт танымаса, <b>«Айттым (микрофонсыз)»</b> батырмасын басыңыз.</p>' +
+      (Speech.supported
+        ? '<div class="reset-row">' + btn('voiceToggle', I.mic + (on ? 'Микрофонды өшіру' : 'Микрофонды қосу'), 'btn-glass glass') + '<span>Қазір: <b>' + (on ? 'қосулы' : 'өшірулі') + '</b></span></div>'
+        : '<p><b>Бұл браузерде дауыс тану жоқ</b> — ойын «Айттым!» батырмасымен жұмыс істейді.</p>') +
+      '</div>';
   }
   function infoTasks() {
     var L1 = C.levels[0], L2 = C.levels[1], L3 = C.levels[2];
@@ -991,6 +1347,11 @@
       body.innerHTML = tabs[k][2](); body.scrollTop = 0;
     }
     m._acts.tab = function (b) { show(+b.dataset.i); };
+    m._acts.voiceToggle = function () {
+      Store.d.voice = !voiceOn(); speechBroken = false; Store.save();
+      show(0); refreshVoice();
+      toast('1f3a4', Store.d.voice ? 'Микрофон қосылды' : 'Микрофон өшірілді');
+    };
     m._acts.close = function () { closeModal(); };
     m._acts.resetAsk = function () {
       $('[data-ref=reset]', body).innerHTML = '<span>Барлық жұлдыз өшеді. Сенімдісіз бе?</span>' +
