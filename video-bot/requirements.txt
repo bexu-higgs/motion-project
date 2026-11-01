@@ -1,0 +1,6 @@
+python-telegram-bot[rate-limiter]>=22.0,<23
+yt-dlp[default]>=2025.11.12
+# YouTube форматтарын ашу үшін JavaScript ортасы (yt-dlp оны өзі табады)
+deno; platform_machine == "x86_64" or platform_machine == "AMD64" or platform_machine == "arm64" or platform_machine == "aarch64"
+# Жүйеде ffmpeg болмаса, осы пакеттегі ffmpeg қолданылады
+imageio-ffmpeg; platform_machine == "x86_64" or platform_machine == "AMD64" or platform_machine == "arm64"

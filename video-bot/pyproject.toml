@@ -1,0 +1,16 @@
+[project]
+name = "video-kz-bot"
+version = "1.0.0"
+description = "YouTube, TikTok, Instagram, Facebook және Threads видеоларын жүктейтін қазақша Telegram боты"
+requires-python = ">=3.10"
+dependencies = [
+    "python-telegram-bot[rate-limiter]>=22.0,<23",
+    "yt-dlp[default]>=2025.11.12",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 120
