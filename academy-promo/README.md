@@ -9,7 +9,8 @@ iOS-тағы «Liquid Glass» стиліндегі 60 секундтық про�
 
 | Файл | Формат |
 |---|---|
-| `output/higgsfield_academy_16x9_4k60.mp4` | 16:9, 3840×2160, 60 fps, дауыс + музыка + SFX |
+| `output/higgsfield_academy_16x9_4k60.mp4` | 16:9, 3840×2160, 60 fps, дауыс + музыка + SFX (≈114 МБ — GitHub-тың 100 МБ шегінен үлкен, сондықтан git-те жоқ: `./build.sh` қайта жасайды) |
+| `output/higgsfield_academy_16x9_1080p60.mp4` | 16:9, 1920×1080, 60 fps — 4K мастерден кішірейтілген көшірме |
 | `output/higgsfield_academy_9x16_reels.mp4` | 9:16 (Reels), 1080×1920, 60 fps, дауыс + музыка + SFX |
 | `output/*_no_voice.mp4` | сол видеолар, тек музыка + SFX (дауыссыз) |
 | `output/audio/` | `music.wav`, `sfx.wav`, `bed.wav` — бөлек дыбыс жолдары |
