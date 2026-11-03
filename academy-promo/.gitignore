@@ -1,3 +1,5 @@
 out/
 node_modules/
 __pycache__/
+# 4K masters are >100 MB (GitHub limit): delivered directly, rebuilt with ./build.sh
+output/*_4k60*.mp4
