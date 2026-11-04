@@ -7,13 +7,17 @@
   const portrait = q.get('aspect') === '9x16';
   const scale = +(q.get('scale') || 1);
   const DW = portrait ? 1080 : 1920, DH = portrait ? 1920 : 1080;
-  await Promise.all(['700 40px Nunito', '800 40px Nunito', '900 40px Nunito', '600 40px "Inter Display"', '700 40px "Inter Display"'].map((f) => document.fonts.load(f)));
+  await Promise.all(['700 40px Nunito', '800 40px Nunito', '900 40px Nunito', '500 40px "Inter Display"', '600 40px "Inter Display"', '700 40px "Inter Display"', '800 40px "Inter Display"', '900 40px "Inter Display"'].map((f) => document.fonts.load(f)));
   const load = (src) => new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error('image ' + src)); i.src = src; });
   const lessons = await Promise.all([1, 2, 3, 4, 5, 6, 7].map((i) => load(`assets/screens/lesson${i}.png`)));
   const hero = await load('assets/screens/academy_hero.png');
+  const site = (n) => load(`assets/screens/site/${n}.png`);
+  const homework = await Promise.all([1, 2, 3, 4, 5].map((i) => site('homework' + i)));
+  const [certificate, drop, langMenu, syllabus, details, rewards, academyPage, lessonList] = await Promise.all(
+    ['certificate', 'creator_drop', 'lang_menu', 'course_syllabus', 'course_details', 'course_rewards', 'academy_page', 'lesson_list'].map(site));
   const canvas = document.getElementById('c');
   const info = Engine.init(canvas, { W: Math.round(DW * scale), H: Math.round(DH * scale), DW, DH });
-  Scenes.setup(Engine, { portrait, DW, DH }, { lessons, hero });
+  Scenes.setup(Engine, { portrait, DW, DH }, { lessons, hero, homework, certificate, drop, langMenu, syllabus, details, rewards, academyPage, lessonList });
   window.renderAt = (t, i = 0, show = true) => { Engine.draw(Scenes.frame(t, i)); if (show) Engine.show(); };
   window.cues = () => Scenes.cues();
   window.timeline = () => ({ TL: Scenes.TL, VO_OFFSET: Scenes.VO_OFFSET });

@@ -151,21 +151,19 @@ window.Engine = (() => {
   in vec2 vUv; out vec4 o;
   uniform float uT; uniform vec2 uDesign; uniform vec2 uCam; uniform float uBright;
   uniform vec4 uRip[8]; uniform int uNR;
+  vec3 glow(vec2 q, vec2 c, float r){ vec2 d = q-c; return vec3(exp(-dot(d,d)/r)); }
   vec3 wall(vec2 p){
-    // p: y in [-0.5,0.5], x scaled by aspect
-    float g = clamp(0.52 - p.y*0.95 + p.x*0.22, 0., 1.);
-    vec3 c1 = vec3(0.020,0.035,0.120), c2 = vec3(0.150,0.080,0.360), c3 = vec3(0.420,0.150,0.520), c4 = vec3(0.900,0.420,0.560);
-    vec3 col = g < 0.38 ? mix(c1, c2, smoothstep(0., 0.38, g)) : (g < 0.7 ? mix(c2, c3, smoothstep(0.38, 0.7, g)) : mix(c3, c4, smoothstep(0.7, 1.0, g)));
+    // iOS dark wallpaper: black, with slow purple and green light
     float t = uT;
-    vec2 q = p;
-    q += 0.035*vec2(sin(p.y*3.1 + t*0.21), cos(p.x*2.7 - t*0.17));
-    vec3 blobs = vec3(0);
-    blobs += vec3(1.00,0.36,0.62) * 0.55 * exp(-dot(q-vec2( 0.55+0.18*sin(t*0.13), -0.30+0.12*cos(t*0.11)), q-vec2( 0.55+0.18*sin(t*0.13), -0.30+0.12*cos(t*0.11)))/0.09);
-    blobs += vec3(0.46,0.28,1.00) * 0.50 * exp(-dot(q-vec2(-0.45+0.20*cos(t*0.09),  0.18+0.14*sin(t*0.12)), q-vec2(-0.45+0.20*cos(t*0.09),  0.18+0.14*sin(t*0.12)))/0.11);
-    blobs += vec3(0.20,0.40,1.00) * 0.32 * exp(-dot(q-vec2(-0.75+0.10*sin(t*0.15),  0.42+0.08*cos(t*0.10)), q-vec2(-0.75+0.10*sin(t*0.15),  0.42+0.08*cos(t*0.10)))/0.06);
-    blobs += vec3(1.00,0.62,0.45) * 0.38 * exp(-dot(q-vec2( 0.10+0.25*sin(t*0.07+1.0), -0.52+0.06*sin(t*0.16)), q-vec2( 0.10+0.25*sin(t*0.07+1.0), -0.52+0.06*sin(t*0.16)))/0.07);
-    blobs += vec3(0.78,0.30,0.92) * 0.34 * exp(-dot(q-vec2( 0.30+0.20*cos(t*0.12+2.0),  0.30+0.12*sin(t*0.08+0.5)), q-vec2( 0.30+0.20*cos(t*0.12+2.0),  0.30+0.12*sin(t*0.08+0.5)))/0.08);
-    col = 1.0 - (1.0-col)*(1.0-blobs);
+    float ax = uDesign.x/uDesign.y/1.7778;          // keep glows in frame for 9:16
+    vec2 q = p + 0.025*vec2(sin(p.y*2.3 + t*0.17), cos(p.x*2.1 - t*0.13));
+    vec3 col = vec3(0.010, 0.010, 0.016);
+    col += vec3(0.020, 0.012, 0.040) * (0.6 - p.y);                                   // faint violet wash from the top
+    col += vec3(0.47, 0.22, 1.00) * 0.42 * glow(q, vec2((-0.58 + 0.10*sin(t*0.11))*ax,  0.34 + 0.07*cos(t*0.09)), 0.11);
+    col += vec3(0.33, 0.12, 0.72) * 0.30 * glow(q, vec2(( 0.62 + 0.09*cos(t*0.08))*ax,  0.46 + 0.05*sin(t*0.12)), 0.13);
+    col += vec3(0.62, 0.95, 0.22) * 0.24 * glow(q, vec2(( 0.50 + 0.12*sin(t*0.07+1.0))*ax, -0.46 + 0.05*cos(t*0.15)), 0.07);
+    col += vec3(0.20, 0.80, 0.45) * 0.10 * glow(q, vec2((-0.72 + 0.08*cos(t*0.10))*ax, -0.52 + 0.04*sin(t*0.13)), 0.07);
+    col += vec3(0.55, 0.25, 0.95) * 0.08 * glow(q, vec2(( 0.05 + 0.20*sin(t*0.05))*ax, -0.05), 0.20);
     return col;
   }
   void main(){
@@ -185,7 +183,7 @@ window.Engine = (() => {
       crest += cos(x*48.0) * env;
     }
     vec3 col = wall(p + disp);
-    col += crest*0.05;
+    col += crest*0.035*vec3(0.75,0.65,1.0);
     o = vec4(col*uBright, 1.0);
   }`;
 
@@ -337,7 +335,7 @@ window.Engine = (() => {
     vec3 sharp = texture(uBg, vUv+off*1.6).rgb;
     float edge = smoothstep(0.10, 0.80, sqrt(l2));
     fr = mix(fr, sharp, edge*0.55);
-    fr = sat(fr, 1.30)*1.04 + 0.035;
+    fr = sat(fr, 1.20)*0.92 + 0.012;
     vec4 tt = texture(uG1, vUv); float ts = clamp(tt.a/c, 0., 1.); vec3 tp = tt.rgb/c;
     vec3 col = fr*(1.0-ts) + tp;
     vec3 L = normalize(uL); vec3 Hh = normalize(L + vec3(0,0,1));
@@ -403,6 +401,7 @@ window.Engine = (() => {
   in vec2 vLocal; out vec4 o;
   uniform int uMode; uniform sampler2D uTex; uniform vec2 uTexHalf;
   uniform vec4 uColor, uColor2, uP0, uP1; uniform float uOpacity;
+  uniform vec2 uPts[48]; uniform int uN;
   ${SDF_LIB}
   void main(){
     float fw = max(length(fwidth(vLocal))*0.7071, 1e-4);
@@ -410,7 +409,7 @@ window.Engine = (() => {
     if (uMode==0){
       vec2 tuv = vLocal/(2.0*uTexHalf)+0.5;
       if (tuv.x<0.||tuv.y<0.||tuv.x>1.||tuv.y>1.) discard;
-      c = texture(uTex, vec2(tuv.x, 1.0-tuv.y))*uColor;
+      c = texture(uTex, vec2(tuv.x, 1.0-tuv.y), uP1.x)*vec4(uColor.rgb*uColor.a, uColor.a);   // texture is premultiplied
       if (uP0.z > 0.0){ float d = sdRRect(vLocal, uP0.xy, uP0.z); c *= clamp(0.5-d/fw, 0., 1.); }
     } else if (uMode==1){
       float d = sdRRect(vLocal, uP0.xy, uP0.z); float a = clamp(0.5-d/fw,0.,1.);
@@ -443,6 +442,24 @@ window.Engine = (() => {
     } else if (uMode==5){
       float r = length(vLocal); float g = exp(-pow((r-uP0.x)/uP0.y, 2.0));
       c = vec4(uColor.rgb*uColor.a*g, uColor.a*g);
+    } else if (uMode==6 || uMode==7){
+      // solid stroke: 6 = polyline (uPts), 7 = arc (R, a0, a1); uP0.x = half width, uP0.y = glow radius
+      float d;
+      if (uMode==6){
+        d = 1e9;
+        for (int i=0;i<47;i++){ if (i>=uN-1) break; d = min(d, sdSeg(vLocal, uPts[i], uPts[i+1])); }
+      } else {
+        float R=uP1.x, a0=uP1.y, a1=uP1.z;
+        float l = length(vLocal);
+        float ang = atan(vLocal.y, vLocal.x);
+        if (a1-a0 >= 6.2831 || mod(ang-a0, 6.2831853) <= a1-a0) d = abs(l-R);
+        else d = min(length(vLocal-R*vec2(cos(a0),sin(a0))), length(vLocal-R*vec2(cos(a1),sin(a1))));
+      }
+      d -= uP0.x;
+      float cov = clamp(0.5 - d/fw, 0., 1.);
+      float gl = uP0.y > 0.0 ? exp(-max(d,0.0)*max(d,0.0)/(uP0.y*uP0.y))*0.45 : 0.0;
+      float a = max(cov, gl*uP0.z);
+      c = vec4(uColor.rgb*uColor.a*a, uColor.a*a);
     }
     o = c*uOpacity;
   }`;
@@ -649,6 +666,12 @@ window.Engine = (() => {
     c.font = font(o, scale);
     c.letterSpacing = ((o.track || 0) * scale) + 'px';
     c.fillStyle = o.color || '#fff';
+    if (o.grad) {
+      // o.grad: [[stop, color], ...]; vertical by default, o.gradH for left->right
+      const g = o.gradH ? c.createLinearGradient(P, 0, P + w, 0) : c.createLinearGradient(0, ch / 2 - asc / 2, 0, ch / 2 + asc / 2);
+      for (const [st, col] of o.grad) g.addColorStop(st, col);
+      c.fillStyle = g;
+    }
     c.textBaseline = 'alphabetic';
     c.fillText(text, P, ch / 2 + asc / 2);
     return { cv, halfW: cw / scale / 2, halfH: ch / scale / 2, w: w / scale };
@@ -695,7 +718,7 @@ window.Engine = (() => {
   function flatText(text, o) {
     const key = 'F|' + text + '|' + JSON.stringify(o);
     if (texCache.has(key)) return texCache.get(key);
-    const scale = o.texScale || TS * 1.25;
+    const scale = o.texScale || TS * (o.size > 60 ? 1.45 : 1.25);
     const { cv, halfW, halfH, w } = textCanvas(text, o, scale, 4);
     const r = { tex: uploadRGBA8(cv), halfW, halfH, w };
     texCache.set(key, r);
@@ -870,7 +893,7 @@ window.Engine = (() => {
     }
   }
 
-  const MODE = { tex: 0, fill: 1, liquid: 2, glow: 3, rays: 4, ring: 5 };
+  const MODE = { tex: 0, fill: 1, liquid: 2, glow: 3, rays: 4, ring: 5, stroke: 6, arc: 7 };
   function drawFlat(list) {
     const pr = P.flat; gl.useProgram(pr.p); gl.bindVertexArray(quad);
     for (const s of list) {
@@ -884,11 +907,12 @@ window.Engine = (() => {
       const c = s.color || [1, 1, 1, 1], c2 = s.color2 || c;
       gl.uniform4f(pr.u.uColor, c[0], c[1], c[2], c[3]);
       gl.uniform4f(pr.u.uColor2, c2[0], c2[1], c2[2], c2[3]);
-      let hw, hh;
+      let hw, hh, cx = 0, cy = 0;
       if (mode === 0) {
         if (s.tex.aspect) { hw = s.w / 2; hh = s.h / 2; } else { hw = s.tex.halfW; hh = s.tex.halfH; }
         gl.uniform2f(pr.u.uTexHalf, hw, hh);
         gl.uniform4f(pr.u.uP0, hw, hh, s.r || 0, 0);
+        gl.uniform4f(pr.u.uP1, s.blur || 0, 0, 0, 0);
         useTex(pr, 'uTex', 0, s.tex.tex);
       } else if (mode === 1 || mode === 2) {
         hw = s.w / 2 + 2; hh = s.h / 2 + 2;
@@ -901,12 +925,24 @@ window.Engine = (() => {
         hw = hh = s.size;
         gl.uniform4f(pr.u.uP0, s.count || 9, s.sharp || 6, s.fall || 300, 0);
         gl.uniform4f(pr.u.uP1, s.rot || 0, s.time || 0, s.cone || 0, 0);
-      } else {
+      } else if (mode === 5) {
         hw = hh = s.R + s.wd * 3;
         gl.uniform4f(pr.u.uP0, s.R, s.wd, 0, 0);
+      } else if (mode === 6) {
+        let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+        const flat = new Float32Array(96);
+        s.pts.slice(0, 48).forEach((p, i) => { flat[i * 2] = p[0]; flat[i * 2 + 1] = p[1]; x0 = Math.min(x0, p[0]); x1 = Math.max(x1, p[0]); y0 = Math.min(y0, p[1]); y1 = Math.max(y1, p[1]); });
+        const m = s.th + (s.glowR || 0) * 2.2 + 3;
+        hw = (x1 - x0) / 2 + m; hh = (y1 - y0) / 2 + m; cx = (x0 + x1) / 2; cy = (y0 + y1) / 2;
+        gl.uniform2fv(pr.u.uPts, flat); gl.uniform1i(pr.u.uN, Math.min(s.pts.length, 48));
+        gl.uniform4f(pr.u.uP0, s.th, s.glowR || 0, s.glowK == null ? 1 : s.glowK, 0);
+      } else {
+        hw = hh = s.R + s.th + (s.glowR || 0) * 2.2 + 3;
+        gl.uniform4f(pr.u.uP0, s.th, s.glowR || 0, s.glowK == null ? 1 : s.glowK, 0);
+        gl.uniform4f(pr.u.uP1, s.R, s.a0 == null ? 0 : s.a0, s.a1 == null ? 7 : s.a1, 0);
       }
       gl.uniform2f(pr.u.uHalf, hw, hh);
-      gl.uniform2f(pr.u.uCenter, 0, 0);
+      gl.uniform2f(pr.u.uCenter, cx, cy);
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     }
   }
