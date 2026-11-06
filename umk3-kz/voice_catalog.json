@@ -1,0 +1,677 @@
+[
+ {
+  "id": 0,
+  "rom_start": 979156,
+  "rom_end": 980875,
+  "bytes": 1719,
+  "chunks": 33,
+  "seconds": 0.51,
+  "asr_guess": "fight"
+ },
+ {
+  "id": 1,
+  "rom_start": 1029544,
+  "rom_end": 1034377,
+  "bytes": 4833,
+  "chunks": 2,
+  "seconds": 1.43,
+  "asr_guess": "noob"
+ },
+ {
+  "id": 2,
+  "rom_start": 1034380,
+  "rom_end": 1036810,
+  "bytes": 2430,
+  "chunks": 1,
+  "seconds": 0.72,
+  "asr_guess": "sub"
+ },
+ {
+  "id": 3,
+  "rom_start": 1036813,
+  "rom_end": 1039207,
+  "bytes": 2394,
+  "chunks": 1,
+  "seconds": 0.71,
+  "asr_guess": "sub"
+ },
+ {
+  "id": 4,
+  "rom_start": 1039210,
+  "rom_end": 1043998,
+  "bytes": 4788,
+  "chunks": 2,
+  "seconds": 1.42,
+  "asr_guess": "round"
+ },
+ {
+  "id": 5,
+  "rom_start": 1044001,
+  "rom_end": 1045819,
+  "bytes": 1818,
+  "chunks": 1,
+  "seconds": 0.54,
+  "asr_guess": "sub"
+ },
+ {
+  "id": 6,
+  "rom_start": 1045822,
+  "rom_end": 1049134,
+  "bytes": 3312,
+  "chunks": 2,
+  "seconds": 0.98,
+  "asr_guess": "sub"
+ },
+ {
+  "id": 7,
+  "rom_start": 1049137,
+  "rom_end": 1050298,
+  "bytes": 1161,
+  "chunks": 1,
+  "seconds": 0.34,
+  "asr_guess": "kung"
+ },
+ {
+  "id": 8,
+  "rom_start": 1055812,
+  "rom_end": 1057585,
+  "bytes": 1773,
+  "chunks": 1,
+  "seconds": 0.53,
+  "asr_guess": "noob"
+ },
+ {
+  "id": 9,
+  "rom_start": 1057588,
+  "rom_end": 1058551,
+  "bytes": 963,
+  "chunks": 1,
+  "seconds": 0.29,
+  "asr_guess": "noob"
+ },
+ {
+  "id": 10,
+  "rom_start": 1058554,
+  "rom_end": 1059292,
+  "bytes": 738,
+  "chunks": 1,
+  "seconds": 0.22,
+  "asr_guess": "fight"
+ },
+ {
+  "id": 11,
+  "rom_start": 1059295,
+  "rom_end": 1061581,
+  "bytes": 2286,
+  "chunks": 1,
+  "seconds": 0.68,
+  "asr_guess": "kung"
+ },
+ {
+  "id": 12,
+  "rom_start": 1061584,
+  "rom_end": 1063582,
+  "bytes": 1998,
+  "chunks": 1,
+  "seconds": 0.59,
+  "asr_guess": "noob"
+ },
+ {
+  "id": 13,
+  "rom_start": 1063585,
+  "rom_end": 1065682,
+  "bytes": 2097,
+  "chunks": 1,
+  "seconds": 0.62,
+  "asr_guess": "liu"
+ },
+ {
+  "id": 14,
+  "rom_start": 1065685,
+  "rom_end": 1067008,
+  "bytes": 1323,
+  "chunks": 1,
+  "seconds": 0.39,
+  "asr_guess": "noob"
+ },
+ {
+  "id": 15,
+  "rom_start": 1067011,
+  "rom_end": 1068388,
+  "bytes": 1377,
+  "chunks": 1,
+  "seconds": 0.41,
+  "asr_guess": "wins"
+ },
+ {
+  "id": 16,
+  "rom_start": 1068391,
+  "rom_end": 1072666,
+  "bytes": 4275,
+  "chunks": 2,
+  "seconds": 1.27,
+  "asr_guess": "noob"
+ },
+ {
+  "id": 17,
+  "rom_start": 1072669,
+  "rom_end": 1076251,
+  "bytes": 3582,
+  "chunks": 2,
+  "seconds": 1.06,
+  "asr_guess": "wins"
+ },
+ {
+  "id": 18,
+  "rom_start": 1076254,
+  "rom_end": 1078522,
+  "bytes": 2268,
+  "chunks": 1,
+  "seconds": 0.67,
+  "asr_guess": "sub"
+ },
+ {
+  "id": 19,
+  "rom_start": 1078525,
+  "rom_end": 1083367,
+  "bytes": 4842,
+  "chunks": 2,
+  "seconds": 1.43,
+  "asr_guess": "noob"
+ },
+ {
+  "id": 20,
+  "rom_start": 1083370,
+  "rom_end": 1084576,
+  "bytes": 1206,
+  "chunks": 1,
+  "seconds": 0.36,
+  "asr_guess": "kung"
+ },
+ {
+  "id": 21,
+  "rom_start": 1084579,
+  "rom_end": 1086091,
+  "bytes": 1512,
+  "chunks": 1,
+  "seconds": 0.45,
+  "asr_guess": "noob"
+ },
+ {
+  "id": 22,
+  "rom_start": 1086094,
+  "rom_end": 1089793,
+  "bytes": 3699,
+  "chunks": 2,
+  "seconds": 1.1,
+  "asr_guess": "fight"
+ },
+ {
+  "id": 23,
+  "rom_start": 1089796,
+  "rom_end": 1090732,
+  "bytes": 936,
+  "chunks": 1,
+  "seconds": 0.28,
+  "asr_guess": "liu"
+ },
+ {
+  "id": 24,
+  "rom_start": 1090735,
+  "rom_end": 1095208,
+  "bytes": 4473,
+  "chunks": 3,
+  "seconds": 1.33,
+  "asr_guess": "noob"
+ },
+ {
+  "id": 25,
+  "rom_start": 1109350,
+  "rom_end": 1111987,
+  "bytes": 2637,
+  "chunks": 5,
+  "seconds": 0.78,
+  "asr_guess": "noob"
+ },
+ {
+  "id": 26,
+  "rom_start": 1113937,
+  "rom_end": 1117645,
+  "bytes": 3708,
+  "chunks": 2,
+  "seconds": 1.1,
+  "asr_guess": ""
+ },
+ {
+  "id": 27,
+  "rom_start": 1117648,
+  "rom_end": 1122193,
+  "bytes": 4545,
+  "chunks": 2,
+  "seconds": 1.35,
+  "asr_guess": "kung"
+ },
+ {
+  "id": 28,
+  "rom_start": 1122196,
+  "rom_end": 1123168,
+  "bytes": 972,
+  "chunks": 1,
+  "seconds": 0.29,
+  "asr_guess": "there"
+ },
+ {
+  "id": 29,
+  "rom_start": 1123171,
+  "rom_end": 1127131,
+  "bytes": 3960,
+  "chunks": 2,
+  "seconds": 1.17,
+  "asr_guess": "kitana"
+ },
+ {
+  "id": 30,
+  "rom_start": 1136128,
+  "rom_end": 1138216,
+  "bytes": 2088,
+  "chunks": 1,
+  "seconds": 0.62,
+  "asr_guess": "noob"
+ },
+ {
+  "id": 31,
+  "rom_start": 1138219,
+  "rom_end": 1139218,
+  "bytes": 999,
+  "chunks": 1,
+  "seconds": 0.3,
+  "asr_guess": "kung"
+ },
+ {
+  "id": 32,
+  "rom_start": 1139221,
+  "rom_end": 1140589,
+  "bytes": 1368,
+  "chunks": 2,
+  "seconds": 0.41,
+  "asr_guess": "noob"
+ },
+ {
+  "id": 33,
+  "rom_start": 1143142,
+  "rom_end": 1144321,
+  "bytes": 1179,
+  "chunks": 3,
+  "seconds": 0.35,
+  "asr_guess": "noob"
+ },
+ {
+  "id": 34,
+  "rom_start": 1146856,
+  "rom_end": 1149403,
+  "bytes": 2547,
+  "chunks": 1,
+  "seconds": 0.75,
+  "asr_guess": "choose your"
+ },
+ {
+  "id": 35,
+  "rom_start": 1149406,
+  "rom_end": 1150837,
+  "bytes": 1431,
+  "chunks": 1,
+  "seconds": 0.42,
+  "asr_guess": "sub"
+ },
+ {
+  "id": 36,
+  "rom_start": 1150840,
+  "rom_end": 1155475,
+  "bytes": 4635,
+  "chunks": 2,
+  "seconds": 1.37,
+  "asr_guess": ""
+ },
+ {
+  "id": 37,
+  "rom_start": 1155478,
+  "rom_end": 1157845,
+  "bytes": 2367,
+  "chunks": 1,
+  "seconds": 0.7,
+  "asr_guess": "noob"
+ },
+ {
+  "id": 38,
+  "rom_start": 1159120,
+  "rom_end": 1163026,
+  "bytes": 3906,
+  "chunks": 2,
+  "seconds": 1.16,
+  "asr_guess": "there"
+ },
+ {
+  "id": 39,
+  "rom_start": 1163029,
+  "rom_end": 1165243,
+  "bytes": 2214,
+  "chunks": 1,
+  "seconds": 0.66,
+  "asr_guess": "noob"
+ },
+ {
+  "id": 40,
+  "rom_start": 1165246,
+  "rom_end": 1167658,
+  "bytes": 2412,
+  "chunks": 1,
+  "seconds": 0.71,
+  "asr_guess": ""
+ },
+ {
+  "id": 41,
+  "rom_start": 1167661,
+  "rom_end": 1170163,
+  "bytes": 2502,
+  "chunks": 1,
+  "seconds": 0.74,
+  "asr_guess": "round"
+ },
+ {
+  "id": 42,
+  "rom_start": 1170166,
+  "rom_end": 1173019,
+  "bytes": 2853,
+  "chunks": 1,
+  "seconds": 0.85,
+  "asr_guess": "round"
+ },
+ {
+  "id": 43,
+  "rom_start": 1173022,
+  "rom_end": 1175560,
+  "bytes": 2538,
+  "chunks": 1,
+  "seconds": 0.75,
+  "asr_guess": "fatality"
+ },
+ {
+  "id": 44,
+  "rom_start": 1175563,
+  "rom_end": 1177534,
+  "bytes": 1971,
+  "chunks": 4,
+  "seconds": 0.58,
+  "asr_guess": "kung"
+ },
+ {
+  "id": 45,
+  "rom_start": 1191130,
+  "rom_end": 1193128,
+  "bytes": 1998,
+  "chunks": 1,
+  "seconds": 0.59,
+  "asr_guess": "laugh"
+ },
+ {
+  "id": 46,
+  "rom_start": 1193131,
+  "rom_end": 1196650,
+  "bytes": 3519,
+  "chunks": 2,
+  "seconds": 1.04,
+  "asr_guess": "babality"
+ },
+ {
+  "id": 47,
+  "rom_start": 1196653,
+  "rom_end": 1203214,
+  "bytes": 6561,
+  "chunks": 3,
+  "seconds": 1.94,
+  "asr_guess": "choose your destiny"
+ },
+ {
+  "id": 48,
+  "rom_start": 1207846,
+  "rom_end": 1211392,
+  "bytes": 3546,
+  "chunks": 2,
+  "seconds": 1.05,
+  "asr_guess": "excellent"
+ },
+ {
+  "id": 49,
+  "rom_start": 1211395,
+  "rom_end": 1215562,
+  "bytes": 4167,
+  "chunks": 2,
+  "seconds": 1.23,
+  "asr_guess": "fatality"
+ },
+ {
+  "id": 50,
+  "rom_start": 1215565,
+  "rom_end": 1218454,
+  "bytes": 2889,
+  "chunks": 1,
+  "seconds": 0.86,
+  "asr_guess": "flawless"
+ },
+ {
+  "id": 51,
+  "rom_start": 1218457,
+  "rom_end": 1223920,
+  "bytes": 5463,
+  "chunks": 2,
+  "seconds": 1.62,
+  "asr_guess": "finish her"
+ },
+ {
+  "id": 52,
+  "rom_start": 1223923,
+  "rom_end": 1228963,
+  "bytes": 5040,
+  "chunks": 2,
+  "seconds": 1.49,
+  "asr_guess": "finish him"
+ },
+ {
+  "id": 53,
+  "rom_start": 1228966,
+  "rom_end": 1233988,
+  "bytes": 5022,
+  "chunks": 2,
+  "seconds": 1.49,
+  "asr_guess": "flawless victory"
+ },
+ {
+  "id": 54,
+  "rom_start": 1233991,
+  "rom_end": 1237204,
+  "bytes": 3213,
+  "chunks": 2,
+  "seconds": 0.95,
+  "asr_guess": "friendship"
+ },
+ {
+  "id": 55,
+  "rom_start": 1242529,
+  "rom_end": 1244473,
+  "bytes": 1944,
+  "chunks": 1,
+  "seconds": 0.58,
+  "asr_guess": "noob"
+ },
+ {
+  "id": 56,
+  "rom_start": 1244476,
+  "rom_end": 1249345,
+  "bytes": 4869,
+  "chunks": 2,
+  "seconds": 1.44,
+  "asr_guess": "outstanding"
+ },
+ {
+  "id": 57,
+  "rom_start": 1249348,
+  "rom_end": 1256053,
+  "bytes": 6705,
+  "chunks": 3,
+  "seconds": 1.99,
+  "asr_guess": "test your might"
+ },
+ {
+  "id": 58,
+  "rom_start": 1256056,
+  "rom_end": 1259638,
+  "bytes": 3582,
+  "chunks": 2,
+  "seconds": 1.06,
+  "asr_guess": "choose"
+ },
+ {
+  "id": 59,
+  "rom_start": 1259641,
+  "rom_end": 1261801,
+  "bytes": 2160,
+  "chunks": 1,
+  "seconds": 0.64,
+  "asr_guess": "kung"
+ },
+ {
+  "id": 60,
+  "rom_start": 1261804,
+  "rom_end": 1265476,
+  "bytes": 3672,
+  "chunks": 2,
+  "seconds": 1.09,
+  "asr_guess": "round"
+ },
+ {
+  "id": 61,
+  "rom_start": 1265479,
+  "rom_end": 1267738,
+  "bytes": 2259,
+  "chunks": 4,
+  "seconds": 0.67,
+  "asr_guess": "noob"
+ },
+ {
+  "id": 62,
+  "rom_start": 1272028,
+  "rom_end": 1273027,
+  "bytes": 999,
+  "chunks": 1,
+  "seconds": 0.3,
+  "asr_guess": "there"
+ },
+ {
+  "id": 63,
+  "rom_start": 1273030,
+  "rom_end": 1282399,
+  "bytes": 9369,
+  "chunks": 4,
+  "seconds": 2.78,
+  "asr_guess": "laugh"
+ },
+ {
+  "id": 64,
+  "rom_start": 1282402,
+  "rom_end": 1284508,
+  "bytes": 2106,
+  "chunks": 1,
+  "seconds": 0.62,
+  "asr_guess": "liu"
+ },
+ {
+  "id": 65,
+  "rom_start": 1284511,
+  "rom_end": 1285456,
+  "bytes": 945,
+  "chunks": 1,
+  "seconds": 0.28,
+  "asr_guess": "there"
+ },
+ {
+  "id": 66,
+  "rom_start": 1285459,
+  "rom_end": 1286440,
+  "bytes": 981,
+  "chunks": 1,
+  "seconds": 0.29,
+  "asr_guess": "choose"
+ },
+ {
+  "id": 67,
+  "rom_start": 1286443,
+  "rom_end": 1288639,
+  "bytes": 2196,
+  "chunks": 1,
+  "seconds": 0.65,
+  "asr_guess": "noob"
+ },
+ {
+  "id": 68,
+  "rom_start": 1288642,
+  "rom_end": 1289866,
+  "bytes": 1224,
+  "chunks": 1,
+  "seconds": 0.36,
+  "asr_guess": "noob"
+ },
+ {
+  "id": 69,
+  "rom_start": 1289869,
+  "rom_end": 1292785,
+  "bytes": 2916,
+  "chunks": 1,
+  "seconds": 0.86,
+  "asr_guess": ""
+ },
+ {
+  "id": 70,
+  "rom_start": 1292788,
+  "rom_end": 1293508,
+  "bytes": 720,
+  "chunks": 1,
+  "seconds": 0.21,
+  "asr_guess": ""
+ },
+ {
+  "id": 71,
+  "rom_start": 1293511,
+  "rom_end": 1294483,
+  "bytes": 972,
+  "chunks": 5,
+  "seconds": 0.29,
+  "asr_guess": "there"
+ },
+ {
+  "id": 72,
+  "rom_start": 1294804,
+  "rom_end": 1298629,
+  "bytes": 3825,
+  "chunks": 4,
+  "seconds": 1.13,
+  "asr_guess": ""
+ },
+ {
+  "id": 73,
+  "rom_start": 1305343,
+  "rom_end": 1309249,
+  "bytes": 3906,
+  "chunks": 2,
+  "seconds": 1.16,
+  "asr_guess": "kung"
+ },
+ {
+  "id": 74,
+  "rom_start": 1309252,
+  "rom_end": 1312276,
+  "bytes": 3024,
+  "chunks": 8,
+  "seconds": 0.9,
+  "asr_guess": "noob"
+ }
+]

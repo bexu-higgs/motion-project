@@ -1,0 +1,11 @@
+# Game data is never committed: ROMs, APKs, extracted audio, build output
+*.sfc
+*.smc
+*.apk
+*.zip
+*.wav
+*.mp3
+*.keystore
+out/
+work/
+__pycache__/
