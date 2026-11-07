@@ -1,0 +1,441 @@
+<!doctype html>
+<html lang="kk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>YEMELBAI FILMS — Жаңғырық (интро)</title>
+<style>
+  @font-face { font-family: "InterDisplay"; font-weight: 200; src: url("fonts/InterDisplay-ExtraLight.otf") format("opentype"); }
+  @font-face { font-family: "InterDisplay"; font-weight: 300; src: url("fonts/InterDisplay-Light.otf") format("opentype"); }
+  @font-face { font-family: "InterDisplay"; font-weight: 600; src: url("fonts/InterDisplay-SemiBold.otf") format("opentype"); }
+  html, body { margin: 0; height: 100%; background: #000; color: #ccc; overflow: hidden;
+               font: 14px/1.4 system-ui, sans-serif; }
+  body.preview { display: flex; align-items: center; justify-content: center; }
+  body.preview canvas { width: min(100vw, calc(100vh * 16 / 9)); height: auto; cursor: pointer; }
+  #hud { position: fixed; left: 16px; right: 16px; bottom: 12px; display: none; gap: 12px; align-items: center; }
+  body.preview #hud { display: flex; }
+  #bar { flex: 1; height: 4px; background: #222; border-radius: 2px; cursor: pointer; position: relative; }
+  #fill { position: absolute; inset: 0 auto 0 0; width: 0; background: #888; border-radius: 2px; }
+  #hint { opacity: .6; white-space: nowrap; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="hud"><span id="hint">Басу / Space — ойнату</span><div id="bar"><div id="fill"></div></div><span id="tc">0.00</span></div>
+<audio id="snd" src="output/intro_audio.wav" preload="auto"></audio>
+<script src="timeline.js"></script>
+<script>
+"use strict";
+const T = window.TIMELINE;
+const W = T.width, H = T.height, CX = W / 2, CY = H / 2;
+const RENDER = new URLSearchParams(location.search).has("render");
+
+/* ---------- math ---------- */
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const prog = (t, a, b) => clamp((t - a) / (b - a));
+const lerp = (a, b, x) => a + (b - a) * x;
+const easeInOutCubic = x => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+const easeOutCubic = x => 1 - Math.pow(1 - x, 3);
+const easeInCubic = x => x * x * x;
+const easeInQuad = x => x * x;
+const easeOutExpo = x => x >= 1 ? 1 : 1 - Math.pow(2, -10 * x);
+// 0 before t0, 1 at t0, then exponential decay with time-constant tau
+const pulse = (t, t0, tau) => t < t0 ? 0 : Math.exp(-(t - t0) / tau);
+const wobble = (x) => Math.sin(x * 1.7) * Math.sin(x * 2.9 + 1.3) + 0.5 * Math.sin(x * 5.3 + 0.7);
+function mulberry32(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a);
+  t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+
+/* ---------- canvases ---------- */
+const INK = "rgb(236,232,225)";
+const ink = a => `rgba(236,232,225,${a})`;
+const mk = (w, h) => { const c = document.createElement("canvas"); c.width = w; c.height = h; return c; };
+const canvas = document.getElementById("c");
+canvas.width = W; canvas.height = H;
+const ctx = canvas.getContext("2d");
+const layer = mk(W, H), lctx = layer.getContext("2d");          // all bright elements of the frame
+const glowSrc = mk(W, H), gctx = glowSrc.getContext("2d");      // extra light that only feeds the glow
+const half = mk(W / 2, H / 2), hctx = half.getContext("2d");
+const halfB = mk(W / 2, H / 2), hbctx = halfB.getContext("2d");
+const tint = mk(W, H), tctx = tint.getContext("2d");
+let bg, vignette, ambient, streak, grain = [], titleImg, sweepCv;
+
+const font = (weight, size) => `${weight} ${size}px "InterDisplay"`;
+const capCache = {};
+function capHeight(c, weight, size) {
+  const k = weight + "/" + size;
+  if (!(k in capCache)) { c.font = font(weight, size); capCache[k] = c.measureText("H").actualBoundingBoxAscent; }
+  return capCache[k];
+}
+function layoutTracked(c, text, weight, size, tracking) {
+  c.font = font(weight, size);
+  const chars = [...text];
+  const widths = chars.map(ch => c.measureText(ch).width);
+  const total = widths.reduce((a, b) => a + b, 0) + tracking * (chars.length - 1);
+  return { chars, widths, total };
+}
+// Draws letter-spaced text centred on (cx, cy) (cy = optical centre of the capitals).
+function drawTracked(c, text, weight, size, tracking, cx, cy, alpha, perChar) {
+  if (alpha <= 0.001) return layoutTracked(c, text, weight, size, tracking).total;
+  const L = layoutTracked(c, text, weight, size, tracking);
+  const cap = capHeight(c, weight, size);
+  const n = L.chars.length;
+  let x = cx - L.total / 2;
+  c.save();
+  c.textAlign = "left"; c.textBaseline = "alphabetic"; c.fillStyle = INK;
+  for (let i = 0; i < n; i++) {
+    const o = perChar ? perChar(i, n) : {};
+    const a = alpha * (o.alpha ?? 1);
+    if (a > 0.002) {
+      c.globalAlpha = a;
+      c.filter = (o.blur || 0) > 0.08 ? `blur(${o.blur.toFixed(2)}px)` : "none";
+      c.fillText(L.chars[i], x + (o.dx || 0), cy + cap / 2 + (o.dy || 0));
+    }
+    x += L.widths[i] + tracking;
+  }
+  c.restore();
+  return L.total;
+}
+function hLine(c, cx, cy, halfW, thick, alpha) {
+  if (alpha <= 0.002 || halfW < 0.5) return;
+  const g = c.createLinearGradient(cx - halfW, 0, cx + halfW, 0);
+  g.addColorStop(0, ink(0)); g.addColorStop(0.18, ink(alpha)); g.addColorStop(0.82, ink(alpha)); g.addColorStop(1, ink(0));
+  c.fillStyle = g; c.fillRect(cx - halfW, cy - thick / 2, halfW * 2, thick);
+}
+function dot(c, x, y, r, alpha) {
+  if (alpha <= 0.002) return;
+  c.save(); c.globalAlpha = alpha; c.fillStyle = INK; c.beginPath(); c.arc(x, y, r, 0, Math.PI * 2); c.fill(); c.restore();
+}
+function ring(c, x, y, r, width, alpha) {
+  if (alpha <= 0.002 || r <= 0) return;
+  c.save(); c.globalAlpha = alpha; c.strokeStyle = INK; c.lineWidth = width;
+  c.beginPath(); c.arc(x, y, r, 0, Math.PI * 2); c.stroke(); c.restore();
+}
+
+/* ---------- static assets ---------- */
+const TITLE = { weight: 200, size: 150, track: 0.3 };
+const GRAIN_SCALE = 2.5;   // grain particle size in px
+const STUDIO = { weight: 600, size: 64 };
+function buildAssets() {
+  bg = mk(W, H); { const c = bg.getContext("2d");
+    const g = c.createRadialGradient(CX, CY, 0, CX, CY, W * 0.62);
+    g.addColorStop(0, "#09090b"); g.addColorStop(1, "#000000");
+    c.fillStyle = g; c.fillRect(0, 0, W, H); }
+  vignette = mk(W, H); { const c = vignette.getContext("2d");
+    const g = c.createRadialGradient(CX, CY, H * 0.35, CX, CY, W * 0.62);
+    g.addColorStop(0, "rgba(0,0,0,0)"); g.addColorStop(1, "rgba(0,0,0,0.6)");
+    c.fillStyle = g; c.fillRect(0, 0, W, H); }
+  ambient = mk(W, H); { const c = ambient.getContext("2d");
+    const g = c.createRadialGradient(CX, CY, 0, CX, CY, W * 0.45);
+    g.addColorStop(0, "rgba(255,244,228,0.22)"); g.addColorStop(1, "rgba(255,244,228,0)");
+    c.fillStyle = g; c.fillRect(0, 0, W, H); }
+  // anamorphic streak
+  streak = mk(W, 120); { const c = streak.getContext("2d");
+    const g = c.createLinearGradient(0, 0, W, 0);
+    g.addColorStop(0, "rgba(170,198,255,0)"); g.addColorStop(0.35, "rgba(190,212,255,0.35)");
+    g.addColorStop(0.5, "rgba(225,235,255,1)"); g.addColorStop(0.65, "rgba(190,212,255,0.35)"); g.addColorStop(1, "rgba(170,198,255,0)");
+    c.fillStyle = g;
+    c.filter = "blur(14px)"; c.globalAlpha = 0.6; c.fillRect(0, 52, W, 16);
+    c.filter = "blur(1.2px)"; c.globalAlpha = 1; c.fillRect(0, 59, W, 2); }
+  // film grain (seeded, so every render is identical)
+  const rnd = mulberry32(20261107);
+  const gw = Math.ceil(W / GRAIN_SCALE) + 64, gh = Math.ceil(H / GRAIN_SCALE) + 64;
+  for (let k = 0; k < 14; k++) {
+    const c = mk(gw, gh), cc = c.getContext("2d"), id = cc.createImageData(gw, gh), d = id.data;
+    for (let p = 0; p < d.length; p += 4) {
+      const v = ((rnd() + rnd() + rnd()) / 3) * 255;
+      d[p] = d[p + 1] = d[p + 2] = v; d[p + 3] = 255;
+    }
+    cc.putImageData(id, 0, 0); grain.push(c);
+  }
+  // title, pre-rendered at 2x so scaling stays crisp
+  const m = mk(10, 10).getContext("2d");
+  const L = layoutTracked(m, T.title, TITLE.weight, TITLE.size, TITLE.size * TITLE.track);
+  const pad = 120;
+  titleImg = mk(Math.ceil((L.total + pad * 2) * 2), Math.ceil(TITLE.size * 1.9 * 2));
+  { const c = titleImg.getContext("2d"); c.scale(2, 2);
+    drawTracked(c, T.title, TITLE.weight, TITLE.size, TITLE.size * TITLE.track,
+      titleImg.width / 4, titleImg.height / 4, 1); }
+  titleImg.textWidth = L.total;
+  sweepCv = mk(titleImg.width, titleImg.height);
+}
+
+/* ---------- scenes ---------- */
+function logoY(t) { return lerp(CY, CY - 40, easeInOutCubic(prog(t, T.logoRise, T.logoRise + 1.1))); }
+
+// 1. A hairline grows out of the dark, then splits open like a slit.
+function sceneLine(c, t) {
+  if (t < T.lineStart || t > T.hit1 + 1.4) return;
+  const grow = easeInOutCubic(prog(t, T.lineStart, T.hit1 - 0.04));
+  const flick = t < T.hit1 ? 0.88 + 0.12 * wobble(t * 31) : 1;
+  const pre = 0.5 + 0.5 * easeInCubic(prog(t, T.lineStart, T.hit1));
+  const open = easeOutExpo(prog(t, T.hit1, T.hit1 + 0.9));
+  const fade = 1 - easeInOutCubic(prog(t, T.hit1 + 0.45, T.hit1 + 1.35));
+  const halfW = lerp(1, 380, grow);
+  const gap = open * 60;
+  const y = logoY(t);
+  const a = pre * flick * fade;
+  if (gap < 0.6) hLine(c, CX, y, halfW, 1.6, a);
+  else { hLine(c, CX, y - gap, halfW, 1.3, a); hLine(c, CX, y + gap, halfW, 1.3, a); }
+}
+
+// 2. YEMELBAI FILMS — revealed through the slit, slow tracking, then disperses.
+function sceneLogo(c, t) {
+  if (t < T.hit1 || t > T.logoGone) return;
+  const ly = logoY(t);
+  const out = prog(t, T.logoOut, T.logoGone), outE = easeInCubic(out);
+  const fadeAll = 1 - easeInQuad(out);
+  const outBlur = outE * 12;
+  const size = STUDIO.size;
+  const track = lerp(0.68, 0.5, easeOutCubic(prog(t, T.hit1, T.logoOut))) * size + outE * 0.55 * size;
+
+  c.save();
+  if (t < T.hit1 + 0.9) {   // slit mask
+    const gap = easeOutExpo(prog(t, T.hit1, T.hit1 + 0.9)) * 60;
+    c.beginPath(); c.rect(0, ly - gap, W, gap * 2); c.clip();
+  }
+  const logoW = drawTracked(c, T.studio, STUDIO.weight, size, track, CX, ly, fadeAll, (i, n) => {
+    const d = Math.abs(i - (n - 1) / 2) / ((n - 1) / 2);
+    const p = easeOutCubic(prog(t, T.hit1 + d * 0.18, T.hit1 + 0.75 + d * 0.18));
+    return { blur: (1 - p) * 9 + outBlur, alpha: 0.3 + 0.7 * p };
+  });
+  c.restore();
+
+  // FILMS with side rules
+  const fp = easeOutCubic(prog(t, T.filmsIn, T.filmsIn + 0.9));
+  const fsize = 19;
+  const fy = ly + 56 + (1 - fp) * 10;
+  const ftrack = lerp(1.3, 0.95, easeOutCubic(prog(t, T.filmsIn, T.logoOut))) * fsize + outE * 0.7 * fsize;
+  const fw = drawTracked(c, T.studioSub, 300, fsize, ftrack, CX, fy, fp * fadeAll, () => ({ blur: (1 - fp) * 6 + outBlur }));
+  const rp = easeInOutCubic(prog(t, T.filmsIn + 0.15, T.filmsIn + 1.15));
+  const inner = fw / 2 + 26, outer = Math.max(inner, logoW / 2);
+  const len = (outer - inner) * rp;
+  if (len > 0.5) {
+    c.save(); c.globalAlpha = 0.5 * fadeAll; c.fillStyle = INK;
+    if (outBlur > 0.1) c.filter = `blur(${outBlur.toFixed(2)}px)`;
+    c.fillRect(CX - inner - len, fy - 0.5, len, 1);
+    c.fillRect(CX + inner, fy - 0.5, len, 1);
+    c.restore();
+  }
+  // ҰСЫНАДЫ (presents)
+  const pp = easeOutCubic(prog(t, T.presentsIn, T.presentsIn + 1.0));
+  const psize = 14;
+  drawTracked(c, T.presents, 300, psize, (0.85 + 0.15 * pp) * psize + outE * 0.6 * psize,
+    CX, ly + 122, 0.55 * pp * fadeAll, () => ({ blur: (1 - pp) * 5 + outBlur }));
+}
+
+// 3. A single point of sound — it pulses and sends out echo rings.
+function scenePing(c, t) {
+  if (t < T.dotIn || t > T.hit2 + 2.6) return;
+  let beat = 0;
+  for (let n = 0; n < T.pingCount; n++) beat += Math.pow(0.62, n) * pulse(t, T.ping + n * T.pingInterval, 0.11);
+  const dIn = easeOutCubic(prog(t, T.dotIn, T.dotIn + 0.5));
+  const dOut = 1 - easeInCubic(prog(t, T.converge + 0.2, T.hit2));
+  dot(c, CX, CY, 2.6 + 2.6 * beat, dIn * dOut * (0.7 + 0.3 * Math.min(1, beat)));
+  const ringFade = 1 - 0.75 * easeInQuad(prog(t, T.converge, T.hit2)) - 0.25 * prog(t, T.hit2, T.hit2 + 0.4);
+  for (let n = 0; n < T.pingCount; n++) {
+    const t0 = T.ping + n * T.pingInterval, p = prog(t, t0, t0 + 2.4);
+    if (p <= 0 || p >= 1) continue;
+    const r = 6 + 680 * (1 - Math.pow(1 - p, 1.7));
+    ring(c, CX, CY, r, 1.7 - 0.9 * p, 0.6 * Math.pow(0.68, n) * Math.pow(1 - p, 1.4) * ringFade);
+  }
+}
+
+function drawTitle(c, s, a, blur, sy = 1) {
+  if (a <= 0.002) return;
+  c.save();
+  c.globalAlpha = Math.min(1, a);
+  if (blur > 0.08) c.filter = `blur(${blur.toFixed(2)}px)`;
+  c.translate(CX, CY); c.scale(s, s * sy);
+  c.drawImage(titleImg, -titleImg.width / 4, -titleImg.height / 4, titleImg.width / 2, titleImg.height / 2);
+  c.restore();
+}
+
+// 4. ЖАҢҒЫРЫҚ — echoes fold back into the word; after it lands, it keeps echoing.
+function sceneTitle(c, g, t) {
+  if (t < T.converge || t > T.duration) return;
+  const push = 1 + 0.045 * easeOutCubic(prog(t, T.hit2, T.titleOut + 0.6));
+  if (t < T.hit2) {
+    const e = easeInQuad(prog(t, T.converge, T.hit2));
+    for (let i = 5; i >= 1; i--) {
+      const s = 1 + 0.17 * i * (1 - e);
+      drawTitle(c, s, (0.04 + 0.22 * e) * (1 - (i - 1) * 0.14), (1 - e) * 10 + i * 0.6);
+    }
+    return;
+  }
+  const outP = prog(t, T.titleOut, T.lineCollapse);
+  const sy = 1 - 0.992 * easeInCubic(outP);
+  const titleA = prog(t, T.hit2, T.hit2 + 0.05) * (1 - easeInQuad(prog(outP, 0.82, 1)));
+  drawTitle(c, push, titleA, 0, sy);
+
+  // echo ghosts, in step with the audio delay line
+  const echoFade = 1 - easeInQuad(prog(t, T.titleOut, T.titleOut + 0.35));
+  for (let n = 0; n < T.echoCount; n++) {
+    const t0 = T.hit2 + n * T.echoInterval, p = prog(t, t0, t0 + 1.9);
+    if (p <= 0 || p >= 1) continue;
+    drawTitle(c, push * (1 + 0.2 * easeOutCubic(p)), 0.34 * Math.pow(0.7, n) * Math.pow(1 - p, 1.3) * echoFade, p * 7);
+  }
+  // shock ring at impact
+  { const p = prog(t, T.hit2, T.hit2 + 2.0);
+    if (p > 0 && p < 1) ring(c, CX, CY, 260 + 1000 * easeOutCubic(p), 2.2 - 1.6 * p, 0.3 * Math.pow(1 - p, 1.5) * prog(p, 0, 0.06)); }
+
+  // light sweep across the letters (feeds the glow only)
+  const sp = prog(t, T.sweep, T.sweep + 1.4);
+  if (sp > 0 && sp < 1) {
+    const sc = sweepCv.getContext("2d"), sw = sweepCv.width, sh = sweepCv.height;
+    sc.globalCompositeOperation = "source-over"; sc.clearRect(0, 0, sw, sh); sc.drawImage(titleImg, 0, 0);
+    sc.globalCompositeOperation = "source-in";
+    const bx = lerp(-0.15, 1.15, easeInOutCubic(sp)) * sw;
+    const gr = sc.createLinearGradient(bx - 260, 0, bx + 260, sh * 0.6);
+    gr.addColorStop(0, "rgba(255,248,236,0)"); gr.addColorStop(0.5, "rgba(255,248,236,1)"); gr.addColorStop(1, "rgba(255,248,236,0)");
+    sc.fillStyle = gr; sc.fillRect(0, 0, sw, sh);
+    const env = Math.sin(Math.PI * sp);
+    for (const [cv, a] of [[g, 1.0 * env], [c, 0.18 * env]]) {
+      cv.save(); cv.globalCompositeOperation = "lighter"; cv.globalAlpha = a;
+      cv.translate(CX, CY); cv.scale(push, push);
+      cv.drawImage(sweepCv, -sw / 4, -sh / 4, sw / 2, sh / 2); cv.restore();
+    }
+  }
+
+  // collapse: the word folds into the hairline, the line into a point, the point goes dark
+  if (outP > 0.55) {
+    const la = easeInOutCubic(prog(outP, 0.55, 1));
+    const shrink = easeInOutCubic(prog(t, T.lineCollapse, T.dotHit));
+    const halfW = (titleImg.textWidth / 2 + 30) * push * (1 - shrink);
+    const lineA = la * (1 - prog(t, T.dotHit - 0.05, T.dotHit + 0.05));
+    hLine(c, CX, CY, Math.max(halfW, 3), 1.6, lineA);
+  }
+  if (t >= T.dotHit - 0.05) {
+    const end = 1 - easeInQuad(prog(t, T.dotHit, T.dotGone));
+    dot(c, CX, CY, 2.4 + 3.2 * pulse(t, T.dotHit, 0.12), end * prog(t, T.dotHit - 0.05, T.dotHit));
+    const tail = 1 - prog(t, T.dotGone, T.duration - 0.15);
+    for (let n = 0; n < 3; n++) {
+      const t0 = T.dotHit + n * T.echoInterval, p = prog(t, t0, t0 + 1.5);
+      if (p <= 0 || p >= 1) continue;
+      ring(c, CX, CY, 4 + 420 * (1 - Math.pow(1 - p, 1.8)), 1.4 - 0.7 * p, 0.42 * Math.pow(0.6, n) * Math.pow(1 - p, 1.5) * tail);
+    }
+  }
+}
+
+/* ---------- frame ---------- */
+function render(t) {
+  const frame = Math.round(t * T.fps);
+  const shake = 2.6 * pulse(t, T.hit2, 0.11) + 1.2 * pulse(t, T.hit1, 0.09);
+  const sx = shake * wobble(t * 97), sy = shake * wobble(t * 89 + 4.1);
+
+  for (const c of [lctx, gctx]) { c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, W, H); c.translate(sx, sy); }
+  sceneLine(lctx, t);
+  sceneLogo(lctx, t);
+  scenePing(lctx, t);
+  sceneTitle(lctx, gctx, t);
+
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.globalCompositeOperation = "source-over"; ctx.globalAlpha = 1; ctx.filter = "none";
+  ctx.drawImage(bg, 0, 0);
+
+  const amb = 0.25 * pulse(t, T.hit1, 0.7) + 0.35 * pulse(t, T.hit2, 1.0) + 0.2 * pulse(t, T.dotHit, 0.5)
+            + 0.12 * Math.sin(Math.PI * prog(t, T.sweep, T.sweep + 1.4));
+  ctx.globalCompositeOperation = "lighter";
+  if (amb > 0.003) { ctx.globalAlpha = Math.min(1, amb); ctx.drawImage(ambient, 0, 0); }
+
+  // bloom (computed at half resolution)
+  hctx.globalCompositeOperation = "source-over"; hctx.filter = "none"; hctx.clearRect(0, 0, W / 2, H / 2);
+  hctx.drawImage(layer, 0, 0, W / 2, H / 2);
+  hctx.globalCompositeOperation = "lighter"; hctx.drawImage(glowSrc, 0, 0, W / 2, H / 2);
+  const wide = 0.45 + 0.7 * pulse(t, T.hit1, 0.5) + 0.85 * pulse(t, T.hit2, 0.7) + 0.8 * pulse(t, T.dotHit, 0.4)
+             + 0.5 * easeInCubic(prog(t, T.titleOut, T.lineCollapse)) * (1 - prog(t, T.dotHit, T.dotGone));
+  const tight = 0.35 + 0.5 * pulse(t, T.hit2, 0.35) + 0.3 * pulse(t, T.hit1, 0.3);
+  for (const [r, a] of [[16, wide], [4, tight]]) {
+    hbctx.globalCompositeOperation = "source-over"; hbctx.clearRect(0, 0, W / 2, H / 2);
+    hbctx.filter = `blur(${r}px)`; hbctx.drawImage(half, 0, 0); hbctx.filter = "none";
+    let left = a;
+    while (left > 0.003) { ctx.globalAlpha = Math.min(1, left); ctx.drawImage(halfB, 0, 0, W, H); left -= 1; }
+  }
+
+  // sharp layer, with chromatic split on impacts
+  const ca = 5.5 * pulse(t, T.hit2, 0.15) + 4 * pulse(t, T.hit1, 0.14) + 3 * pulse(t, T.dotHit, 0.12);
+  ctx.globalAlpha = 1;
+  if (ca < 0.35) ctx.drawImage(layer, 0, 0);
+  else {
+    for (const [col, dx] of [["rgb(236,0,0)", -ca], ["rgb(0,232,0)", 0], ["rgb(0,0,225)", ca]]) {
+      tctx.globalCompositeOperation = "source-over"; tctx.clearRect(0, 0, W, H);
+      tctx.drawImage(layer, dx, 0);
+      tctx.globalCompositeOperation = "source-in"; tctx.fillStyle = col; tctx.fillRect(0, 0, W, H);
+      ctx.drawImage(tint, 0, 0);
+    }
+  }
+
+  // anamorphic streak
+  const sa = 0.08 * easeInCubic(prog(t, T.lineStart, T.hit1)) * (t < T.hit1 ? 1 : 0)
+           + 0.6 * pulse(t, T.hit1, 0.35) + 0.85 * pulse(t, T.hit2, 0.5) + 0.5 * pulse(t, T.dotHit, 0.35);
+  if (sa > 0.003) {
+    const sxs = 0.75 + 0.25 * Math.min(1, sa);
+    ctx.globalAlpha = Math.min(1, sa);
+    const yy = (t < T.hit2 ? logoY(t) : CY) + sy;
+    ctx.drawImage(streak, CX - W * sxs / 2 + sx, yy - 60, W * sxs, 120);
+  }
+
+  ctx.globalCompositeOperation = "source-over"; ctx.globalAlpha = 1;
+  ctx.drawImage(vignette, 0, 0);
+
+  // film grain
+  const gr = mulberry32(frame * 7919 + 13);
+  const gi = Math.floor(gr() * grain.length), gj = (gi + 1 + Math.floor(gr() * (grain.length - 1))) % grain.length;
+  const ox = Math.floor(gr() * 64), oy = Math.floor(gr() * 64);
+  ctx.imageSmoothingEnabled = true;
+  const gs = GRAIN_SCALE;
+  ctx.globalCompositeOperation = "screen"; ctx.globalAlpha = 0.022;
+  ctx.drawImage(grain[gi], -ox * gs, -oy * gs, grain[gi].width * gs, grain[gi].height * gs);
+  ctx.globalCompositeOperation = "overlay"; ctx.globalAlpha = 0.09;
+  ctx.drawImage(grain[gj], -oy * gs, -ox * gs, grain[gj].width * gs, grain[gj].height * gs);
+  ctx.globalCompositeOperation = "source-over"; ctx.globalAlpha = 1;
+
+  // fade from / to pure black at the very edges of the clip
+  const edge = Math.max(1 - prog(t, 0, 0.35), prog(t, T.duration - 0.25, T.duration));
+  if (edge > 0) { ctx.globalAlpha = edge; ctx.fillStyle = "#000"; ctx.fillRect(0, 0, W, H); ctx.globalAlpha = 1; }
+}
+
+/* ---------- boot ---------- */
+async function boot() {
+  await Promise.all([
+    document.fonts.load(font(600, 64), T.studio),
+    document.fonts.load(font(300, 19), T.studioSub + T.presents),
+    document.fonts.load(font(200, 150), T.title),
+  ]);
+  buildAssets();
+  window.renderFrame = (i) => { render(i / T.fps); return canvas.toDataURL("image/png"); };
+  window.frameCount = Math.round(T.duration * T.fps);
+  render(0);
+  window.introReady = true;
+  if (!RENDER) startPreview();
+}
+
+function startPreview() {
+  document.body.classList.add("preview");
+  const snd = document.getElementById("snd"), fill = document.getElementById("fill"), tc = document.getElementById("tc");
+  let playing = false, hasAudio = false, t0 = 0, base = 0;
+  snd.addEventListener("canplaythrough", () => hasAudio = true, { once: true });
+  const now = () => playing ? (hasAudio ? snd.currentTime : base + (performance.now() - t0) / 1000) : base;
+  function toggle() {
+    if (playing) { base = now(); playing = false; snd.pause(); return; }
+    if (base >= T.duration - 0.05) base = 0;
+    playing = true; t0 = performance.now();
+    if (hasAudio) { snd.currentTime = base; snd.play().catch(() => hasAudio = false); }
+  }
+  function seek(t) { base = clamp(t, 0, T.duration); t0 = performance.now(); if (hasAudio) snd.currentTime = base; }
+  canvas.addEventListener("click", toggle);
+  addEventListener("keydown", e => { if (e.code === "Space") { e.preventDefault(); toggle(); } });
+  document.getElementById("bar").addEventListener("click", e => {
+    const r = e.currentTarget.getBoundingClientRect(); seek((e.clientX - r.left) / r.width * T.duration);
+  });
+  (function loop() {
+    let t = now();
+    if (t >= T.duration) { t = T.duration; base = t; playing = false; snd.pause(); }
+    render(t);
+    fill.style.width = (t / T.duration * 100) + "%"; tc.textContent = t.toFixed(2);
+    requestAnimationFrame(loop);
+  })();
+}
+boot();
+</script>
+</body>
+</html>
