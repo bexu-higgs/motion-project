@@ -8,3 +8,9 @@
 `soz-alemi/` қалтасында тұтықпаны түзетуге арналған 3 деңгейлі ойын-тапсырма сайты бар («Суретті ата», «Сөйлем құрастыр», «Әңгімені жалғастыр»). Тіркелу қажет емес: сайтты ашып, «Бастау» батырмасын басса болды.
 
 Толығырақ: [soz-alemi/README.md](soz-alemi/README.md) · Сайт: https://bexu-higgs.github.io/motion-project/
+
+---
+
+## 🚗 Maybach E-ABC референс-видеосы
+
+`maybach-eabc/` қалтасында Mercedes-Maybach GLS-тің E-ACTIVE BODY CONTROL «серпілу» режиміне арналған 15 секундтық, 9:16, 30 fps Blender референс-видеосы мен сахна скрипті бар. Толығырақ: [maybach-eabc/README.md](maybach-eabc/README.md)
