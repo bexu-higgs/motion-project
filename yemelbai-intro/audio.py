@@ -186,16 +186,20 @@ pad_env = env_points(t_all, [(0, 0), (0.5, 0.0), (h1, 0.18), (h1 + 0.85, 0.42), 
                              (OUT - 0.6, 0.62), (DH, 0.22), (DH + 1.0, 0.0), (DUR, 0)])
 minor = env_points(t_all, [(0, 0), (h2, 0), (h2 + 1.2, 1), (DUR, 1)])        # the minor third arrives with the logo
 bright = env_points(t_all, [(0, 0), (h2 - 0.05, 0), (h2 + 0.05, 1), (h2 + 2.8, 0.15), (DUR, 0)])
-pad = np.zeros((2, N))
-for f, amp, gate in [(E2, 0.9, None), (B2, 0.6, None), (E3, 0.45, None), (G3, 0.38, minor), (B3, 0.22, None)]:
-    for det, pan in [(-0.0016, -0.7), (0.0, 0.0), (0.0019, 0.7)]:
-        v = saw(f * (1 + det), t_all) * amp * (gate if gate is not None else 1)
-        pad += stereo(v, pan)
-pad_dark = lp(pad, 380, 2)
-pad_bright = lp(pad, 1800, 2)
-pad_mix = (pad_dark + pad_bright * 0.45 * bright) * pad_env
-pad_mix *= 1 + 0.12 * np.sin(2 * np.pi * 0.17 * t_all + np.array([[0], [1.7]]))
-place(pad_mix, 0, 0.11)
+
+
+def make_pad(chord, env, bright, t):
+    """Detuned additive-saw pad: chord = [(freq, amp, gate-envelope or None)], envelopes sampled on t."""
+    out = np.zeros((2, len(t)))
+    for f, amp, gate in chord:
+        for det, pan in [(-0.0016, -0.7), (0.0, 0.0), (0.0019, 0.7)]:
+            out += stereo(saw(f * (1 + det), t) * amp * (gate if gate is not None else 1), pan)
+    y = (lp(out, 380, 2) + lp(out, 1800, 2) * 0.45 * bright) * env
+    return y * (1 + 0.12 * np.sin(2 * np.pi * 0.17 * t + np.array([[0], [1.7]])))
+
+
+place(make_pad([(E2, 0.9, None), (B2, 0.6, None), (E3, 0.45, None), (G3, 0.38, minor), (B3, 0.22, None)],
+               pad_env, bright, t_all), 0, 0.11)
 
 # ---------------------------------------------------------------- 1. line + riser
 d = T["hit1"] - T["lineStart"]
@@ -321,6 +325,73 @@ for n in range(3):
     i0 = int(round(n * T["echoInterval"] * SR))
     last[:, i0:i0 + rep.shape[1]] += 0.6 ** n * rep
 place(reverb(last, hall, 0.6), T["dotHit"], 0.2)
+
+# the intro part ends cleanly at introEnd, so the 6-second card can also stand on its own
+ie, fl = int(T["introEnd"] * SR), int(0.4 * SR)
+mix[:, ie - fl: ie] *= np.linspace(1, 0, fl)
+mix[:, ie:] = 0
+
+# ---------------------------------------------------------------- 6. Ziyo Fest AI — the minor resolves to major
+Gs3, Gs4, Gs5 = 207.65, 415.30, 830.61
+zs, zh, zo, zg = T["zSpin"], T["zHit"], T["zOut"], T["zGone"]
+z0 = T["introEnd"]
+tz = tv(DUR - z0)
+zt = tz + z0
+z_env = env_points(zt, [(z0, 0), (zs, 0.08), (zh, 0.3), (zh + 0.8, 0.62), (zo, 0.55), (zg + 0.2, 0.0), (DUR, 0)])
+z_bright = env_points(zt, [(z0, 0), (zh - 0.05, 0), (zh + 0.05, 1), (zh + 2.5, 0.25), (DUR, 0.1)])
+place(make_pad([(E2, 0.9, None), (B2, 0.6, None), (E3, 0.45, None), (Gs3, 0.4, None), (B3, 0.25, None)],
+               z_env, z_bright, zt), z0, 0.11)
+z_sub = np.sin(2 * np.pi * E1 * zt) * env_points(zt, [(z0, 0), (zs, 0.05), (zh, 0.45), (zo, 0.3), (zg + 0.2, 0), (DUR, 0)])
+place(z_sub, z0, 0.5)
+
+# two colours spinning in against each other: two airy layers panning in opposite directions
+d = zh - zs
+p = tv(d) / d
+for lo_, hi_, direction in [(700, 3000, 1), (1500, 6500, -1)]:
+    x = bp(noise(d), lo_, hi_) * p ** 2 * np.sin(np.pi * np.minimum(1, p * 1.05)) ** 0.3
+    pan = direction * np.cos(np.pi * p)
+    place(fade(np.vstack([x * np.sqrt((1 - pan) / 2), x * np.sqrt((1 + pan) / 2)]), 0.05, 0.01), zs, 0.12)
+srcz = layer((1.0, tone([(E3, 1, 1), (Gs3, 0.7, 1), (B3, 0.6, 0.8), (E4, 0.35, 0.6)], 0.5, 0.25)),
+             (0.5, lp(noise(0.3), 3000) * np.exp(-tv(0.3) / 0.05)))
+wet = reverb(srcz, hall, 1.0, dry=0.0)[:, ::-1]
+sl = int((d + 0.2) * SR)
+wet = wet[:, -sl:] * np.linspace(0, 1, sl) ** 1.8
+place(fade(wet, 0.0, 0.006), zh - sl / SR, 0.75)
+
+# the hit: warm boom, the iris click, and a bright major bloom
+place(reverb(layer((0.9, boom(100, 34, 3.0, 1.1, glide=0.08)), (0.35, crack(0.12, 1000, 8000)),
+                   (0.35, lp(noise(0.8), 500) * np.exp(-tv(0.8) / 0.22))), hall, 0.45), zh, 0.9)
+place(reverb(shutter, room, 0.3), zh - 0.005, 0.3)
+bloom = tone([(E4, 1, 1.2), (Gs4, 0.7, 1), (B4, 0.6, 1), (E5, 0.4, 0.8), (Gs5, 0.18, 0.6)], 4.5, 1.5, attack=0.008)
+place(reverb(bloom, hall, 0.6), zh, 0.12)
+
+# digital pixels: one small pip per square, climbing a pentatonic scale, off to the right
+_z = (HERE / "assets" / "ziyo.js").read_text(encoding="utf-8")
+n_pixels = len(json.loads(_z[_z.index("{", _z.index("window.ZIYO")): _z.rindex("}") + 1])["pixels"])
+scale = [E6, 1479.98, 1661.22, 1975.53, 2217.46]                    # E major pentatonic
+for i in range(n_pixels):
+    f = scale[i % 5] * 2 ** (i // 5)
+    t0 = T["zPixels"] + i * 0.075 + 0.06
+    pt = tv(0.12)
+    pip = (np.sin(2 * np.pi * f * pt) + 0.12 * np.sin(2 * np.pi * 3 * f * pt)) * np.exp(-pt / 0.03)
+    place(reverb(fade(pip, 0.001, 0.01), room, 0.35), t0, 0.045 * (1 - 0.05 * i), pan=0.25 + 0.07 * i)
+
+# letters rise, credit line, light sweep
+d = 1.0
+p = tv(d) / d
+rise = sweep_lp(noise(d), 500 + 6500 * p ** 1.5) * np.sin(np.pi * p) ** 2
+place(np.vstack([rise, np.roll(rise, 300)]), T["zWordIn"], 0.09)
+place(reverb(tone([(E5, 1, 1), (Gs5, 0.55, 0.9), (B5, 0.35, 0.8)], 2.4, 0.9), hall, 0.7), T["zCaptionIn"], 0.04)
+d = 1.5
+p = tv(d) / d
+sh = bp(noise(d), 5000, 13000) * np.sin(np.pi * p) ** 2
+place(np.vstack([sh * np.cos(p * np.pi / 2), sh * np.sin(p * np.pi / 2)]) * 1.4, T["zSweep"], 0.04)
+
+# fade to black: a falling breath
+d = zg - zo + 0.4
+p = tv(d) / d
+fall = sweep_lp(noise(d), 4500 * (1 - p) ** 2 + 200) * np.sin(np.pi * np.minimum(1, p * 1.2)) ** 1.5
+place(reverb(np.vstack([fall, np.roll(fall, 600)]), room, 0.5), zo, 0.12)
 
 # ---------------------------------------------------------------- master
 out = hp(mix, 24, 2)

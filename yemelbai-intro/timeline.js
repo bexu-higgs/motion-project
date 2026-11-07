@@ -1,11 +1,13 @@
 // Интроның ортақ таймлайны (секунд). Бұл файлды intro.html (сурет) де,
 // audio.py (дыбыс) та оқиды — сондықтан сурет пен дыбыс әрдайым синхронды.
 // Ескерту: window.TIMELINE мәнін таза JSON күйінде сақтаңыз (audio.py JSON ретінде оқиды).
+// 0 – introEnd: YEMELBAI FILMS × VeoSeeBot интросы; introEnd – duration: Ziyo Fest AI кадры.
 window.TIMELINE = {
   "width": 1920,
   "height": 1080,
   "fps": 24,
-  "duration": 15.0,
+  "duration": 21.0,
+  "introEnd": 15.0,
 
   "studio": "YEMELBAI",
   "studioSub": "FILMS",
@@ -13,6 +15,9 @@ window.TIMELINE = {
   "captionTop": "ФИЛЬМ ТОЛЫҚТАЙ",
   "captionBottom": "ЖИ ПЛАТФОРМАСЫНДА ЖАСАЛДЫ",
   "logoScale": 2.15,
+  "ziyoTop": "ФИЛЬМ АРНАЙЫ",
+  "ziyoBottom": "ҮШІН ЖАСАЛДЫ",
+  "ziyoScale": 1.38,
 
   "lineStart": 0.5,
   "hit1": 1.75,
@@ -38,5 +43,14 @@ window.TIMELINE = {
   "lineCollapse": 13.0,
   "dotHit": 13.55,
   "dotGone": 14.0,
-  "echoInterval": 0.42
+  "echoInterval": 0.42,
+
+  "zSpin": 15.25,
+  "zHit": 16.3,
+  "zPixels": 16.42,
+  "zWordIn": 16.6,
+  "zCaptionIn": 17.15,
+  "zSweep": 18.2,
+  "zOut": 19.8,
+  "zGone": 20.6
 };

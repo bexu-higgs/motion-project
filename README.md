@@ -3,11 +3,11 @@
 
 ---
 
-## 🎬 YEMELBAI FILMS × VeoSeeBot — фильм интросы
+## 🎬 YEMELBAI FILMS × VeoSeeBot × Ziyo Fest AI — фильм интросы
 
-`yemelbai-intro/` қалтасында AI-фильмге арналған минимализм стиліндегі кино-интро бар: YEMELBAI FILMS логотипі, сосын фильмнің толықтай VeoSeeBot ЖИ платформасында жасалғаны туралы үлкен логотиппен көрсетілетін жазу. 1920×1080, 16:9, 15 сек, синтезделген дыбыс дизайнымен.
+`yemelbai-intro/` қалтасында AI-фильмге арналған минимализм стиліндегі кино-интро бар: YEMELBAI FILMS логотипі → фильмнің толықтай VeoSeeBot ЖИ платформасында жасалғаны → 6 секундтық «Фильм арнайы Ziyo Fest AI үшін жасалды» кадры. 1920×1080, 16:9, синтезделген дыбыс дизайнымен.
 
-Видео: [yemelbai-intro/output/YEMELBAI_FILMS_VeoSeeBot_Intro_1080p.mp4](yemelbai-intro/output/YEMELBAI_FILMS_VeoSeeBot_Intro_1080p.mp4) · Толығырақ: [yemelbai-intro/README.md](yemelbai-intro/README.md)
+Видеолар: [толық (21 с)](yemelbai-intro/output/YEMELBAI_FILMS_Full_Intro_1080p.mp4) · [тек интро (15 с)](yemelbai-intro/output/YEMELBAI_FILMS_VeoSeeBot_Intro_1080p.mp4) · [тек Ziyo Fest AI кадры (6 с)](yemelbai-intro/output/Ziyo_Fest_AI_Card_1080p.mp4) · Толығырақ: [yemelbai-intro/README.md](yemelbai-intro/README.md)
 
 ---
 

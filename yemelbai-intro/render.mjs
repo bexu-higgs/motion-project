@@ -21,7 +21,7 @@ const page = await browser.newPage({ viewport: { width: 1920, height: 1080 }, de
 page.on("pageerror", e => { console.error("page error:", e); process.exit(1); });
 await page.goto(pathToFileURL(join(here, "intro.html")).href + "?render=1");
 await page.waitForFunction(() => window.introReady === true, null, { timeout: 60000 });
-const { fps, frames } = await page.evaluate(() => ({ fps: window.TIMELINE.fps, frames: window.frameCount }));
+const { fps, frames, cut } = await page.evaluate(() => ({ fps: window.TIMELINE.fps, frames: window.frameCount, cut: window.TIMELINE.introEnd }));
 
 const grab = async (i) => Buffer.from((await page.evaluate(i => window.renderFrame(i), i)).split(",")[1], "base64");
 
@@ -41,6 +41,8 @@ if (stillsArg) {
     "-vf", "scale=out_color_matrix=bt709:out_range=tv,format=yuv420p",
     "-c:v", "libx264", "-preset", "slow", "-crf", "17", "-tune", "film",
     "-profile:v", "high", "-level", "4.2",
+    // a keyframe exactly where the intro ends, so build.sh can cut the parts without re-encoding
+    "-force_key_frames", String(cut),
     "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709", "-color_range", "tv",
     target,
   ], { stdio: ["pipe", "inherit", "inherit"] });
