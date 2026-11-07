@@ -3,11 +3,11 @@
 
 ---
 
-## 🎬 YEMELBAI FILMS — «ЖАҢҒЫРЫҚ» интросы
+## 🎬 YEMELBAI FILMS × VeoSeeBot — фильм интросы
 
-`zhangyryq-intro/` қалтасында AI-фильмге арналған минимализм стиліндегі кино-интро бар: 1920×1080, 16:9, 15 сек, синтезделген дыбыс дизайнымен.
+`yemelbai-intro/` қалтасында AI-фильмге арналған минимализм стиліндегі кино-интро бар: YEMELBAI FILMS логотипі, сосын фильмнің толықтай VeoSeeBot ЖИ платформасында жасалғаны туралы үлкен логотиппен көрсетілетін жазу. 1920×1080, 16:9, 15 сек, синтезделген дыбыс дизайнымен.
 
-Видео: [zhangyryq-intro/output/YEMELBAI_FILMS_Zhangyryq_Intro_1080p.mp4](zhangyryq-intro/output/YEMELBAI_FILMS_Zhangyryq_Intro_1080p.mp4) · Толығырақ: [zhangyryq-intro/README.md](zhangyryq-intro/README.md)
+Видео: [yemelbai-intro/output/YEMELBAI_FILMS_VeoSeeBot_Intro_1080p.mp4](yemelbai-intro/output/YEMELBAI_FILMS_VeoSeeBot_Intro_1080p.mp4) · Толығырақ: [yemelbai-intro/README.md](yemelbai-intro/README.md)
 
 ---
 

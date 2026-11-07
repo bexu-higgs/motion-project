@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>YEMELBAI FILMS — Жаңғырық (интро)</title>
+<title>YEMELBAI FILMS × VeoSeeBot — интро</title>
 <style>
   @font-face { font-family: "InterDisplay"; font-weight: 200; src: url("fonts/InterDisplay-ExtraLight.otf") format("opentype"); }
   @font-face { font-family: "InterDisplay"; font-weight: 300; src: url("fonts/InterDisplay-Light.otf") format("opentype"); }
@@ -24,6 +24,7 @@
 <div id="hud"><span id="hint">Басу / Space — ойнату</span><div id="bar"><div id="fill"></div></div><span id="tc">0.00</span></div>
 <audio id="snd" src="output/intro_audio.wav" preload="auto"></audio>
 <script src="timeline.js"></script>
+<script src="assets/logo.js"></script>
 <script>
 "use strict";
 const T = window.TIMELINE;
@@ -57,7 +58,7 @@ const glowSrc = mk(W, H), gctx = glowSrc.getContext("2d");      // extra light t
 const half = mk(W / 2, H / 2), hctx = half.getContext("2d");
 const halfB = mk(W / 2, H / 2), hbctx = halfB.getContext("2d");
 const tint = mk(W, H), tctx = tint.getContext("2d");
-let bg, vignette, ambient, streak, grain = [], titleImg, sweepCv;
+let bg, vignette, ambient, streak, grain = [], sweepCv, sctx;
 
 const font = (weight, size) => `${weight} ${size}px "InterDisplay"`;
 const capCache = {};
@@ -112,7 +113,6 @@ function ring(c, x, y, r, width, alpha) {
 }
 
 /* ---------- static assets ---------- */
-const TITLE = { weight: 200, size: 150, track: 0.3 };
 const GRAIN_SCALE = 2.5;   // grain particle size in px
 const STUDIO = { weight: 600, size: 64 };
 function buildAssets() {
@@ -147,16 +147,7 @@ function buildAssets() {
     }
     cc.putImageData(id, 0, 0); grain.push(c);
   }
-  // title, pre-rendered at 2x so scaling stays crisp
-  const m = mk(10, 10).getContext("2d");
-  const L = layoutTracked(m, T.title, TITLE.weight, TITLE.size, TITLE.size * TITLE.track);
-  const pad = 120;
-  titleImg = mk(Math.ceil((L.total + pad * 2) * 2), Math.ceil(TITLE.size * 1.9 * 2));
-  { const c = titleImg.getContext("2d"); c.scale(2, 2);
-    drawTracked(c, T.title, TITLE.weight, TITLE.size, TITLE.size * TITLE.track,
-      titleImg.width / 4, titleImg.height / 4, 1); }
-  titleImg.textWidth = L.total;
-  sweepCv = mk(titleImg.width, titleImg.height);
+  sweepCv = mk(W, H); sctx = sweepCv.getContext("2d");
 }
 
 /* ---------- scenes ---------- */
@@ -223,86 +214,211 @@ function sceneLogo(c, t) {
     CX, ly + 122, 0.55 * pp * fadeAll, () => ({ blur: (1 - pp) * 5 + outBlur }));
 }
 
-// 3. A single point of sound — it pulses and sends out echo rings.
+/* ---------- VeoSeeBot logo: vector outlines traced from the supplied artwork (assets/logo.js) ---------- */
+const S = T.logoScale;                  // source-image px -> screen px
+const LG = {};                          // star / word / tag: { box, w, h, k, items: [{ path, x, y, w, h }] }
+let SRC_CX, SRC_CY, STAR_C, STAR_R, STAR_TOP, TAG_BOTTOM, WORD_FLOOR, WORD_W, starCv, starCtx;
+
+function partOrigin(P) { return [CX + (P.box[0] - SRC_CX) * S, CY + (P.box[1] - SRC_CY) * S]; }
+// screen-space vertical centre / bottom of one traced path (potrace paths are y-up inside their crop)
+const itemTop = (P, it) => partOrigin(P)[1] + (P.h - it.y - it.h) * P.k;
+const itemBottom = (P, it) => partOrigin(P)[1] + (P.h - it.y) * P.k;
+const itemCX = (P, it) => partOrigin(P)[0] + (it.x + it.w / 2) * P.k;
+
+function buildLogo() {
+  const L = window.LOGO, NS = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(NS, "svg");
+  svg.setAttribute("style", "position:absolute;left:-10000px;top:0;width:10px;height:10px");
+  document.body.appendChild(svg);
+  for (const [name, part] of Object.entries(L.parts)) {
+    const items = part.paths.map(d => {
+      const el = document.createElementNS(NS, "path"); el.setAttribute("d", d); svg.appendChild(el);
+      const b = el.getBBox();
+      return { path: new Path2D(d), x: b.x, y: b.y, w: b.width, h: b.height };
+    });
+    items.sort((a, b) => a.x - b.x);
+    LG[name] = { box: part.box, w: part.w, h: part.h, k: S / L.scale, items };
+  }
+  svg.remove();
+  SRC_CX = (LG.star.box[0] + LG.star.box[2]) / 2;
+  SRC_CY = (LG.star.box[1] + LG.tag.box[3]) / 2;
+  const so = partOrigin(LG.star);
+  STAR_C = [so[0] + LG.star.w * LG.star.k / 2, so[1] + LG.star.h * LG.star.k / 2];
+  STAR_R = Math.hypot(LG.star.w, LG.star.h) * LG.star.k / 2;
+  STAR_TOP = Math.min(...LG.star.items.map(it => itemTop(LG.star, it)));
+  TAG_BOTTOM = Math.max(...LG.tag.items.map(it => itemBottom(LG.tag, it)));
+  WORD_FLOOR = Math.max(...LG.word.items.map(it => itemBottom(LG.word, it))) + 1;
+  const wx = LG.word.items.map(it => itemCX(LG.word, it));
+  WORD_W = (Math.max(...LG.word.items.map(it => partOrigin(LG.word)[0] + (it.x + it.w) * LG.word.k))
+          - Math.min(...LG.word.items.map(it => partOrigin(LG.word)[0] + it.x * LG.word.k)));
+  starCv = mk(Math.ceil(STAR_R * 2 + 80), Math.ceil(STAR_R * 2 + 80));
+  starCtx = starCv.getContext("2d");
+}
+function fillItem(c, P, it) {
+  const [ox, oy] = partOrigin(P);
+  c.save(); c.translate(ox, oy + P.h * P.k); c.scale(P.k, -P.k); c.fill(it.path, "evenodd"); c.restore();
+}
+
+// 3. A single point of light — the centre of the future aperture — pulses and sends out rings.
 function scenePing(c, t) {
   if (t < T.dotIn || t > T.hit2 + 2.6) return;
+  const [x, y] = STAR_C;
   let beat = 0;
   for (let n = 0; n < T.pingCount; n++) beat += Math.pow(0.62, n) * pulse(t, T.ping + n * T.pingInterval, 0.11);
   const dIn = easeOutCubic(prog(t, T.dotIn, T.dotIn + 0.5));
-  const dOut = 1 - easeInCubic(prog(t, T.converge + 0.2, T.hit2));
-  dot(c, CX, CY, 2.6 + 2.6 * beat, dIn * dOut * (0.7 + 0.3 * Math.min(1, beat)));
-  const ringFade = 1 - 0.75 * easeInQuad(prog(t, T.converge, T.hit2)) - 0.25 * prog(t, T.hit2, T.hit2 + 0.4);
+  const dOut = 1 - prog(t, T.hit2 - 0.05, T.hit2 + 0.12);
+  dot(c, x, y, 2.6 + 2.6 * beat, dIn * dOut * (0.7 + 0.3 * Math.min(1, beat)));
+  const ringFade = 1 - 0.6 * easeInQuad(prog(t, T.drawStart, T.hit2)) - 0.4 * prog(t, T.hit2, T.hit2 + 0.3);
   for (let n = 0; n < T.pingCount; n++) {
     const t0 = T.ping + n * T.pingInterval, p = prog(t, t0, t0 + 2.4);
     if (p <= 0 || p >= 1) continue;
-    const r = 6 + 680 * (1 - Math.pow(1 - p, 1.7));
-    ring(c, CX, CY, r, 1.7 - 0.9 * p, 0.6 * Math.pow(0.68, n) * Math.pow(1 - p, 1.4) * ringFade);
+    ring(c, x, y, 6 + 680 * (1 - Math.pow(1 - p, 1.7)), 1.7 - 0.9 * p, 0.6 * Math.pow(0.68, n) * Math.pow(1 - p, 1.4) * ringFade);
   }
 }
 
-function drawTitle(c, s, a, blur, sy = 1) {
-  if (a <= 0.002) return;
+// The star: a light pen traces its outline while it turns like an aperture ring,
+// then on the hit it locks and the fill opens from the centre like an iris.
+function starState(t) {
+  const p = prog(t, T.drawStart, T.hit2), after = t - T.hit2;
+  const spring = after > 0 ? Math.exp(-after / 0.16) * Math.sin(after * 2 * Math.PI * 3.2) : 0;
+  return {
+    rot: after < 0 ? -0.8 * (1 - easeInOutCubic(p) * 0.35 - 0.65 * p) : 0.045 * spring,
+    sc: after < 0 ? lerp(0.86, 1, easeInQuad(p)) : 1 + 0.03 * spring,
+    sweep: easeInOutCubic(prog(t, T.drawStart, T.hit2 - 0.1)),
+    outlineA: t < T.drawStart ? 0 : 1 - prog(t, T.hit2 - 0.02, T.hit2 + 0.3),
+    iris: easeOutExpo(prog(t, T.hit2 - 0.03, T.hit2 + 0.5)),
+  };
+}
+function paintStar(t) {
+  const st = starState(t), c = starCtx, n = starCv.width, P = LG.star, k = P.k;
+  c.setTransform(1, 0, 0, 1, 0, 0); c.globalCompositeOperation = "source-over"; c.globalAlpha = 1; c.filter = "none";
+  c.clearRect(0, 0, n, n);
+  if (st.outlineA <= 0.002 && st.iris <= 0) return st;
+  const toStar = () => { c.translate(n / 2, n / 2); c.rotate(st.rot); c.scale(st.sc * k, -st.sc * k); c.translate(-P.w / 2, -P.h / 2); };
+  if (st.outlineA > 0.002) {
+    c.save(); toStar();
+    c.globalAlpha = st.outlineA; c.strokeStyle = INK; c.lineJoin = "round"; c.lineWidth = 1.7 / (k * st.sc);
+    for (const it of P.items) c.stroke(it.path);
+    c.restore();
+    if (st.sweep < 1) {           // only the part the pen has already passed is visible
+      const g = c.createConicGradient(-Math.PI / 2 + st.rot, n / 2, n / 2);
+      const hi = clamp(st.sweep, 0.001, 0.999), lo = Math.max(0.0005, hi - 0.05);
+      g.addColorStop(0, "#000"); g.addColorStop(lo, "#000"); g.addColorStop(hi, "rgba(0,0,0,0)"); g.addColorStop(1, "rgba(0,0,0,0)");
+      c.globalCompositeOperation = "destination-in"; c.fillStyle = g; c.fillRect(0, 0, n, n);
+      c.globalCompositeOperation = "source-over";
+    }
+  }
+  if (st.iris > 0) {
+    c.save();
+    c.beginPath(); c.arc(n / 2, n / 2, st.iris * n / 2, 0, Math.PI * 2); c.clip();
+    toStar(); c.fillStyle = INK;
+    for (const it of P.items) c.fill(it.path, "evenodd");
+    c.restore();
+  }
+  return st;
+}
+
+// Everything that belongs to the lockup, drawn with the lockup's own camera (push-in, outro squash).
+function drawLockup(c, t, vis, plain) {
+  const n = starCv.width;
+  // star (+ its pen scan line and an impact ghost)
+  c.save(); c.globalAlpha = vis; c.drawImage(starCv, STAR_C[0] - n / 2, STAR_C[1] - n / 2); c.restore();
+  if (!plain) {
+    const st = starState(t);
+    if (t > T.drawStart && t < T.hit2) {
+      const a = -Math.PI / 2 + st.rot + st.sweep * Math.PI * 2, r = STAR_R * 1.05 * st.sc;
+      const g = c.createLinearGradient(STAR_C[0], STAR_C[1], STAR_C[0] + Math.cos(a) * r, STAR_C[1] + Math.sin(a) * r);
+      g.addColorStop(0, ink(0)); g.addColorStop(0.55, ink(0.32)); g.addColorStop(1, ink(0));
+      c.save(); c.globalAlpha = vis * Math.sin(Math.PI * prog(t, T.drawStart, T.hit2)); c.strokeStyle = g; c.lineWidth = 1.2;
+      c.beginPath(); c.moveTo(STAR_C[0], STAR_C[1]); c.lineTo(STAR_C[0] + Math.cos(a) * r, STAR_C[1] + Math.sin(a) * r); c.stroke(); c.restore();
+    }
+    const gp = prog(t, T.hit2, T.hit2 + 1.1);
+    if (gp > 0 && gp < 1) {
+      const s = 1 + 0.45 * easeOutCubic(gp);
+      c.save(); c.globalAlpha = vis * 0.3 * Math.pow(1 - gp, 1.6); c.filter = `blur(${(gp * 8).toFixed(2)}px)`;
+      c.translate(STAR_C[0], STAR_C[1]); c.scale(s, s); c.drawImage(starCv, -n / 2, -n / 2); c.restore();
+    }
+  }
+  // VeoSeeBot — letters rise out of an invisible floor, one after another
+  const Wd = LG.word;
   c.save();
-  c.globalAlpha = Math.min(1, a);
-  if (blur > 0.08) c.filter = `blur(${blur.toFixed(2)}px)`;
-  c.translate(CX, CY); c.scale(s, s * sy);
-  c.drawImage(titleImg, -titleImg.width / 4, -titleImg.height / 4, titleImg.width / 2, titleImg.height / 2);
+  c.beginPath(); c.rect(0, WORD_FLOOR - 600, W, 600); c.clip();
+  Wd.items.forEach((it, i) => {
+    const s0 = T.wordIn + i * 0.065, e = easeOutCubic(prog(t, s0, s0 + 0.85));
+    if (e <= 0) return;
+    c.save();
+    c.globalAlpha = vis * Math.min(1, e * 1.5); c.fillStyle = INK;
+    if (!plain && e < 0.99) c.filter = `blur(${((1 - e) * 5).toFixed(2)}px)`;
+    c.translate(0, (1 - e) * (itemBottom(Wd, it) - itemTop(Wd, it)) * 1.2);
+    fillItem(c, Wd, it); c.restore();
+  });
   c.restore();
+  // VSE AI ZDES — letters gather from a wider spacing into place
+  const Tg = LG.tag;
+  const spread = lerp(1.55, 1, easeOutCubic(prog(t, T.tagIn, T.tagIn + 1.2)));
+  const maxD = Math.max(...Tg.items.map(it => Math.abs(itemCX(Tg, it) - CX)));
+  for (const it of Tg.items) {
+    const dx = itemCX(Tg, it) - CX, d = Math.abs(dx) / maxD;
+    const p = easeOutCubic(prog(t, T.tagIn + d * 0.25, T.tagIn + 0.75 + d * 0.25));
+    if (p <= 0) continue;
+    c.save(); c.globalAlpha = vis * p; c.fillStyle = INK;
+    if (!plain && p < 0.99) c.filter = `blur(${((1 - p) * 4).toFixed(2)}px)`;
+    c.translate(dx * (spread - 1), 0); fillItem(c, Tg, it); c.restore();
+  }
 }
 
-// 4. ЖАҢҒЫРЫҚ — echoes fold back into the word; after it lands, it keeps echoing.
-function sceneTitle(c, g, t) {
-  if (t < T.converge || t > T.duration) return;
-  const push = 1 + 0.045 * easeOutCubic(prog(t, T.hit2, T.titleOut + 0.6));
-  if (t < T.hit2) {
-    const e = easeInQuad(prog(t, T.converge, T.hit2));
-    for (let i = 5; i >= 1; i--) {
-      const s = 1 + 0.17 * i * (1 - e);
-      drawTitle(c, s, (0.04 + 0.22 * e) * (1 - (i - 1) * 0.14), (1 - e) * 10 + i * 0.6);
-    }
-    return;
-  }
-  const outP = prog(t, T.titleOut, T.lineCollapse);
+// 4. VeoSeeBot lockup with the credit line around it; slow push-in; light sweep; outro fold.
+function sceneLockup(c, g, t) {
+  if (t < T.drawStart - 0.05 || t > T.lineCollapse + 0.1) return;
+  paintStar(t);
+  const push = 1 + 0.035 * easeOutCubic(prog(t, T.hit2, T.outro + 0.6));
+  const outP = prog(t, T.outro, T.lineCollapse);
   const sy = 1 - 0.992 * easeInCubic(outP);
-  const titleA = prog(t, T.hit2, T.hit2 + 0.05) * (1 - easeInQuad(prog(outP, 0.82, 1)));
-  drawTitle(c, push, titleA, 0, sy);
+  const vis = 1 - easeInQuad(prog(outP, 0.82, 1));
+  const cam = (cx) => { cx.translate(CX, CY); cx.scale(push, push * sy); cx.translate(-CX, -CY); };
 
-  // echo ghosts, in step with the audio delay line
-  const echoFade = 1 - easeInQuad(prog(t, T.titleOut, T.titleOut + 0.35));
-  for (let n = 0; n < T.echoCount; n++) {
-    const t0 = T.hit2 + n * T.echoInterval, p = prog(t, t0, t0 + 1.9);
-    if (p <= 0 || p >= 1) continue;
-    drawTitle(c, push * (1 + 0.2 * easeOutCubic(p)), 0.34 * Math.pow(0.7, n) * Math.pow(1 - p, 1.3) * echoFade, p * 7);
-  }
-  // shock ring at impact
-  { const p = prog(t, T.hit2, T.hit2 + 2.0);
-    if (p > 0 && p < 1) ring(c, CX, CY, 260 + 1000 * easeOutCubic(p), 2.2 - 1.6 * p, 0.3 * Math.pow(1 - p, 1.5) * prog(p, 0, 0.06)); }
+  c.save(); cam(c);
+  drawLockup(c, t, vis, false);
+  // credit line: «ФИЛЬМ ТОЛЫҚТАЙ» [VeoSeeBot] «ЖИ ПЛАТФОРМАСЫНДА ЖАСАЛДЫ»
+  const capFade = 1 - easeInQuad(prog(t, T.outro, T.outro + 0.35));
+  const size = 30;
+  [[T.captionTop, STAR_TOP - 76, T.captionIn], [T.captionBottom, TAG_BOTTOM + 80, T.captionIn + 0.3]].forEach(([txt, y, t0]) => {
+    const e = easeOutCubic(prog(t, t0, t0 + 1.1));
+    if (e <= 0) return;
+    drawTracked(c, txt, 300, size, lerp(0.7, 0.4, e) * size, CX, y, 0.86 * e * capFade, () => ({ blur: (1 - e) * 5 }));
+  });
+  c.restore();
 
-  // light sweep across the letters (feeds the glow only)
-  const sp = prog(t, T.sweep, T.sweep + 1.4);
+  // light sweep across the lockup (feeds the glow, a touch on the sharp layer)
+  const sp = prog(t, T.sweep, T.sweep + 1.5);
   if (sp > 0 && sp < 1) {
-    const sc = sweepCv.getContext("2d"), sw = sweepCv.width, sh = sweepCv.height;
-    sc.globalCompositeOperation = "source-over"; sc.clearRect(0, 0, sw, sh); sc.drawImage(titleImg, 0, 0);
-    sc.globalCompositeOperation = "source-in";
-    const bx = lerp(-0.15, 1.15, easeInOutCubic(sp)) * sw;
-    const gr = sc.createLinearGradient(bx - 260, 0, bx + 260, sh * 0.6);
+    sctx.setTransform(1, 0, 0, 1, 0, 0); sctx.globalCompositeOperation = "source-over"; sctx.globalAlpha = 1; sctx.filter = "none";
+    sctx.clearRect(0, 0, W, H);
+    sctx.save(); cam(sctx); drawLockup(sctx, t, 1, true); sctx.restore();
+    sctx.globalCompositeOperation = "source-in";
+    const bx = lerp(CX - WORD_W * 0.75, CX + WORD_W * 0.75, easeInOutCubic(sp));
+    const gr = sctx.createLinearGradient(bx - 220, CY - 300, bx + 220, CY + 300);
     gr.addColorStop(0, "rgba(255,248,236,0)"); gr.addColorStop(0.5, "rgba(255,248,236,1)"); gr.addColorStop(1, "rgba(255,248,236,0)");
-    sc.fillStyle = gr; sc.fillRect(0, 0, sw, sh);
+    sctx.fillStyle = gr; sctx.fillRect(0, 0, W, H);
     const env = Math.sin(Math.PI * sp);
-    for (const [cv, a] of [[g, 1.0 * env], [c, 0.18 * env]]) {
-      cv.save(); cv.globalCompositeOperation = "lighter"; cv.globalAlpha = a;
-      cv.translate(CX, CY); cv.scale(push, push);
-      cv.drawImage(sweepCv, -sw / 4, -sh / 4, sw / 2, sh / 2); cv.restore();
+    for (const [cv, a] of [[g, 0.9 * env], [c, 0.15 * env]]) {
+      cv.save(); cv.setTransform(1, 0, 0, 1, 0, 0); cv.globalCompositeOperation = "lighter"; cv.globalAlpha = a;
+      cv.drawImage(sweepCv, 0, 0); cv.restore();
     }
   }
+  // impact shock ring
+  const rp = prog(t, T.hit2, T.hit2 + 2.0);
+  if (rp > 0 && rp < 1) ring(c, STAR_C[0], STAR_C[1], STAR_R * 0.8 + 1000 * easeOutCubic(rp), 2.2 - 1.6 * rp, 0.3 * Math.pow(1 - rp, 1.5) * prog(rp, 0, 0.05));
+}
 
-  // collapse: the word folds into the hairline, the line into a point, the point goes dark
-  if (outP > 0.55) {
-    const la = easeInOutCubic(prog(outP, 0.55, 1));
+// 5. The lockup folds into the hairline, the line into a point, the point goes dark.
+function sceneOutro(c, t) {
+  const outP = prog(t, T.outro, T.lineCollapse);
+  if (outP > 0.55 && t < T.dotHit + 0.1) {
+    const push = 1 + 0.035 * easeOutCubic(prog(t, T.hit2, T.outro + 0.6));
     const shrink = easeInOutCubic(prog(t, T.lineCollapse, T.dotHit));
-    const halfW = (titleImg.textWidth / 2 + 30) * push * (1 - shrink);
-    const lineA = la * (1 - prog(t, T.dotHit - 0.05, T.dotHit + 0.05));
-    hLine(c, CX, CY, Math.max(halfW, 3), 1.6, lineA);
+    const halfW = (WORD_W / 2 + 30) * push * (1 - shrink);
+    hLine(c, CX, CY, Math.max(halfW, 3), 1.6, easeInOutCubic(prog(outP, 0.55, 1)) * (1 - prog(t, T.dotHit - 0.05, T.dotHit + 0.05)));
   }
   if (t >= T.dotHit - 0.05) {
     const end = 1 - easeInQuad(prog(t, T.dotHit, T.dotGone));
@@ -326,14 +442,15 @@ function render(t) {
   sceneLine(lctx, t);
   sceneLogo(lctx, t);
   scenePing(lctx, t);
-  sceneTitle(lctx, gctx, t);
+  sceneLockup(lctx, gctx, t);
+  sceneOutro(lctx, t);
 
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.globalCompositeOperation = "source-over"; ctx.globalAlpha = 1; ctx.filter = "none";
   ctx.drawImage(bg, 0, 0);
 
   const amb = 0.25 * pulse(t, T.hit1, 0.7) + 0.35 * pulse(t, T.hit2, 1.0) + 0.2 * pulse(t, T.dotHit, 0.5)
-            + 0.12 * Math.sin(Math.PI * prog(t, T.sweep, T.sweep + 1.4));
+            + 0.12 * Math.sin(Math.PI * prog(t, T.sweep, T.sweep + 1.5));
   ctx.globalCompositeOperation = "lighter";
   if (amb > 0.003) { ctx.globalAlpha = Math.min(1, amb); ctx.drawImage(ambient, 0, 0); }
 
@@ -341,9 +458,9 @@ function render(t) {
   hctx.globalCompositeOperation = "source-over"; hctx.filter = "none"; hctx.clearRect(0, 0, W / 2, H / 2);
   hctx.drawImage(layer, 0, 0, W / 2, H / 2);
   hctx.globalCompositeOperation = "lighter"; hctx.drawImage(glowSrc, 0, 0, W / 2, H / 2);
-  const wide = 0.45 + 0.7 * pulse(t, T.hit1, 0.5) + 0.85 * pulse(t, T.hit2, 0.7) + 0.8 * pulse(t, T.dotHit, 0.4)
-             + 0.5 * easeInCubic(prog(t, T.titleOut, T.lineCollapse)) * (1 - prog(t, T.dotHit, T.dotGone));
-  const tight = 0.35 + 0.5 * pulse(t, T.hit2, 0.35) + 0.3 * pulse(t, T.hit1, 0.3);
+  const wide = lerp(0.45, 0.26, prog(t, T.hit2, T.hit2 + 1)) + 0.7 * pulse(t, T.hit1, 0.5) + 0.85 * pulse(t, T.hit2, 0.7) + 0.8 * pulse(t, T.dotHit, 0.4)
+             + 0.5 * easeInCubic(prog(t, T.outro, T.lineCollapse)) * (1 - prog(t, T.dotHit, T.dotGone));
+  const tight = lerp(0.35, 0.08, prog(t, T.hit2, T.hit2 + 1)) + 0.5 * pulse(t, T.hit2, 0.35) + 0.3 * pulse(t, T.hit1, 0.3);
   for (const [r, a] of [[16, wide], [4, tight]]) {
     hbctx.globalCompositeOperation = "source-over"; hbctx.clearRect(0, 0, W / 2, H / 2);
     hbctx.filter = `blur(${r}px)`; hbctx.drawImage(half, 0, 0); hbctx.filter = "none";
@@ -370,7 +487,7 @@ function render(t) {
   if (sa > 0.003) {
     const sxs = 0.75 + 0.25 * Math.min(1, sa);
     ctx.globalAlpha = Math.min(1, sa);
-    const yy = (t < T.hit2 ? logoY(t) : CY) + sy;
+    const yy = (t < T.hit2 ? logoY(t) : t < T.dotHit - 0.1 ? STAR_C[1] : CY) + sy;
     ctx.drawImage(streak, CX - W * sxs / 2 + sx, yy - 60, W * sxs, 120);
   }
 
@@ -399,9 +516,10 @@ async function boot() {
   await Promise.all([
     document.fonts.load(font(600, 64), T.studio),
     document.fonts.load(font(300, 19), T.studioSub + T.presents),
-    document.fonts.load(font(200, 150), T.title),
+    document.fonts.load(font(300, 30), T.captionTop + T.captionBottom),
   ]);
   buildAssets();
+  buildLogo();
   window.renderFrame = (i) => { render(i / T.fps); return canvas.toDataURL("image/png"); };
   window.frameCount = Math.round(T.duration * T.fps);
   render(0);
