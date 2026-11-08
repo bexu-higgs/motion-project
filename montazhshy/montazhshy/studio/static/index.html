@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="kk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Монтажшы Студиясы</title>
+<link rel="stylesheet" href="/static/style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%23ff5a36'/><path d='M22 18l26 14-26 14z' fill='white'/></svg>">
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <span class="logo" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 5l11 7-11 7z"/></svg></span>
+    <span class="brand-name">Монтажшы</span><span class="tag">ЖИ</span>
+  </div>
+  <div class="project">
+    <label class="sr" for="projectSel">Жоба</label>
+    <select id="projectSel" title="Жоба"></select>
+    <button class="ghost" id="newProject" title="Жаңа жоба">+ Жаңа жоба</button>
+  </div>
+  <div class="job" id="job" hidden>
+    <span class="job-name" id="jobName"></span>
+    <div class="bar"><i id="jobBar"></i></div>
+    <span class="job-stage" id="jobStage"></span>
+  </div>
+  <div class="actions">
+    <button class="ghost" id="btnAuto" title="ЖИ-сыз жылдам автомонтаж">⚡ Автомонтаж</button>
+    <button class="ghost" id="btnPreview" title="Алдын ала көру рендері">Превью</button>
+    <button class="primary" id="btnFinal" title="Толық сапалы видео + Premiere/DaVinci экспорт">Финал рендер</button>
+  </div>
+</header>
+
+<main class="layout">
+  <aside class="panel bin" aria-label="Медиа">
+    <div class="panel-head"><h2>Медиа</h2><button class="icon" id="rescan" title="Қалтаны қайта сканерлеу">↻</button></div>
+    <label class="drop" id="drop">
+      <input type="file" id="fileInput" multiple hidden>
+      <b>Файлдарды осында сүйреңіз</b>
+      <span>видео · фото · музыка · диктор · сценарий (.txt)</span>
+    </label>
+    <div id="mediaList" class="media-list"></div>
+    <p class="hint" id="folderHint"></p>
+  </aside>
+
+  <section class="center">
+    <div class="viewer">
+      <div class="viewer-tabs" role="tablist">
+        <button role="tab" data-view="preview" class="on">Превью</button>
+        <button role="tab" data-view="final">Финал</button>
+        <span class="viewer-info" id="viewerInfo"></span>
+      </div>
+      <div class="screen" id="screen">
+        <video id="player" controls playsinline preload="metadata"></video>
+        <div class="empty" id="emptyScreen">
+          <div class="empty-icon">🎬</div>
+          <h3>Материалды жүктеп, монтажды бастаңыз</h3>
+          <ol>
+            <li>Сол жаққа видео, фото, музыканы сүйреңіз</li>
+            <li>«Баптау» бөлімінде сценарий мен стильді таңдаңыз</li>
+            <li>Агентке тапсырма жазыңыз — немесе «⚡ Автомонтаж»</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+    <div class="tl-wrap">
+      <div class="tl-head">
+        <h2>Таймлайн</h2>
+        <span id="tlInfo" class="tl-info"></span>
+        <label class="zoom">Масштаб <input type="range" id="zoom" min="1" max="8" step="0.25" value="1"></label>
+      </div>
+      <div class="tl-scroll" id="tlScroll"><canvas id="tl" height="232"></canvas></div>
+    </div>
+  </section>
+
+  <aside class="panel side">
+    <div class="side-tabs" role="tablist">
+      <button role="tab" data-tab="agent" class="on">Агент</button>
+      <button role="tab" data-tab="settings">Баптау</button>
+      <button role="tab" data-tab="files">Файлдар</button>
+    </div>
+
+    <div class="tab agent on" data-pane="agent">
+      <div class="agent-status" id="agentStatus"></div>
+      <div class="chat" id="chat" aria-live="polite"></div>
+      <div class="chips" id="chips">
+        <button>Сценарий бойынша кәсіби монтаж жаса</button>
+        <button>Ырғақты динамикалық ет, дропта күшті кадр қой</button>
+        <button>Ұзақтығын 30 секундқа қысқарт</button>
+        <button>Түсін жылырақ, кинематографиялық ет</button>
+        <button>Музыканы сөз астында тағы да басыңқы қой</button>
+      </div>
+      <form class="composer" id="composer">
+        <textarea id="msg" rows="3" placeholder="Мысалы: Сценарий бойынша 45 секундтық той видеосын жаса, соңында атымызды жаз…"></textarea>
+        <div class="composer-row">
+          <button type="button" class="ghost small" id="resetChat" title="Жаңа сөйлесу">Жаңа сөйлесу</button>
+          <button type="button" class="ghost small" id="stopBtn" hidden>■ Тоқтату</button>
+          <button type="submit" class="primary" id="sendBtn">Жіберу</button>
+        </div>
+      </form>
+    </div>
+
+    <div class="tab settings" data-pane="settings">
+      <section>
+        <h3>Сценарий</h3>
+        <textarea id="script" rows="9" placeholder="# Фильм атауы&#10;1. Таң. Таулар оянады. [01_tau.mp4]&#10;Титр: Іле Алатауы&#10;2. Қала тіршілігі — көшелер, адамдар&#10;Диктор: «Бұл қала ешқашан ұйықтамайды»&#10;3. Түн. Шамдар жанады."></textarea>
+        <p class="hint">Сахналарды нөмірмен немесе бос жолмен бөліңіз. <code>[файл.mp4]</code> не <code>@V3</code> — нақты кадр. <code>Титр:</code> — экрандағы жазу.</p>
+      </section>
+      <section>
+        <h3>Стиль</h3>
+        <div class="styles" id="styles"></div>
+      </section>
+      <section class="row2">
+        <div>
+          <h3>Формат</h3>
+          <div class="seg" id="aspects"></div>
+        </div>
+        <div>
+          <h3>Платформа</h3>
+          <select id="platform"></select>
+        </div>
+      </section>
+      <section class="row2">
+        <div>
+          <h3>Ұзақтығы (с)</h3>
+          <input type="number" id="duration" min="0" step="1" placeholder="авто">
+        </div>
+        <div>
+          <h3>Атауы (титр)</h3>
+          <input type="text" id="title" placeholder="міндетті емес">
+        </div>
+      </section>
+      <section class="row2">
+        <div>
+          <h3>Музыканы келтіру</h3>
+          <select id="musicFit">
+            <option value="auto">Авто</option>
+            <option value="edit">Музыкалық монтаж (ортасын қысқарту)</option>
+            <option value="backtime">Соңынан санау (backtime)</option>
+            <option value="fade">Баяу сөндіру</option>
+            <option value="loop">Қайталау</option>
+          </select>
+        </div>
+        <div>
+          <h3>Түс</h3>
+          <select id="grade"></select>
+        </div>
+      </section>
+      <section>
+        <h3>Anthropic API кілті</h3>
+        <div class="keyrow">
+          <input type="password" id="apiKey" placeholder="sk-ant-…" autocomplete="off">
+          <button class="ghost" id="saveKey">Сақтау</button>
+        </div>
+        <p class="hint">Кілт тек осы компьютерде, <code>.env</code> файлында сақталады. Кілтсіз де «⚡ Автомонтаж» жұмыс істейді.</p>
+      </section>
+    </div>
+
+    <div class="tab files" data-pane="files">
+      <section>
+        <h3>Жоба қалтасы</h3>
+        <p class="path" id="projectPath"></p>
+        <p class="hint">Файлдарды осы қалтаға тікелей көшіріп, ↻ батырмасын басуға да болады.</p>
+      </section>
+      <section>
+        <h3>Нәтижелер</h3>
+        <div id="outputs" class="outputs"></div>
+        <div class="row-actions">
+          <button class="ghost" id="btnExport">Premiere / DaVinci экспорты</button>
+          <button class="ghost" id="btnStems">Финал + стемдер</button>
+        </div>
+      </section>
+    </div>
+  </aside>
+</main>
+
+<template id="tplMedia">
+  <div class="media">
+    <div class="thumb"></div>
+    <div class="meta">
+      <div class="name"></div>
+      <div class="sub"></div>
+    </div>
+    <select class="role" title="Рөлі">
+      <option value="footage">Видео</option>
+      <option value="photo">Фото</option>
+      <option value="music">Музыка</option>
+      <option value="voiceover">Диктор</option>
+      <option value="sfx">Эффект</option>
+    </select>
+    <button class="icon del" title="Жобадан алып тастау">×</button>
+  </div>
+</template>
+
+<script src="/static/app.js"></script>
+</body>
+</html>
